@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  db:
+    # We use the official PostGIS image built on top of PostgreSQL
+    image: postgis/postgis:15-3.3
+    container_name: visit_all_db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: mysecretpassword
+      POSTGRES_DB: visit_all
+    ports:
+      - "5433:5432" # mapped to 5433 just in case your local 5432 is busy
+    volumes:
+      - visit_all_data:/var/lib/postgresql/data
+
+volumes:
+  visit_all_data:

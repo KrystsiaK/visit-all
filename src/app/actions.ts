@@ -1,0 +1,921 @@
+"use server";
+
+import type { PoolClient } from "pg";
+import { pool } from "@/lib/db";
+import { auth } from "@/auth";
+import type { WidgetComponentKey, WidgetDefinitionRecord, WidgetEntityPayload, WidgetEntityType, WidgetInstanceRecord, WidgetLayerType } from "@/lib/widgets";
+import { validateImageUpload } from "@/lib/security";
+import { deleteUploadFromUrl, writeUpload } from "@/lib/storage";
+import { assertRateLimit } from "@/lib/rate-limit";
+
+type AuthSessionUser = {
+  id?: string;
+};
+
+export async function getUserId() {
+  const session = await auth();
+  const userId = (session?.user as AuthSessionUser | undefined)?.id;
+  if (!userId) throw new Error("Unauthorized access. Active authenticated session required.");
+  return userId;
+}
+
+const widgetLibrarySeed: Array<{
+  slug: string;
+  name: string;
+  layer: WidgetLayerType;
+  supportedEntityTypes: WidgetEntityType[];
+  componentKey: WidgetComponentKey;
+  defaultConfig: Record<string, unknown>;
+}> = [
+  {
+    slug: "global_overview",
+    name: "Global Overview",
+    layer: "global",
+    supportedEntityTypes: [],
+    componentKey: "global_overview",
+    defaultConfig: {},
+  },
+  {
+    slug: "entity_info",
+    name: "Entity Info",
+    layer: "entity",
+    supportedEntityTypes: ["pin", "trace", "area"],
+    componentKey: "entity_info",
+    defaultConfig: {},
+  },
+  {
+    slug: "entity_delete",
+    name: "Delete Entity",
+    layer: "entity",
+    supportedEntityTypes: ["pin", "trace", "area"],
+    componentKey: "entity_delete",
+    defaultConfig: {},
+  },
+];
+
+async function ensureWidgetLibrarySeed() {
+  for (const widget of widgetLibrarySeed) {
+    await pool.query(
+      `
+        INSERT INTO widget_definitions (
+          slug, name, layer, supported_entity_types, component_key, default_config, is_system
+        )
+        VALUES ($1, $2, $3, $4, $5, $6::jsonb, TRUE)
+        ON CONFLICT (slug) DO NOTHING
+      `,
+      [
+        widget.slug,
+        widget.name,
+        widget.layer,
+        widget.supportedEntityTypes,
+        widget.componentKey,
+        JSON.stringify(widget.defaultConfig),
+      ]
+    );
+  }
+}
+
+function mapEntityTable(entityType: WidgetEntityType) {
+  if (entityType === "pin") {
+    return { table: "pins", geometryKind: "point" as const };
+  }
+
+  if (entityType === "trace") {
+    return { table: "traces", geometryKind: "line" as const };
+  }
+
+  return { table: "areas", geometryKind: "polygon" as const };
+}
+
+async function createEntityContainerRecord(
+  client: PoolClient,
+  params: {
+    entityType: WidgetEntityType;
+    geometryKind: "point" | "line" | "polygon";
+    collectionId?: string | null;
+    userId: string;
+    sourcePayload: Record<string, unknown>;
+  }
+) {
+  const { rows } = await client.query(
+    `
+      INSERT INTO entity_containers (
+        entity_type,
+        geometry_kind,
+        collection_id,
+        status,
+        source_payload,
+        user_id
+      )
+      VALUES ($1, $2, $3, 'active', $4::jsonb, $5)
+      RETURNING id
+    `,
+    [
+      params.entityType,
+      params.geometryKind,
+      params.collectionId || null,
+      JSON.stringify(params.sourcePayload),
+      params.userId,
+    ]
+  );
+
+  return rows[0].id as string;
+}
+
+// --- MEDIA UPLOADER ---
+export async function uploadImage(formData: FormData) {
+  const userId = await getUserId(); // Verify auth before allowing file uploads
+  await assertRateLimit({
+    scope: "media_upload",
+    identifier: userId,
+    limit: 20,
+    windowMs: 10 * 60 * 1000,
+    blockMs: 10 * 60 * 1000,
+  });
+
+  const file = formData.get('file') as File;
+  validateImageUpload(file);
+  return writeUpload(file);
+}
+
+// --- COLLECTIONS ---
+export async function getCollections(type?: string) {
+  const userId = await getUserId();
+  const traceFallbackCollectionIdSql = `
+    (
+      SELECT c2.id
+      FROM collections c2
+      WHERE c2.user_id = $1
+        AND c2.type = 'trace'
+      ORDER BY c2.created_at ASC
+      LIMIT 1
+    )
+  `;
+  const areaFallbackCollectionIdSql = `
+    (
+      SELECT c2.id
+      FROM collections c2
+      WHERE c2.user_id = $1
+        AND c2.type = 'area'
+      ORDER BY c2.created_at ASC
+      LIMIT 1
+    )
+  `;
+  const selectQuery = `
+    SELECT
+      c.*,
+      CASE
+        WHEN c.type = 'trace' THEN (
+          SELECT COUNT(*)::int
+          FROM traces t
+          LEFT JOIN entity_containers ec ON ec.id = t.container_id
+          WHERE COALESCE(
+            t.collection_id,
+            ec.collection_id,
+            CASE
+              WHEN (
+                SELECT COUNT(*)
+                FROM collections c2
+                WHERE c2.user_id = $1
+                  AND c2.type = 'trace'
+              ) = 1 THEN ${traceFallbackCollectionIdSql}
+              ELSE NULL
+            END
+          ) = c.id
+            AND t.user_id = $1
+            AND COALESCE(ec.status, 'active') = 'active'
+        )
+        WHEN c.type = 'area' THEN (
+          SELECT COUNT(*)::int
+          FROM areas a
+          LEFT JOIN entity_containers ec ON ec.id = a.container_id
+          WHERE COALESCE(
+            a.collection_id,
+            ec.collection_id,
+            CASE
+              WHEN (
+                SELECT COUNT(*)
+                FROM collections c2
+                WHERE c2.user_id = $1
+                  AND c2.type = 'area'
+              ) = 1 THEN ${areaFallbackCollectionIdSql}
+              ELSE NULL
+            END
+          ) = c.id
+            AND a.user_id = $1
+            AND COALESCE(ec.status, 'active') = 'active'
+        )
+        ELSE (
+          SELECT COUNT(*)::int
+          FROM pins p
+          LEFT JOIN entity_containers ec ON ec.id = p.container_id
+          WHERE COALESCE(p.collection_id, ec.collection_id) = c.id
+            AND p.user_id = $1
+            AND COALESCE(ec.status, 'active') = 'active'
+        )
+      END AS "itemCount"
+    FROM collections c
+  `;
+
+  if (type) {
+    const { rows } = await pool.query(
+      `${selectQuery} WHERE c.user_id = $1 AND c.type = $2 ORDER BY c.created_at DESC`,
+      [userId, type]
+    );
+    return rows;
+  }
+  const { rows } = await pool.query(
+    `${selectQuery} WHERE c.user_id = $1 ORDER BY c.created_at DESC`,
+    [userId]
+  );
+  return rows;
+}
+
+export async function createCollection(name: string, color: string, icon: string, type: string = 'pin') {
+  const userId = await getUserId();
+  const { rows } = await pool.query(
+    `INSERT INTO collections (name, color, icon, user_id, type) VALUES ($1, $2, $3, $4, $5) RETURNING id, name, color, icon, type`,
+    [name, color, icon || '📍', userId, type]
+  );
+  return { ...rows[0], itemCount: 0 };
+}
+
+export async function updateCollection(id: string, name: string, color: string, icon: string) {
+  const userId = await getUserId();
+  const { rows } = await pool.query(
+    `UPDATE collections SET name = $1, color = $2, icon = $3 WHERE id = $4 AND user_id = $5 RETURNING id`,
+    [name, color, icon || '📍', id, userId]
+  );
+  return rows[0];
+}
+
+export async function deleteCollection(id: string) {
+  const userId = await getUserId();
+  const client = await pool.connect();
+  const pinImagesToDelete: string[] = [];
+
+  try {
+    await client.query("BEGIN");
+    const { rows: pinRows } = await client.query(
+      `SELECT id, image_url, container_id FROM pins WHERE collection_id = $1 AND user_id = $2`,
+      [id, userId]
+    );
+    const { rows: traceRows } = await client.query(
+      `SELECT id, container_id FROM traces WHERE collection_id = $1 AND user_id = $2`,
+      [id, userId]
+    );
+    const { rows: areaRows } = await client.query(
+      `SELECT id, container_id FROM areas WHERE collection_id = $1 AND user_id = $2`,
+      [id, userId]
+    );
+
+    pinImagesToDelete.push(
+      ...pinRows
+        .map((row: { image_url: string | null }) => row.image_url)
+        .filter((value: string | null): value is string => Boolean(value))
+    );
+
+    const pinIds = pinRows.map((row: { id: string }) => row.id);
+    const traceIds = traceRows.map((row: { id: string }) => row.id);
+    const areaIds = areaRows.map((row: { id: string }) => row.id);
+    const containerIds = [
+      ...pinRows.map((row: { container_id?: string | null }) => row.container_id).filter(Boolean),
+      ...traceRows.map((row: { container_id?: string | null }) => row.container_id).filter(Boolean),
+      ...areaRows.map((row: { container_id?: string | null }) => row.container_id).filter(Boolean),
+    ] as string[];
+
+    if (pinIds.length > 0) {
+      await client.query(
+        `DELETE FROM widget_instances WHERE user_id = $1 AND layer = 'entity' AND entity_type = 'pin' AND entity_id = ANY($2::uuid[])`,
+        [userId, pinIds]
+      );
+    }
+
+    if (traceIds.length > 0) {
+      await client.query(
+        `DELETE FROM widget_instances WHERE user_id = $1 AND layer = 'entity' AND entity_type = 'trace' AND entity_id = ANY($2::uuid[])`,
+        [userId, traceIds]
+      );
+    }
+
+    if (areaIds.length > 0) {
+      await client.query(
+        `DELETE FROM widget_instances WHERE user_id = $1 AND layer = 'entity' AND entity_type = 'area' AND entity_id = ANY($2::uuid[])`,
+        [userId, areaIds]
+      );
+    }
+
+    if (containerIds.length > 0) {
+      await client.query(
+        `DELETE FROM entity_containers WHERE user_id = $1 AND id = ANY($2::uuid[])`,
+        [userId, containerIds]
+      );
+    }
+
+    await client.query(`DELETE FROM pins WHERE collection_id = $1 AND user_id = $2`, [id, userId]);
+    await client.query(`DELETE FROM traces WHERE collection_id = $1 AND user_id = $2`, [id, userId]);
+    await client.query(`DELETE FROM areas WHERE collection_id = $1 AND user_id = $2`, [id, userId]);
+    await client.query(`DELETE FROM collections WHERE id = $1 AND user_id = $2`, [id, userId]);
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+
+  await Promise.all(pinImagesToDelete.map((imageUrl) => deleteUploadFromUrl(imageUrl)));
+
+  return true;
+}
+
+// --- PINS / MEMORIES ---
+export async function getPins() {
+  const userId = await getUserId();
+  const { rows } = await pool.query(`
+    SELECT p.id, p.container_id, COALESCE(p.collection_id, ec.collection_id) as collection_id, p.name, p.note, p.image_url,
+           c.color as "collectionColor",
+           c.icon as "collectionIcon",
+           ST_AsGeoJSON(p.location)::json as location
+    FROM pins p
+    LEFT JOIN entity_containers ec ON ec.id = p.container_id
+    LEFT JOIN collections c ON c.id = COALESCE(p.collection_id, ec.collection_id)
+    WHERE p.user_id = $1
+      AND COALESCE(ec.status, 'active') = 'active'
+  `, [userId]);
+  return rows;
+}
+
+export async function savePin(lng: number, lat: number, collectionId: string, name?: string) {
+  const userId = await getUserId();
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+    const containerId = await createEntityContainerRecord(client, {
+      entityType: "pin",
+      geometryKind: "point",
+      collectionId,
+      userId,
+      sourcePayload: {
+        lng,
+        lat,
+        name: name || null,
+      },
+    });
+
+    const query = `
+      INSERT INTO pins (container_id, collection_id, name, location, user_id) 
+      VALUES ($1, $2, $3, ST_SetSRID(ST_MakePoint($4, $5), 4326), $6)
+      RETURNING id, container_id
+    `;
+    const { rows } = await client.query(query, [containerId, collectionId, name || null, lng, lat, userId]);
+    await client.query("COMMIT");
+    return rows[0];
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function updatePinMemory(id: string, note: string, imageUrl: string | null) {
+  const userId = await getUserId();
+  // TEMP(tech-debt): note/image still live directly on pins during the transition
+  // to entity containers + enrichment tables.
+  const { rows } = await pool.query(
+    `UPDATE pins SET note = $1, image_url = $2 WHERE id = $3 AND user_id = $4 RETURNING id`,
+    [note, imageUrl, id, userId]
+  );
+  return rows[0];
+}
+
+export async function updatePinDetails(id: string, name: string, note: string, imageUrl: string | null) {
+  const userId = await getUserId();
+  // TEMP(tech-debt): title/note/image still live directly on pins during the transition
+  // to canonical container + enrichment records. Keep this write path narrow and field-local.
+  const normalizedName = name.trim() || "Untitled Marker";
+  const { rows } = await pool.query(
+    `
+      UPDATE pins
+      SET name = $1,
+          note = $2,
+          image_url = $3
+      WHERE id = $4
+        AND user_id = $5
+      RETURNING id, name
+    `,
+    [normalizedName, note, imageUrl, id, userId]
+  );
+  return rows[0];
+}
+
+export async function deletePin(id: string) {
+  const userId = await getUserId();
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+    const { rows } = await client.query(
+      `SELECT container_id FROM pins WHERE id = $1 AND user_id = $2 LIMIT 1`,
+      [id, userId]
+    );
+    const containerId = rows[0]?.container_id ?? null;
+
+    if (containerId) {
+      await client.query(
+        `
+          UPDATE entity_containers
+          SET status = 'archived',
+              archived_at = NOW(),
+              purge_after = NOW() + INTERVAL '30 days',
+              updated_at = NOW()
+          WHERE id = $1::uuid
+            AND user_id = $2
+        `,
+        [containerId, userId]
+      );
+    } else {
+      // TEMP(tech-debt): legacy pin rows without a container still fall back to hard delete.
+      await client.query(`DELETE FROM pins WHERE id = $1 AND user_id = $2`, [id, userId]);
+    }
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+  return true;
+}
+
+
+// --- TRACES ---
+export async function getTraces() {
+  const userId = await getUserId();
+  const traceFallbackCollectionIdSql = `
+    CASE
+      WHEN (
+        SELECT COUNT(*)
+        FROM collections c2
+        WHERE c2.user_id = t.user_id
+          AND c2.type = 'trace'
+      ) = 1 THEN (
+        SELECT c2.id
+        FROM collections c2
+        WHERE c2.user_id = t.user_id
+          AND c2.type = 'trace'
+        ORDER BY c2.created_at ASC
+        LIMIT 1
+      )
+      ELSE NULL
+    END
+  `;
+  const { rows } = await pool.query(`
+    SELECT t.id, t.container_id, t.name, t.color,
+           COALESCE(
+             t.collection_id,
+             ec.collection_id,
+             ${traceFallbackCollectionIdSql}
+           ) as collection_id,
+           c.color as "collectionColor",
+           ST_AsGeoJSON(t.path)::json as path 
+    FROM traces t
+    LEFT JOIN entity_containers ec ON ec.id = t.container_id
+    LEFT JOIN collections c ON c.id = COALESCE(
+      t.collection_id,
+      ec.collection_id,
+      ${traceFallbackCollectionIdSql}
+    )
+    WHERE t.user_id = $1
+      AND COALESCE(ec.status, 'active') = 'active'
+  `, [userId]);
+  return rows;
+}
+
+export async function saveTrace(coordinates: [number, number][], color: string, collectionId?: string) {
+  const userId = await getUserId();
+  const wktPoints = coordinates.map(c => `${c[0]} ${c[1]}`).join(', ');
+  const wkt = `LINESTRING(${wktPoints})`;
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+    const containerId = await createEntityContainerRecord(client, {
+      entityType: "trace",
+      geometryKind: "line",
+      collectionId: collectionId || null,
+      userId,
+      sourcePayload: {
+        coordinates,
+        color,
+      },
+    });
+
+    const { rows } = await client.query(
+      `INSERT INTO traces (container_id, path, color, user_id, collection_id) VALUES ($1, ST_SetSRID($2::geometry, 4326), $3, $4, $5) RETURNING id, container_id`,
+      [containerId, wkt, color, userId, collectionId || null]
+    );
+    await client.query("COMMIT");
+    return rows[0];
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function updateTrace(id: string, coordinates: [number, number][]) {
+  const userId = await getUserId();
+  const wktPoints = coordinates.map(c => `${c[0]} ${c[1]}`).join(', ');
+  const wkt = `LINESTRING(${wktPoints})`;
+  const { rows } = await pool.query(`UPDATE traces SET path = ST_SetSRID($1::geometry, 4326) WHERE id = $2 AND user_id = $3 RETURNING id`, [wkt, id, userId]);
+  return rows[0];
+}
+
+export async function deleteTrace(id: string) {
+  const userId = await getUserId();
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+    const { rows } = await client.query(
+      `SELECT container_id FROM traces WHERE id = $1 AND user_id = $2 LIMIT 1`,
+      [id, userId]
+    );
+    const containerId = rows[0]?.container_id ?? null;
+
+    if (containerId) {
+      await client.query(
+        `
+          UPDATE entity_containers
+          SET status = 'archived',
+              archived_at = NOW(),
+              purge_after = NOW() + INTERVAL '30 days',
+              updated_at = NOW()
+          WHERE id = $1::uuid
+            AND user_id = $2
+        `,
+        [containerId, userId]
+      );
+    } else {
+      // TEMP(tech-debt): legacy trace rows without a container still fall back to hard delete.
+      await client.query(`DELETE FROM traces WHERE id = $1 AND user_id = $2`, [id, userId]);
+    }
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+  return true;
+}
+
+
+// ------ AREAS (POLYGONS) ------
+export async function getAreas() {
+  const userId = await getUserId();
+  const areaFallbackCollectionIdSql = `
+    CASE
+      WHEN (
+        SELECT COUNT(*)
+        FROM collections c2
+        WHERE c2.user_id = a.user_id
+          AND c2.type = 'area'
+      ) = 1 THEN (
+        SELECT c2.id
+        FROM collections c2
+        WHERE c2.user_id = a.user_id
+          AND c2.type = 'area'
+        ORDER BY c2.created_at ASC
+        LIMIT 1
+      )
+      ELSE NULL
+    END
+  `;
+  const { rows } = await pool.query(`
+    SELECT a.id, a.container_id, a.name, a.color,
+           COALESCE(
+             a.collection_id,
+             ec.collection_id,
+             ${areaFallbackCollectionIdSql}
+           ) as collection_id,
+           c.color as "collectionColor",
+           ST_AsGeoJSON(a.path)::json as path 
+    FROM areas a
+    LEFT JOIN entity_containers ec ON ec.id = a.container_id
+    LEFT JOIN collections c ON c.id = COALESCE(
+      a.collection_id,
+      ec.collection_id,
+      ${areaFallbackCollectionIdSql}
+    )
+    WHERE a.user_id = $1
+      AND COALESCE(ec.status, 'active') = 'active'
+  `, [userId]);
+  return rows;
+}
+
+export async function saveArea(coordinates: [number, number][], color: string, collectionId?: string) {
+  const userId = await getUserId();
+  const safeCoords = [...coordinates];
+  if (safeCoords.length >= 3) {
+    const first = safeCoords[0];
+    const last = safeCoords[safeCoords.length - 1];
+    if (first[0] !== last[0] || first[1] !== last[1]) safeCoords.push([...first]);
+  }
+  const wktPoints = safeCoords.map(c => `${c[0]} ${c[1]}`).join(', ');
+  const wkt = `POLYGON((${wktPoints}))`;
+
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+    const containerId = await createEntityContainerRecord(client, {
+      entityType: "area",
+      geometryKind: "polygon",
+      collectionId: collectionId || null,
+      userId,
+      sourcePayload: {
+        coordinates: safeCoords,
+        color,
+      },
+    });
+
+    const { rows } = await client.query(
+      `INSERT INTO areas (container_id, path, color, user_id, collection_id) VALUES ($1, ST_SetSRID($2::geometry, 4326), $3, $4, $5) RETURNING id, container_id`,
+      [containerId, wkt, color, userId, collectionId || null]
+    );
+    await client.query("COMMIT");
+    return rows[0];
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function updateArea(id: string, coordinates: [number, number][]) {
+  const userId = await getUserId();
+  const safeCoords = [...coordinates];
+  if (safeCoords.length >= 3) {
+    const first = safeCoords[0];
+    const last = safeCoords[safeCoords.length - 1];
+    if (first[0] !== last[0] || first[1] !== last[1]) safeCoords.push([...first]);
+  }
+  const wktPoints = safeCoords.map(c => `${c[0]} ${c[1]}`).join(', ');
+  const wkt = `POLYGON((${wktPoints}))`;
+
+  const { rows } = await pool.query(`UPDATE areas SET path = ST_SetSRID($1::geometry, 4326) WHERE id = $2 AND user_id = $3 RETURNING id`, [wkt, id, userId]);
+  return rows[0];
+}
+
+export async function deleteArea(id: string) {
+  const userId = await getUserId();
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+    const { rows } = await client.query(
+      `SELECT container_id FROM areas WHERE id = $1 AND user_id = $2 LIMIT 1`,
+      [id, userId]
+    );
+    const containerId = rows[0]?.container_id ?? null;
+
+    if (containerId) {
+      await client.query(
+        `
+          UPDATE entity_containers
+          SET status = 'archived',
+              archived_at = NOW(),
+              purge_after = NOW() + INTERVAL '30 days',
+              updated_at = NOW()
+          WHERE id = $1::uuid
+            AND user_id = $2
+        `,
+        [containerId, userId]
+      );
+    } else {
+      // TEMP(tech-debt): legacy area rows without a container still fall back to hard delete.
+      await client.query(`DELETE FROM areas WHERE id = $1 AND user_id = $2`, [id, userId]);
+    }
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+  return true;
+}
+
+// --- WIDGETS ---
+export async function getWidgetDefinitions(layer?: WidgetLayerType) {
+  await ensureWidgetLibrarySeed();
+
+  const query = layer
+    ? `
+        SELECT
+          id,
+          slug,
+          name,
+          layer,
+          supported_entity_types as "supportedEntityTypes",
+          component_key as "componentKey",
+          default_config as "defaultConfig",
+          is_system as "isSystem"
+        FROM widget_definitions
+        WHERE layer = $1
+        ORDER BY is_system DESC, created_at ASC
+      `
+    : `
+        SELECT
+          id,
+          slug,
+          name,
+          layer,
+          supported_entity_types as "supportedEntityTypes",
+          component_key as "componentKey",
+          default_config as "defaultConfig",
+          is_system as "isSystem"
+        FROM widget_definitions
+        ORDER BY is_system DESC, created_at ASC
+      `;
+
+  const { rows } = await pool.query(query, layer ? [layer] : []);
+  return rows as WidgetDefinitionRecord[];
+}
+
+async function ensureDefaultGlobalWidgets(userId: string) {
+  await ensureWidgetLibrarySeed();
+
+  await pool.query(
+    `
+      INSERT INTO widget_instances (definition_id, layer, position, title, user_id)
+      SELECT d.id, 'global', 0, d.name, $1
+      FROM widget_definitions d
+      WHERE d.slug = 'global_overview'
+      AND NOT EXISTS (
+        SELECT 1
+        FROM widget_instances wi
+        WHERE wi.user_id = $1
+          AND wi.layer = 'global'
+          AND wi.definition_id = d.id
+      )
+    `,
+    [userId]
+  );
+}
+
+async function ensureDefaultEntityWidget(userId: string, entityType: WidgetEntityType, entityId: string) {
+  await ensureWidgetLibrarySeed();
+
+  const defaultEntityWidgets = [
+    { slug: "entity_info", position: 0 },
+    { slug: "entity_delete", position: 99 },
+  ];
+
+  for (const widget of defaultEntityWidgets) {
+    await pool.query(
+      `
+        INSERT INTO widget_instances (definition_id, layer, entity_type, entity_id, position, title, user_id)
+        SELECT d.id, 'entity', $2, $3::uuid, $4, d.name, $1
+        FROM widget_definitions d
+        WHERE d.slug = $5
+        AND NOT EXISTS (
+          SELECT 1
+          FROM widget_instances wi
+          WHERE wi.user_id = $1
+            AND wi.layer = 'entity'
+            AND wi.entity_type = $2
+            AND wi.entity_id = $3::uuid
+            AND wi.definition_id = d.id
+        )
+      `,
+      [userId, entityType, entityId, widget.position, widget.slug]
+    );
+  }
+}
+
+export async function getGlobalWidgets() {
+  const userId = await getUserId();
+  await ensureDefaultGlobalWidgets(userId);
+
+  const { rows } = await pool.query(
+    `
+      SELECT
+        wi.id,
+        wi.definition_id as "definitionId",
+        wd.slug,
+        COALESCE(wi.title, wd.name) as name,
+        wi.layer,
+        wi.entity_type as "entityType",
+        wi.entity_id as "entityId",
+        wd.component_key as "componentKey",
+        wi.position,
+        wi.config,
+        wi.state
+      FROM widget_instances wi
+      INNER JOIN widget_definitions wd ON wd.id = wi.definition_id
+      WHERE wi.user_id = $1
+        AND wi.layer = 'global'
+      ORDER BY wi.position ASC, wi.created_at ASC
+    `,
+    [userId]
+  );
+
+  return rows as WidgetInstanceRecord[];
+}
+
+export async function getEntityWidgets(entityType: WidgetEntityType, entityId: string) {
+  const userId = await getUserId();
+  await ensureDefaultEntityWidget(userId, entityType, entityId);
+
+  const { rows } = await pool.query(
+    `
+      SELECT
+        wi.id,
+        wi.definition_id as "definitionId",
+        wd.slug,
+        COALESCE(wi.title, wd.name) as name,
+        wi.layer,
+        wi.entity_type as "entityType",
+        wi.entity_id as "entityId",
+        wd.component_key as "componentKey",
+        wi.position,
+        wi.config,
+        wi.state
+      FROM widget_instances wi
+      INNER JOIN widget_definitions wd ON wd.id = wi.definition_id
+      WHERE wi.user_id = $1
+        AND wi.layer = 'entity'
+        AND wi.entity_type = $2
+        AND wi.entity_id = $3::uuid
+      ORDER BY wi.position ASC, wi.created_at ASC
+    `,
+    [userId, entityType, entityId]
+  );
+
+  return rows as WidgetInstanceRecord[];
+}
+
+export async function getEntityWidgetPayload(entityType: WidgetEntityType, entityId: string) {
+  const userId = await getUserId();
+  const { table, geometryKind } = mapEntityTable(entityType);
+
+  // TEMP(tech-debt): entity widget payload still pulls some fields from legacy entity tables
+  // until canonical entity containers + enrichment records are introduced.
+  const selectImage = entityType === "pin" ? "e.image_url" : "NULL";
+  const selectDescription = entityType === "pin" ? "e.note" : "NULL";
+
+  const { rows } = await pool.query(
+    `
+      SELECT
+        e.id,
+        $1::text as type,
+        COALESCE(e.name, CONCAT('Untitled ', INITCAP($1::text))) as title,
+        c.name as subtitle,
+        ${selectDescription} as description,
+        ${selectImage} as "imageUrl",
+        c.id as "collectionId",
+        c.name as "collectionName",
+        c.color as "collectionColor",
+        c.type as "collectionType"
+      FROM ${table} e
+      LEFT JOIN collections c ON c.id = e.collection_id
+      WHERE e.id = $2::uuid
+        AND e.user_id = $3
+      LIMIT 1
+    `,
+    [entityType, entityId, userId]
+  );
+
+  const row = rows[0];
+  if (!row) {
+    throw new Error(`Entity not found for widget payload: ${entityType}/${entityId}`);
+  }
+
+  const payload: WidgetEntityPayload = {
+    id: row.id,
+    type: entityType,
+    title: row.title,
+    subtitle: row.subtitle ?? null,
+    description: row.description ?? null,
+    imageUrl: row.imageUrl ?? null,
+    collection: row.collectionId
+      ? {
+          id: row.collectionId,
+          name: row.collectionName,
+          color: row.collectionColor,
+          type: row.collectionType,
+        }
+      : null,
+    geometryKind,
+    metadata: {},
+  };
+
+  return payload;
+}
