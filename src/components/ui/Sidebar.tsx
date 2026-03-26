@@ -51,6 +51,7 @@ interface SidebarProps {
   onDeletePin?: (pinId: string, collectionId?: string) => Promise<void>;
   onWidgetHostMoved?: () => void;
   refreshTrigger?: number;
+  isMobileViewport?: boolean;
   mobileSidebarOpen?: boolean;
   setMobileSidebarOpen?: (val: boolean) => void;
   desktopSidebarVisible?: boolean;
@@ -82,6 +83,7 @@ export default function Sidebar({
   traceDraftFinalized,
   curveMode, setCurveMode, terrain3D, setTerrain3D, isSatellite, setIsSatellite, onResetView,
   onClearSelection, onDataSaved, onDeletePin, onWidgetHostMoved, refreshTrigger,
+  isMobileViewport = false,
   mobileSidebarOpen, setMobileSidebarOpen,
   desktopSidebarVisible = true, sidebarReady = false, shellConfig, shellId = "left_sidebar", shellWidgets = [], shellWidgetsLoaded = false, collectionsLoaded = false,
   onShellWidgetsReorder,
@@ -477,7 +479,7 @@ const shellSections = useMemo(
       <LeftSidebarShell
         key={shellId}
         shellId={shellId}
-        isOpen={mobileSidebarOpen || (desktopSidebarVisible && shellCanEnter)}
+        isOpen={isMobileViewport ? Boolean(mobileSidebarOpen) : desktopSidebarVisible && shellCanEnter}
         shellWidth={desktopWidth}
         initialState={{
           collectionQuery: "",

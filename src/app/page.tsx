@@ -736,6 +736,7 @@ export default function HomePage() {
             onDeletePin={handleDeleteSavedPin}
             onWidgetHostMoved={() => setDbRefreshTrigger(prev => prev + 1)}
             refreshTrigger={dbRefreshTrigger}
+            isMobileViewport={isMobileViewport}
             mobileSidebarOpen={mobileSidebarOpen}
             setMobileSidebarOpen={setMobileSidebarOpen}
             desktopSidebarVisible={desktopSidebarVisible}
