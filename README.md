@@ -66,7 +66,7 @@ GET /api/health
 Recommended first production shape:
 
 1. Railway app
-2. Railway Postgres
+2. Railway PostGIS
 3. Cloudflare R2
 
 Supporting docs:

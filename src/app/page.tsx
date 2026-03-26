@@ -1,17 +1,18 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useState, useEffect, useCallback, useReducer } from "react";
-import MapCanvas from "@/components/map/MapCanvas";
 import Sidebar from "@/components/ui/Sidebar";
 import { WidgetProvider } from "@/components/widgets/WidgetContext";
-import { WidgetOverlay } from "@/components/glass/WidgetOverlay";
-import { WidgetPanel } from "@/components/glass/WidgetPanel";
-import { getCollections, savePin, saveTrace, updateTrace, deleteTrace, saveArea, updateArea, deleteArea, createCollection, deleteCollection, deletePin } from "@/app/actions";
+import { getCollections, getLeftSidebarShell, getLeftSidebarShellWidgets, getTopChromeShell, getTopChromeShellWidgets, reorderShellWidgetPlacements, savePin, saveTrace, updateTrace, deleteTrace, saveArea, updateArea, deleteArea, createCollection, deleteCollection, deletePin, updateLeftSidebarShellState } from "@/app/actions";
 import type { FeatureProperties } from "@/components/widgets/WidgetContext";
-import { Layers3 } from "lucide-react";
+import type { LeftSidebarShellInstance, TopChromeShellInstance } from "@/lib/shells";
+import type { WidgetInstanceRecord, WidgetPlacementRecord } from "@/lib/widgets";
+import { TopChromeShell } from "@/components/shells/TopChromeShell";
+import { MapErrorBoundary } from "@/components/errors/MapErrorBoundary";
+import { ShellErrorBoundary } from "@/components/errors/ShellErrorBoundary";
 import {
   modeToCollectionType,
-  moveCollectionToTop,
   shouldAutoOpenLayerDrawer,
 } from "@/lib/layer-logic";
 import {
@@ -21,6 +22,27 @@ import {
   layerVisibilityReducer,
 } from "@/lib/layer-visibility";
 import { removePathPoint } from "@/lib/path-editing";
+
+const MapCanvas = dynamic(() => import("@/components/map/MapCanvas"), {
+  ssr: false,
+  loading: () => (
+    <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(190,215,235,0.9),rgba(246,242,232,0.92)_38%,rgba(241,236,224,0.98)_100%)]" />
+  ),
+});
+
+const WidgetOverlay = dynamic(
+  () => import("@/components/glass/WidgetOverlay").then((mod) => mod.WidgetOverlay),
+  {
+    ssr: false,
+  }
+);
+
+const WidgetPanel = dynamic(
+  () => import("@/components/glass/WidgetPanel").then((mod) => mod.WidgetPanel),
+  {
+    ssr: false,
+  }
+);
 
 export interface Collection {
   id: string;
@@ -34,6 +56,7 @@ export type InteractionMode = 'pin' | 'trace' | 'area' | 'editTrace' | 'editArea
 
 export default function HomePage() {
   const [mode, setMode] = useState<InteractionMode>('pin');
+  const [shouldMountMap, setShouldMountMap] = useState(false);
   
   const [selectedPoint, setSelectedPoint] = useState<{lng: number, lat: number} | null>(null);
   const [drawingPath, setDrawingPath] = useState<{lng: number, lat: number}[]>([]);
@@ -53,12 +76,20 @@ export default function HomePage() {
   const [resetViewTrigger, setResetViewTrigger] = useState(0);
   const [isMobileViewport, setIsMobileViewport] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [desktopSidebarVisible, setDesktopSidebarVisible] = useState(true);
+  const [sidebarReady, setSidebarReady] = useState(false);
+  const [leftSidebarShell, setLeftSidebarShell] = useState<LeftSidebarShellInstance | null>(null);
+  const [leftSidebarWidgets, setLeftSidebarWidgets] = useState<Array<WidgetPlacementRecord & WidgetInstanceRecord>>([]);
+  const [leftSidebarWidgetsLoaded, setLeftSidebarWidgetsLoaded] = useState(false);
+  const [topChromeShell, setTopChromeShell] = useState<TopChromeShellInstance | null>(null);
+  const [topChromeWidgets, setTopChromeWidgets] = useState<Array<WidgetPlacementRecord & WidgetInstanceRecord>>([]);
+  const [collectionsHydrated, setCollectionsHydrated] = useState(false);
   
   const [dbRefreshTrigger, setDbRefreshTrigger] = useState(0);
 
   const [collections, setCollections] = useState<Collection[]>([]);
   const [allCollections, setAllCollections] = useState<Collection[]>([]);
-  const [activeCollectionId, setActiveCollectionId] = useState<string>("");
+  const [targetCollectionId, setTargetCollectionId] = useState<string>("");
   const [pendingPin, setPendingPin] = useState<{ lng: number; lat: number } | null>(null);
   const [layerVisibility, dispatchLayerVisibility] = useReducer(
     layerVisibilityReducer,
@@ -72,16 +103,17 @@ export default function HomePage() {
     async function fetchCollections() {
       try {
         const collType = modeToCollectionType(mode);
+        setCollectionsHydrated(false);
         const data = await getCollections(collType);
-        const orderedCollections = activeCollectionId ? moveCollectionToTop(data, activeCollectionId) : data;
-        setCollections(orderedCollections);
-        if (orderedCollections.length > 0) {
+        setCollections(data);
+        if (data.length > 0) {
           // Keep current active if it exists in the new list, otherwise pick first
-          const exists = orderedCollections.find((c: Collection) => c.id === activeCollectionId);
-          if (!exists) setActiveCollectionId(orderedCollections[0].id);
+          const exists = data.find((c: Collection) => c.id === targetCollectionId);
+          if (!exists) setTargetCollectionId(data[0].id);
         } else {
-          setActiveCollectionId("");
+          setTargetCollectionId("");
         }
+        setCollectionsHydrated(true);
       } catch (err) { console.error("Failed to load collections", err); } 
     }
     fetchCollections();
@@ -124,11 +156,96 @@ export default function HomePage() {
     };
   }, []);
 
-  const getActiveColor = () => collections.find(c => c.id === activeCollectionId)?.color || "#0000ff";
+  const handleLeftSidebarWidgetsReorder = useCallback(
+    (nextWidgets: Array<WidgetPlacementRecord & WidgetInstanceRecord>) => {
+      setLeftSidebarWidgets(nextWidgets);
+
+      if (!leftSidebarShell?.id) {
+        return;
+      }
+
+      void reorderShellWidgetPlacements(
+        leftSidebarShell.id,
+        nextWidgets.map((widget) => widget.id)
+      ).catch((error) => {
+        console.error("Failed to reorder shell widgets", error);
+      });
+    },
+    [leftSidebarShell?.id]
+  );
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setSidebarReady(true);
+    }, 80);
+
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const idleWindow = window as Window & {
+      requestIdleCallback?: (callback: IdleRequestCallback, options?: IdleRequestOptions) => number;
+      cancelIdleCallback?: (handle: number) => void;
+    };
+
+    const mountMap = () => {
+      if (!cancelled) {
+        setShouldMountMap(true);
+      }
+    };
+
+    if (typeof idleWindow.requestIdleCallback === "function") {
+      const idleId = idleWindow.requestIdleCallback(() => mountMap(), { timeout: 900 });
+
+      return () => {
+        cancelled = true;
+        idleWindow.cancelIdleCallback?.(idleId);
+      };
+    }
+
+    const timeoutId = window.setTimeout(mountMap, 180);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void (async () => {
+      try {
+        const [shell, shellWidgets, chromeShell, chromeWidgets] = await Promise.all([
+          getLeftSidebarShell(),
+          getLeftSidebarShellWidgets(),
+          getTopChromeShell(),
+          getTopChromeShellWidgets(),
+        ]);
+        if (cancelled) {
+          return;
+        }
+
+        setLeftSidebarShell(shell);
+        setLeftSidebarWidgets(shellWidgets);
+        setLeftSidebarWidgetsLoaded(true);
+        setTopChromeShell(chromeShell);
+        setTopChromeWidgets(chromeWidgets);
+        setDesktopSidebarVisible(!shell.state.hidden);
+      } catch (error) {
+        console.error("Failed to load left sidebar shell", error);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const getActiveColor = () => collections.find(c => c.id === targetCollectionId)?.color || "#0000ff";
 
   const confirmCollectionSelection = async (collectionId: string) => {
-    setActiveCollectionId(collectionId);
-    setCollections((currentCollections) => moveCollectionToTop(currentCollections, collectionId));
     dispatchLayerVisibility({ type: "reveal", collectionId });
 
     try {
@@ -182,7 +299,7 @@ export default function HomePage() {
         try {
           const newCollection = await createCollection("undefined", "#0000ff", "!", "pin");
           setCollections([newCollection]);
-          setActiveCollectionId(newCollection.id);
+          setTargetCollectionId(newCollection.id);
           setAutoCreatedCollectionId(newCollection.id);
           setAutoOpenCollectionId(newCollection.id);
         } catch (error) {
@@ -201,12 +318,12 @@ export default function HomePage() {
         setDbRefreshTrigger(p => p + 1);
       }
     } else if (mode === 'area') {
-      if (!activeCollectionId) return;
+      if (!targetCollectionId) return;
       const newPath = [...drawingPath, { lng, lat }];
       setDrawingPath(newPath);
       if (newPath.length === 3) {
         try {
-          const res = await saveArea(newPath.map(p => [p.lng, p.lat]), getActiveColor(), activeCollectionId);
+          const res = await saveArea(newPath.map(p => [p.lng, p.lat]), getActiveColor(), targetCollectionId);
           setEditingAreaId(res.id);
           setMode('editArea');
           setDbRefreshTrigger(p => p + 1);
@@ -231,7 +348,7 @@ export default function HomePage() {
       try {
         await deleteCollection(autoCreatedCollectionId);
         setCollections([]);
-        setActiveCollectionId("");
+        setTargetCollectionId("");
         setAutoCreatedCollectionId(null);
       } catch (error) {
         console.error(error);
@@ -324,7 +441,7 @@ export default function HomePage() {
         try {
           await deleteCollection(autoCreatedCollectionId);
           setCollections([]);
-          setActiveCollectionId("");
+          setTargetCollectionId("");
           setAutoCreatedCollectionId(null);
         } catch (error) {
           console.error(error);
@@ -464,7 +581,7 @@ export default function HomePage() {
         try {
           const newCollection = await createCollection("undefined", "#0000ff", "!", "trace");
           setCollections([newCollection]);
-          setActiveCollectionId(newCollection.id);
+          setTargetCollectionId(newCollection.id);
           setAutoCreatedCollectionId(newCollection.id);
           setAutoOpenCollectionId(newCollection.id);
         } catch (error) {
@@ -537,116 +654,138 @@ export default function HomePage() {
     <WidgetProvider>
       <div className="w-screen h-screen overflow-hidden relative bg-gray-100 text-gray-900 font-sans">
         {/* Invisible backdrop behind left sidebar — prevents map triggers */}
-        <div className="fixed top-0 left-0 bottom-0 z-30 hidden w-[400px] md:block" />
-
-        <button
-          onClick={() => {
-            setIsWidgetPanelOpen(false);
-            setMobileSidebarOpen((value) => !value);
-          }}
-          className="fixed left-4 top-4 z-[60] flex h-14 items-center gap-3 overflow-hidden rounded-2xl border border-black/15 bg-[#f8f6f1]/95 px-4 shadow-[0px_10px_28px_rgba(0,0,0,0.18)] backdrop-blur-xl md:hidden"
-          aria-label={mobileSidebarOpen ? "Close layers drawer" : "Open layers drawer"}
-        >
-          <div className="grid h-8 w-8 grid-cols-2 grid-rows-2 overflow-hidden rounded-xl border border-black/10">
-            <div className="bg-[#ff0000]" />
-            <div className="bg-[#ffff00]" />
-            <div className="bg-[#0000ff]" />
-            <div className="bg-[#111111]" />
-          </div>
-          <div className="flex flex-col items-start justify-center">
-            <span className="text-[9px] font-black uppercase tracking-[0.24em] text-neutral-500">Layers</span>
-            <span className="text-[16px] font-black tracking-tight text-neutral-950">Open Drawer</span>
-          </div>
-          <Layers3 className="h-5 w-5 text-neutral-700" />
-        </button>
-
-        <Sidebar 
-          mode={mode}
-          setMode={setMode}
-          selectedPoint={selectedPoint} 
-          drawingPath={drawingPath}
-          editingTraceId={editingTraceId}
-          editingAreaId={editingAreaId}
-          editingPinData={editingPinData}
-          traceDraftFinalized={traceDraftFinalized}
-          curveMode={curveMode}
-          setCurveMode={setCurveMode}
-          terrain3D={terrain3D}
-          setTerrain3D={setTerrain3D}
-          isSatellite={isSatellite}
-          setIsSatellite={setIsSatellite}
-          onResetView={() => setResetViewTrigger((value) => value + 1)}
-          onClearSelection={handleCancel}
-          onUndo={handleUndo}
-          onDataSaved={handleDataSaved}
-          refreshTrigger={dbRefreshTrigger}
-          mobileSidebarOpen={mobileSidebarOpen}
-          setMobileSidebarOpen={setMobileSidebarOpen}
-          collections={collections}
-          layerVisibility={layerVisibility}
-          setCollections={setCollections}
-          activeCollectionId={activeCollectionId}
-          setActiveCollectionId={setActiveCollectionId}
-          pendingPin={pendingPin}
-          onCollectionConfirm={confirmCollectionSelection}
-          onToggleCollectionVisibility={toggleCollectionVisibility}
-          onShowOnlyCollection={showOnlyCollection}
-          autoOpenCollectionId={autoOpenCollectionId}
-          onFinishTraceDraft={handleFinishTraceDraft}
-          selectedTraceNodeIndex={selectedTraceNodeIndex}
-          onRemoveSelectedTraceNode={handleRemoveSelectedTraceNode}
-          onCollectionUpdated={() => setDbRefreshTrigger((value) => value + 1)}
+        <div
+          className={`fixed top-0 left-0 bottom-0 z-30 hidden md:block ${desktopSidebarVisible ? "" : "pointer-events-none opacity-0"}`}
+          style={{ width: `${(leftSidebarShell?.config.width ?? 360) + 40}px` }}
         />
 
-            <MapCanvas 
-              mode={mode}
-              onMapClick={handleMapClick} 
-              onTraceSelected={handleTraceSelected}
-              onAreaSelected={handleAreaSelected}
-              onPinSelected={handlePinSelected}
-              onPendingPinCancel={handlePendingPinCancel}
-              onTraceNodeClick={handleTraceNodeClick}
-              selectedTraceNodeIndex={selectedTraceNodeIndex}
-              selectedPoint={selectedPoint}
-              drawingPath={drawingPath}
-              setDrawingPath={setDrawingPath}
-              editingTraceId={editingTraceId}
-              editingAreaId={editingAreaId}
-              traceDraftFinalized={traceDraftFinalized}
-              curveMode={curveMode}
-              terrain3D={terrain3D}
-              isSatellite={isSatellite}
-              resetViewTrigger={resetViewTrigger}
-              refreshTrigger={dbRefreshTrigger}
-              hiddenCollectionIds={invisibleCollectionIds}
-            />
+        <ShellErrorBoundary title="Top Shell Fault">
+          <TopChromeShell
+            shell={topChromeShell}
+            shellWidgets={topChromeWidgets}
+            desktopSidebarVisible={desktopSidebarVisible}
+            mobileSidebarOpen={mobileSidebarOpen}
+            shellWidth={leftSidebarShell?.config.width ?? 360}
+            onToggleDesktopSidebar={() => {
+              const nextVisible = !desktopSidebarVisible;
+              setDesktopSidebarVisible(nextVisible);
+              void updateLeftSidebarShellState({ hidden: !nextVisible }).catch((error) => {
+                console.error("Failed to update left sidebar shell state", error);
+              });
+            }}
+            onToggleMobileSidebar={() => {
+              setIsWidgetPanelOpen(false);
+              setMobileSidebarOpen((value) => !value);
+            }}
+          />
+        </ShellErrorBoundary>
+
+        <ShellErrorBoundary title="Left Shell Fault">
+          <Sidebar 
+            mode={mode}
+            setMode={setMode}
+            selectedPoint={selectedPoint} 
+            drawingPath={drawingPath}
+            editingTraceId={editingTraceId}
+            editingAreaId={editingAreaId}
+            editingPinData={editingPinData}
+            traceDraftFinalized={traceDraftFinalized}
+            curveMode={curveMode}
+            setCurveMode={setCurveMode}
+            terrain3D={terrain3D}
+            setTerrain3D={setTerrain3D}
+            isSatellite={isSatellite}
+            setIsSatellite={setIsSatellite}
+            onResetView={() => setResetViewTrigger((value) => value + 1)}
+            onClearSelection={handleCancel}
+            onUndo={handleUndo}
+            onDataSaved={handleDataSaved}
+            refreshTrigger={dbRefreshTrigger}
+            mobileSidebarOpen={mobileSidebarOpen}
+            setMobileSidebarOpen={setMobileSidebarOpen}
+            desktopSidebarVisible={desktopSidebarVisible}
+            sidebarReady={sidebarReady}
+            shellId={leftSidebarShell?.id ?? "left_sidebar"}
+            shellConfig={leftSidebarShell?.config}
+            shellWidgets={leftSidebarWidgets}
+            onShellWidgetsReorder={handleLeftSidebarWidgetsReorder}
+            shellWidgetsLoaded={leftSidebarWidgetsLoaded}
+            collectionsLoaded={collectionsHydrated}
+            collections={collections}
+            layerVisibility={layerVisibility}
+            setCollections={setCollections}
+            targetCollectionId={targetCollectionId}
+            setTargetCollectionId={setTargetCollectionId}
+            pendingPin={pendingPin}
+            onCollectionConfirm={confirmCollectionSelection}
+            onToggleCollectionVisibility={toggleCollectionVisibility}
+            onShowOnlyCollection={showOnlyCollection}
+            autoOpenCollectionId={autoOpenCollectionId}
+            onFinishTraceDraft={handleFinishTraceDraft}
+            selectedTraceNodeIndex={selectedTraceNodeIndex}
+            onRemoveSelectedTraceNode={handleRemoveSelectedTraceNode}
+          />
+        </ShellErrorBoundary>
+
+            <MapErrorBoundary>
+              {shouldMountMap ? (
+                <MapCanvas 
+                  mode={mode}
+                  onMapClick={handleMapClick} 
+                  onTraceSelected={handleTraceSelected}
+                  onAreaSelected={handleAreaSelected}
+                  onPinSelected={handlePinSelected}
+                  onPendingPinCancel={handlePendingPinCancel}
+                  onTraceNodeClick={handleTraceNodeClick}
+                  selectedTraceNodeIndex={selectedTraceNodeIndex}
+                  selectedPoint={selectedPoint}
+                  drawingPath={drawingPath}
+                  setDrawingPath={setDrawingPath}
+                  editingTraceId={editingTraceId}
+                  editingAreaId={editingAreaId}
+                  traceDraftFinalized={traceDraftFinalized}
+                  curveMode={curveMode}
+                  terrain3D={terrain3D}
+                  isSatellite={isSatellite}
+                  resetViewTrigger={resetViewTrigger}
+                  refreshTrigger={dbRefreshTrigger}
+                  hiddenCollectionIds={invisibleCollectionIds}
+                />
+              ) : (
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(190,215,235,0.9),rgba(246,242,232,0.92)_38%,rgba(241,236,224,0.98)_100%)]" />
+              )}
+            </MapErrorBoundary>
 
             {/* Invisible backdrop behind right WidgetOverlay — prevents map triggers */}
             {mode === 'editPin' && !!editingPinData && (
               <div className="fixed top-0 right-0 bottom-0 z-45 hidden w-[520px] md:block" />
             )}
             
-            <WidgetOverlay 
-              isOpen={mode === 'editPin' && !!editingPinData} 
-              onClose={() => { setEditingPinData(null); setMode('pin'); }}
-              onDataSaved={handleDataSaved}
-              onDeletePin={handleDeleteSavedPin}
-              entityType="pin"
-              entityId={editingPinData?.id}
-              data={editingPinData ? {
-                id: editingPinData.id,
-                title: editingPinData.name || "Untitled Marker",
-                description: editingPinData.note || "",
-                imageUrl: editingPinData.image_url,
-                collectionId: editingPinData.collectionId,
-                tags: ["Curated Map", "Location"],
-              } : undefined}
-            />
+            {mode === 'editPin' && !!editingPinData ? (
+              <WidgetOverlay 
+                isOpen={mode === 'editPin' && !!editingPinData} 
+                onClose={() => { setEditingPinData(null); setMode('pin'); }}
+                onDataSaved={handleDataSaved}
+                onDeletePin={handleDeleteSavedPin}
+                entityType="pin"
+                entityId={editingPinData?.id}
+                data={editingPinData ? {
+                  id: editingPinData.id,
+                  title: editingPinData.name || "Untitled Marker",
+                  description: editingPinData.note || "",
+                  imageUrl: editingPinData.image_url,
+                  collectionId: editingPinData.collectionId,
+                  tags: ["Curated Map", "Location"],
+                } : undefined}
+              />
+            ) : null}
 
-            <WidgetPanel
-              isOpen={isWidgetPanelOpen}
-              onClose={() => setIsWidgetPanelOpen(false)}
-            />
+            {isWidgetPanelOpen ? (
+              <WidgetPanel
+                isOpen={isWidgetPanelOpen}
+                onClose={() => setIsWidgetPanelOpen(false)}
+              />
+            ) : null}
             
             {/* SPATIAL FLOATING CORNER WIDGETS */}
             <div className="fixed top-6 right-6 z-40 flex gap-4 pointer-events-none">

@@ -1,18 +1,29 @@
 "use client";
 
-import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
-import { createCollection, updateCollection, deleteCollection } from "@/app/actions";
+import * as React from "react";
+import { useCallback, useEffect, useMemo, useState, type CSSProperties, type Dispatch, type SetStateAction } from "react";
+import { createCollection } from "@/app/actions";
 import type { InteractionMode, Collection } from "@/app/page";
-import { motion, AnimatePresence } from "framer-motion";
-import { GlassPanel } from "../glass/GlassPanel";
-import { MapPin, Route, Pentagon, Focus, Mountain, Waves, Plus, Search, Settings2, Eye, EyeOff, Globe2, RotateCcw, Trash2 } from "lucide-react";
-import { useDebouncedCallback } from "@/hooks/useDebounce";
-import { Tooltip } from "./Tooltip";
-import {
-  getLayerVisibilityFlags,
-  hasAnySolo,
-  type LayerVisibilityState,
-} from "@/lib/layer-visibility";
+import { motion, type HTMLMotionProps } from "framer-motion";
+import { ShellWidgetSlot } from "@/components/shells/ShellWidgetSlot";
+import { sidebarShellVariants } from "@/lib/motion";
+import type { LeftSidebarShellConfig } from "@/lib/shells";
+import type { WidgetInstanceRecord, WidgetPlacementRecord } from "@/lib/widgets";
+import { moveShellWidget, type ShellDropEdge } from "@/lib/shell-widget-order";
+import { isLeftShellWidgetEnabled, shellEntranceTimeoutMs } from "@/lib/shell-runtime";
+import { ShellCollectionsWidget } from "@/components/widgets/shell-widgets/ShellCollectionsWidget";
+import { ShellControlsWidget } from "@/components/widgets/shell-widgets/ShellControlsWidget";
+import { ShellCreateCollectionWidget } from "@/components/widgets/shell-widgets/ShellCreateCollectionWidget";
+import { ShellFinishTraceWidget } from "@/components/widgets/shell-widgets/ShellFinishTraceWidget";
+import { ShellModeSwitchWidget } from "@/components/widgets/shell-widgets/ShellModeSwitchWidget";
+import { ShellRemoveTracePointWidget } from "@/components/widgets/shell-widgets/ShellRemoveTracePointWidget";
+import { ShellResetViewWidget } from "@/components/widgets/shell-widgets/ShellResetViewWidget";
+import { ShellSearchWidget } from "@/components/widgets/shell-widgets/ShellSearchWidget";
+import { useShellCollectionsBinding } from "@/components/widgets/shell-widgets/collections/useShellCollectionsBinding";
+import { ShellWidgetBoundary } from "@/components/shells/ShellWidgetBoundary";
+import { ShellRuntimeProvider, useShellRuntimeActions, useShellRuntimeValue } from "@/components/shells/ShellRuntimeProvider";
+import { type LayerVisibilityState } from "@/lib/layer-visibility";
+import { WidgetErrorBoundary } from "@/components/errors/WidgetErrorBoundary";
 
 interface SidebarProps {
   mode: InteractionMode;
@@ -36,11 +47,19 @@ interface SidebarProps {
   refreshTrigger?: number;
   mobileSidebarOpen?: boolean;
   setMobileSidebarOpen?: (val: boolean) => void;
+  desktopSidebarVisible?: boolean;
+  sidebarReady?: boolean;
+  shellConfig?: LeftSidebarShellConfig;
+  shellId?: string;
+  shellWidgets?: Array<WidgetPlacementRecord & WidgetInstanceRecord>;
+  onShellWidgetsReorder?: (nextWidgets: Array<WidgetPlacementRecord & WidgetInstanceRecord>) => void;
+  shellWidgetsLoaded?: boolean;
+  collectionsLoaded?: boolean;
   collections: Collection[];
   layerVisibility: LayerVisibilityState;
   setCollections: Dispatch<SetStateAction<Collection[]>>;
-  activeCollectionId: string;
-  setActiveCollectionId: (val: string) => void;
+  targetCollectionId: string;
+  setTargetCollectionId: (val: string) => void;
   pendingPin: { lng: number; lat: number } | null;
   onCollectionConfirm: (collectionId: string) => Promise<void>;
   onToggleCollectionVisibility: (collectionId: string) => void;
@@ -49,7 +68,6 @@ interface SidebarProps {
   onFinishTraceDraft: () => void;
   selectedTraceNodeIndex?: number | null;
   onRemoveSelectedTraceNode?: () => void;
-  onCollectionUpdated?: () => void;
 }
 
 export default function Sidebar({ 
@@ -58,16 +76,21 @@ export default function Sidebar({
   curveMode, setCurveMode, terrain3D, setTerrain3D, isSatellite, setIsSatellite, onResetView,
   onClearSelection, onDataSaved,
   mobileSidebarOpen, setMobileSidebarOpen,
-  collections, layerVisibility, setCollections, activeCollectionId, setActiveCollectionId
-  , pendingPin, onCollectionConfirm, onToggleCollectionVisibility, onShowOnlyCollection, autoOpenCollectionId, onFinishTraceDraft, selectedTraceNodeIndex = null, onRemoveSelectedTraceNode, onCollectionUpdated
+  desktopSidebarVisible = true, sidebarReady = false, shellConfig, shellId = "left_sidebar", shellWidgets = [], shellWidgetsLoaded = false, collectionsLoaded = false,
+  onShellWidgetsReorder,
+  collections, layerVisibility, setCollections, targetCollectionId, setTargetCollectionId
+  , pendingPin, onCollectionConfirm, onToggleCollectionVisibility, onShowOnlyCollection, autoOpenCollectionId, onFinishTraceDraft, selectedTraceNodeIndex = null, onRemoveSelectedTraceNode
 }: SidebarProps) {
   
-  const [saving, setSaving] = useState(false);
-  const [editingCollection, setEditingCollection] = useState<Collection | null>(null);
-  const [collectionPendingDelete, setCollectionPendingDelete] = useState<Collection | null>(null);
   const awaitingLayerSelection =
     (mode === "pin" && !!pendingPin) ||
     (mode === "trace" && traceDraftFinalized);
+
+  const shellInteractionLocked =
+    Boolean(pendingPin) ||
+    (((mode === "trace" || mode === "editTrace" || mode === "area" || mode === "editArea") &&
+      drawingPath.length > 0) ||
+      (mode === "trace" && traceDraftFinalized));
 
   const itemLabel =
     mode === "trace" || mode === "editTrace"
@@ -76,37 +99,125 @@ export default function Sidebar({
         ? "zone"
         : "pin";
 
-  const debouncedCollectionUpdate = useDebouncedCallback(async (id: string, name: string, color: string, icon: string) => {
-    setSaving(true);
-    try {
-      await updateCollection(id, name, color, icon);
-      onCollectionUpdated?.();
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setSaving(false);
-    }
-  }, 500);
+const shellSections = useMemo(
+    () =>
+      shellConfig?.sections ?? {
+        search: true,
+        modeSwitch: true,
+        collections: true,
+        controls: true,
+        actions: true,
+      },
+    [shellConfig?.sections]
+  );
+  const desktopWidth = shellConfig?.width ?? 360;
+  const orderedShellWidgets = useMemo(
+    () => [...shellWidgets].sort((left, right) => left.position - right.position),
+    [shellWidgets]
+  );
+  const [readyWidgetIds, setReadyWidgetIds] = useState<string[]>([]);
+  const [shellEntranceTimedOut, setShellEntranceTimedOut] = useState(false);
+  const [shellHasEntered, setShellHasEntered] = useState(false);
+  const [creatingCollection, setCreatingCollection] = useState(false);
+  const [draggedWidgetId, setDraggedWidgetId] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<{ widgetId: string; edge: ShellDropEdge } | null>(null);
+
+  const visibleShellWidgets = useMemo(
+    () => orderedShellWidgets.filter((widget) => isLeftShellWidgetEnabled(widget.componentKey, shellSections)),
+    [orderedShellWidgets, shellSections]
+  );
+
+  const requiredShellWidgetIds = useMemo(
+    () => visibleShellWidgets.map((widget) => widget.id),
+    [visibleShellWidgets]
+  );
+
+  const allRequiredWidgetsReady = requiredShellWidgetIds.every((widgetId) =>
+    readyWidgetIds.includes(widgetId)
+  );
+
+  const shellCanEnter =
+    shellHasEntered ||
+    (sidebarReady && shellWidgetsLoaded && (allRequiredWidgetsReady || shellEntranceTimedOut));
+  useEffect(() => {
+    setReadyWidgetIds((currentIds) =>
+      currentIds.filter((widgetId) => requiredShellWidgetIds.includes(widgetId))
+    );
+  }, [requiredShellWidgetIds]);
 
   useEffect(() => {
-    if (!autoOpenCollectionId) {
+    if (shellHasEntered || !sidebarReady || !shellWidgetsLoaded || requiredShellWidgetIds.length === 0 || allRequiredWidgetsReady) {
+      setShellEntranceTimedOut(false);
       return;
     }
 
-    const targetCollection = collections.find((collection) => collection.id === autoOpenCollectionId);
-    if (targetCollection) {
-      setEditingCollection(targetCollection);
-    }
-  }, [autoOpenCollectionId, collections]);
+    const timeout = window.setTimeout(() => {
+      setShellEntranceTimedOut(true);
+    }, shellEntranceTimeoutMs);
+
+    return () => window.clearTimeout(timeout);
+  }, [allRequiredWidgetsReady, requiredShellWidgetIds.length, shellHasEntered, shellWidgetsLoaded, sidebarReady]);
 
   useEffect(() => {
-    if (editingCollection && !collections.some((collection) => collection.id === editingCollection.id)) {
-      setEditingCollection(null);
+    if (shellCanEnter && !shellHasEntered) {
+      setShellHasEntered(true);
     }
-  }, [editingCollection, collections]);
+  }, [shellCanEnter, shellHasEntered]);
+
+  const handleWidgetLayoutReady = useCallback((widgetId: string) => {
+    setReadyWidgetIds((currentIds) =>
+      currentIds.includes(widgetId) ? currentIds : [...currentIds, widgetId]
+    );
+  }, []);
+
+  const isWidgetLayoutReady = useCallback(
+    (widget: Pick<WidgetInstanceRecord, "id" | "slug" | "componentKey">) => {
+      if (!isLeftShellWidgetEnabled(widget.componentKey, shellSections)) {
+        return false;
+      }
+
+      if (widget.componentKey === "shell_collections") {
+        return collectionsLoaded;
+      }
+
+      return true;
+    },
+    [collectionsLoaded, shellSections]
+  );
+
+  const {
+    saving: collectionBindingSaving,
+    displayCollections,
+    highlightedCollectionId,
+    editingCollectionId,
+    editingCollection,
+    primaryActionLabel,
+    selectionCommitPendingId,
+    setEditingCollection,
+    openCollectionEditor,
+    collectionPendingDelete,
+    setCollectionPendingDelete,
+    handleEditCollectionChange,
+    handleCollectionCardClick,
+    handleCollectionDone,
+    handleDeleteCollection,
+  } = useShellCollectionsBinding({
+    mode,
+    collections,
+    setCollections,
+    targetCollectionId,
+    setTargetCollectionId,
+    awaitingCollectionSelection: awaitingLayerSelection,
+    autoOpenCollectionId,
+    onCollectionConfirm,
+    onDataSaved,
+    setMobileSidebarOpen,
+  });
+
+  const saving = collectionBindingSaving || creatingCollection;
 
   const handleCreateCollection = async () => {
-    setSaving(true);
+    setCreatingCollection(true);
     try {
       // Derive collection type from current mode
       const collType = mode === 'trace' || mode === 'editTrace' ? 'trace' 
@@ -114,72 +225,166 @@ export default function Sidebar({
                      : 'pin';
       const newCol = await createCollection("UNTITLED LAYER", "#0000ff", "!", collType);
       setCollections((currentCollections) => [newCol, ...currentCollections]);
-      setEditingCollection(newCol);
-      setActiveCollectionId(newCol.id);
+      openCollectionEditor(newCol);
+      setTargetCollectionId(newCol.id);
     } catch (error) { console.error(error); }
-    finally { setSaving(false) }
+    finally { setCreatingCollection(false) }
   };
 
-  const handleEditCollectionChange = (field: "name" | "color" | "icon", value: string) => {
-    if (!editingCollection) return;
-    const updated = { ...editingCollection, [field]: value };
-    setEditingCollection(updated);
-    setCollections((currentCollections) =>
-      currentCollections.map((collection) =>
-        collection.id === updated.id ? { ...collection, [field]: value } : collection
-      )
-    );
-    debouncedCollectionUpdate(updated.id, updated.name, updated.color, updated.icon);
-  };
-
-  const handleCollectionCardClick = async (collection: Collection) => {
-    if (editingCollection?.id === collection.id) {
-      return;
-    }
-
-    if (!awaitingLayerSelection) {
-      setActiveCollectionId(collection.id);
-      setEditingCollection(collection);
-      return;
-    }
-
-    setActiveCollectionId(collection.id);
-
-    if (awaitingLayerSelection) {
-      await onCollectionConfirm(collection.id);
-      setMobileSidebarOpen?.(false);
-    }
-  };
-
-  const handleCollectionDone = async (collectionId: string) => {
-    setEditingCollection(null);
-    setCollections((currentCollections) => {
-      const nextCollections = [...currentCollections];
-      const selectedIndex = nextCollections.findIndex((item) => item.id === collectionId);
-
-      if (selectedIndex <= 0) {
-        return nextCollections;
+  const commitShellWidgetReorder = useCallback(
+    (targetWidgetId: string, edge: ShellDropEdge) => {
+      if (!draggedWidgetId || !onShellWidgetsReorder) {
+        return;
       }
 
-      const [selectedCollection] = nextCollections.splice(selectedIndex, 1);
-      nextCollections.unshift(selectedCollection);
-      return nextCollections;
-    });
-    await onCollectionConfirm(collectionId);
-    setMobileSidebarOpen?.(false);
-  };
+      const nextWidgets = moveShellWidget(orderedShellWidgets, draggedWidgetId, targetWidgetId, edge);
 
-  const handleDeleteCollection = async (id: string) => {
-    setSaving(true);
-    try {
-      await deleteCollection(id);
-      if (activeCollectionId === id) setActiveCollectionId("");
-      setEditingCollection(null);
-      setCollectionPendingDelete(null);
-      setCollections((currentCollections) => currentCollections.filter((collection) => collection.id !== id));
-      onDataSaved();
-    } catch { alert("Unable to delete layer."); } 
-    finally { setSaving(false); }
+      if (nextWidgets === orderedShellWidgets) {
+        return;
+      }
+
+      onShellWidgetsReorder(nextWidgets);
+    },
+    [draggedWidgetId, onShellWidgetsReorder, orderedShellWidgets]
+  );
+
+  const renderShellWidget = (widget: Pick<WidgetInstanceRecord, "id" | "slug" | "componentKey" | "config">) => {
+    let content: React.ReactNode = null;
+    let shouldRender = true;
+
+    if (widget.componentKey === "shell_search") {
+      content = <ShellSearchWidget />;
+    } else if (widget.componentKey === "shell_mode_switch") {
+      content = (
+        <ShellModeSwitchWidget
+          config={widget.config}
+          onValueCommit={(value) => {
+            setMode(value as InteractionMode);
+            onClearSelection();
+            setEditingCollection(null);
+          }}
+        />
+      );
+    } else if (widget.componentKey === "shell_collections") {
+      content = (
+        <ShellCollectionsWidget
+          collections={displayCollections}
+          collectionsLoaded={collectionsLoaded}
+          highlightedCollectionId={highlightedCollectionId}
+          editingCollection={editingCollection}
+          editingCollectionId={editingCollectionId}
+          itemLabel={itemLabel}
+          layerVisibility={layerVisibility}
+          awaitingCollectionSelection={awaitingLayerSelection}
+          primaryActionLabel={primaryActionLabel}
+          selectionCommitPendingId={selectionCommitPendingId}
+          saving={saving}
+          onCollectionClick={handleCollectionCardClick}
+          onToggleCollectionVisibility={onToggleCollectionVisibility}
+          onShowOnlyCollection={onShowOnlyCollection}
+          onCollectionNameChange={(value) => handleEditCollectionChange("name", value)}
+          onCollectionColorChange={(value) => handleEditCollectionChange("color", value)}
+          onCollectionDone={handleCollectionDone}
+          onRequestDeleteCollection={setCollectionPendingDelete}
+        />
+      );
+    } else if (widget.componentKey === "shell_controls") {
+      content = (
+        <ShellControlsWidget
+          isSatellite={isSatellite}
+          setIsSatellite={setIsSatellite}
+          terrain3D={terrain3D}
+          setTerrain3D={setTerrain3D}
+          curveMode={curveMode}
+          setCurveMode={setCurveMode}
+          disabled={shellInteractionLocked}
+        />
+      );
+    } else if (widget.componentKey === "shell_create_collection") {
+      content = (
+        <ShellCreateCollectionWidget
+          onCreateCollection={() => void handleCreateCollection()}
+          saving={saving}
+        />
+      );
+    } else if (widget.componentKey === "shell_reset_view") {
+      content = <ShellResetViewWidget onResetView={onResetView} disabled={shellInteractionLocked} />;
+    } else if (widget.componentKey === "shell_finish_trace") {
+      shouldRender = mode === "trace" && drawingPath.length >= 2 && !traceDraftFinalized;
+
+      if (shouldRender) {
+        content = (
+          <ShellFinishTraceWidget
+            visible={true}
+            onFinishTraceDraft={onFinishTraceDraft}
+          />
+        );
+      }
+    } else if (widget.componentKey === "shell_remove_trace_point") {
+      shouldRender = mode === "trace" && drawingPath.length >= 2 && !traceDraftFinalized;
+
+      if (shouldRender) {
+        content = (
+          <ShellRemoveTracePointWidget
+            visible={true}
+            selectedTraceNodeIndex={selectedTraceNodeIndex}
+            onRemoveSelectedTraceNode={onRemoveSelectedTraceNode}
+          />
+        );
+      }
+    }
+
+    if (!shouldRender || !content) {
+      return null;
+    }
+
+    return (
+      <ShellWidgetSlot
+        key={widget.id}
+        isDragging={draggedWidgetId === widget.id}
+        isDropTarget={dropTarget?.widgetId === widget.id}
+        dropEdge={dropTarget?.widgetId === widget.id ? dropTarget.edge : null}
+        onDragStart={(event) => {
+          event.dataTransfer.effectAllowed = "move";
+          event.dataTransfer.setData("text/plain", widget.id);
+          setDraggedWidgetId(widget.id);
+        }}
+        onDragEnd={() => {
+          setDraggedWidgetId(null);
+          setDropTarget(null);
+        }}
+        onDragOver={(event) => {
+          if (!draggedWidgetId || draggedWidgetId === widget.id) {
+            return;
+          }
+
+          event.preventDefault();
+          const targetRect = event.currentTarget.getBoundingClientRect();
+          const edge: ShellDropEdge =
+            event.clientY < targetRect.top + targetRect.height / 2 ? "before" : "after";
+
+          if (dropTarget?.widgetId !== widget.id || dropTarget.edge !== edge) {
+            setDropTarget({ widgetId: widget.id, edge });
+          }
+        }}
+        onDrop={(event) => {
+          event.preventDefault();
+
+          const edge = dropTarget?.widgetId === widget.id ? dropTarget.edge : "after";
+          commitShellWidgetReorder(widget.id, edge);
+          setDraggedWidgetId(null);
+          setDropTarget(null);
+        }}
+      >
+        <ShellWidgetBoundary
+          widgetId={widget.id}
+          layoutReady={isWidgetLayoutReady(widget)}
+          onLayoutReady={handleWidgetLayoutReady}
+        >
+          <WidgetErrorBoundary>{content}</WidgetErrorBoundary>
+        </ShellWidgetBoundary>
+      </ShellWidgetSlot>
+    );
   };
 
   return (
@@ -235,429 +440,160 @@ export default function Sidebar({
       )}
       
       {/* MONDRIAN SPATIAL SIDEBAR (FLOATING WIDGETS) */}
-      <motion.div
-        className={`fixed bottom-4 left-4 top-4 z-40 flex w-[min(360px,calc(100vw-2rem))] flex-col gap-4 overflow-y-auto no-scrollbar pointer-events-none transition-transform transform duration-300 md:bottom-6 md:left-6 md:top-6 md:w-[360px] ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-[calc(100%+1.5rem)]'} md:translate-x-0`}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.6, ease: [0.25, 0.1, 0.25, 1] }}
+        <ShellRuntimeProvider
+        key={shellId}
+        shellId={shellId}
+        initialState={{
+          collectionQuery: "",
+          interactionMode: mode,
+          areasDisabled: true,
+          interactionLocked: shellInteractionLocked,
+          highlightedCollectionId,
+          editingCollectionId,
+        }}
       >
-        <div className="flex flex-col gap-4 min-h-max pb-6">
-          
-          {/* 1. APP HEADER PILL */}
-          <div className="bg-white/25 backdrop-blur-xl rounded-2xl p-4 shadow-sm pointer-events-auto border border-white/20 flex items-center justify-between shrink-0">
-            <div className="flex items-center gap-3">
-               <div className="grid h-10 w-10 grid-cols-2 grid-rows-2 overflow-hidden rounded-xl border border-black/10 bg-white/70 shadow-sm">
-                 <div className="bg-[#ff0000]" />
-                 <div className="bg-[#ffff00]" />
-                 <div className="bg-[#0000ff]" />
-                 <div className="bg-[#111111]" />
-               </div>
-               <div className="flex flex-col justify-center">
-                 <span className="text-[10px] font-black uppercase tracking-[0.28em] text-neutral-500">Synarava</span>
-                 <span className="text-[18px] font-black tracking-tight text-neutral-900">Visit</span>
-               </div>
+        <ShellRuntimeModeSync mode={mode} />
+        <ShellRuntimeInteractionLockSync interactionLocked={shellInteractionLocked} />
+        <ShellRuntimeCollectionSelectionSync
+          highlightedCollectionId={highlightedCollectionId}
+          editingCollectionId={editingCollectionId}
+        />
+        <ShellRuntimeScrollContainer
+          data-shell-scroll-container="true"
+          className={`fixed inset-y-0 left-4 z-40 flex w-[min(360px,calc(100vw-2rem))] flex-col gap-4 overflow-y-auto no-scrollbar pointer-events-none transform transition-[transform,opacity] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] md:left-6 md:w-[var(--sidebar-width)] ${
+            mobileSidebarOpen ? "translate-x-0 opacity-100" : "-translate-x-[calc(100%+1.5rem)] opacity-0"
+          } ${
+            desktopSidebarVisible && shellCanEnter
+              ? "md:translate-x-0 md:opacity-100"
+              : "md:translate-x-0 md:opacity-0"
+          }`}
+          variants={sidebarShellVariants}
+          initial="hidden"
+          animate={desktopSidebarVisible && shellCanEnter ? "visible" : "hidden"}
+          style={
+            {
+              pointerEvents: desktopSidebarVisible || mobileSidebarOpen ? undefined : "none",
+              "--sidebar-width": `${desktopWidth}px`,
+              willChange: "transform, opacity",
+              backfaceVisibility: "hidden",
+              transform: "translateZ(0)",
+            } as CSSProperties
+          }
+        >
+          <div className="flex flex-col gap-4 min-h-max pb-6 pr-2 md:pr-3">
+            <div className="flex flex-col gap-4 pointer-events-auto">
+              <div
+                aria-hidden="true"
+                className="h-24 shrink-0 md:h-28"
+              />
+              {orderedShellWidgets.map((widget) => renderShellWidget(widget))}
+              <div
+                aria-hidden="true"
+                className="h-24 shrink-0 md:h-28"
+              />
             </div>
-            <Tooltip label="Coming Soon">
-              <button disabled className="w-8 h-8 flex items-center justify-center text-neutral-300 opacity-60">
-                <Settings2 className="w-4 h-4" />
-              </button>
-            </Tooltip>
           </div>
-
-          {/* 2. SEARCH PILL */}
-          <div className="bg-white/15 backdrop-blur-md rounded-2xl p-3 pointer-events-auto border border-white/15 flex items-center gap-3 relative overflow-hidden shrink-0">
-             <Search className="w-4 h-4 text-neutral-400 ml-1" />
-             <input type="text" placeholder="Search collections..." className="bg-transparent border-none outline-none text-sm placeholder-neutral-400 w-full font-medium" />
-             <div className="absolute top-0 right-0 w-32 h-full bg-gradient-to-r from-transparent to-white/15 pointer-events-none" />
-          </div>
-
-          <div className="flex flex-col gap-4 pointer-events-auto">
-                   
-                   {mode === "trace" && drawingPath.length >= 2 && !traceDraftFinalized && (
-                     <div className="flex flex-col gap-3">
-                       <motion.button
-                         type="button"
-                         onClick={() => onRemoveSelectedTraceNode?.()}
-                         disabled={selectedTraceNodeIndex === null}
-                         className={`group relative flex h-20 overflow-hidden rounded-2xl border shadow-[0px_10px_28px_rgba(0,0,0,0.12)] ${
-                           selectedTraceNodeIndex === null
-                             ? "cursor-not-allowed border-black/10 bg-[#ebe8df] opacity-60"
-                             : "border-[#7d0f1f]/25 bg-[#fff4f4]"
-                         }`}
-                         whileHover={selectedTraceNodeIndex === null ? undefined : { scale: 1.015, y: -1 }}
-                         whileTap={selectedTraceNodeIndex === null ? undefined : { scale: 0.985 }}
-                       >
-                         <div className="flex w-16 flex-col">
-                           <div className="h-10 bg-[#111111]" />
-                           <div className="h-10 bg-[#ff0000]" />
-                         </div>
-                         <div className="flex w-16 items-center justify-center border-l border-black/10 border-r border-black/10 bg-[#fdf8f6]">
-                           <Trash2 className={`h-6 w-6 transition-transform duration-200 ${selectedTraceNodeIndex === null ? "text-neutral-400" : "text-[#7d0f1f] group-hover:scale-110"}`} />
-                         </div>
-                         <div className="relative flex flex-1 flex-col justify-center px-5 text-left">
-                           <div className="absolute inset-y-0 right-0 w-6 bg-white/50" />
-                           <span className="text-[10px] font-black uppercase tracking-[0.26em] text-neutral-500">
-                             {selectedTraceNodeIndex === null ? "Select Point" : `Point ${selectedTraceNodeIndex + 1} Ready`}
-                           </span>
-                           <span className={`mt-1 text-[22px] font-black uppercase tracking-tight ${selectedTraceNodeIndex === null ? "text-neutral-400" : "text-[#7d0f1f]"}`}>
-                             Remove Point
-                           </span>
-                         </div>
-                       </motion.button>
-
-                       <motion.button
-                         onClick={onFinishTraceDraft}
-                         className="group relative flex h-20 overflow-hidden rounded-2xl border border-black/20 bg-[#f8f6f1] shadow-[0px_10px_28px_rgba(0,0,0,0.14)]"
-                         whileHover={{ scale: 1.015, y: -1 }}
-                         whileTap={{ scale: 0.985 }}
-                       >
-                         <div className="flex w-16 flex-col">
-                           <div className="h-10 bg-[#000000]" />
-                           <div className="h-10 bg-[#0000ff]" />
-                         </div>
-                         <div className="flex w-16 items-center justify-center bg-[#f8f6f1] border-l border-black/15 border-r border-black/15">
-                           <Route className="w-6 h-6 text-black transition-transform duration-200 group-hover:scale-110" />
-                         </div>
-                         <div className="relative flex flex-1 flex-col justify-center bg-[#f8f6f1] px-5 text-left">
-                           <div className="absolute inset-y-0 right-0 w-6 bg-white/60" />
-                           <span className="text-[10px] font-black uppercase tracking-[0.26em] text-neutral-500">Path Ready</span>
-                           <span className="mt-1 text-[22px] font-black uppercase tracking-tight text-neutral-950">Finish Path</span>
-                         </div>
-                       </motion.button>
-                     </div>
-                   )}
-
-                   {/* NAVIGATIONAL MODES (GLOBAL PINS, PATHS, ZONES) */}
-                   <GlassPanel intensity="heavy" className="p-1.5 shrink-0" shadow={false}>
-                     <div className="grid grid-cols-3 gap-1">
-                        <button onClick={() => { setMode('pin'); onClearSelection(); setEditingCollection(null); }} className={`px-3 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all duration-200 flex flex-col items-center gap-1.5 ${mode === 'pin' ? 'bg-[#0000ff] text-white' : 'text-neutral-500 hover:bg-white/30 hover:text-neutral-800'}`}>
-                           <MapPin className="w-4 h-4" /> PINS
-                        </button>
-                        <button onClick={() => { setMode('trace'); onClearSelection(); setEditingCollection(null); }} className={`px-3 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all duration-200 flex flex-col items-center gap-1.5 ${mode === 'trace' ? 'bg-[#ff0000] text-white' : 'text-neutral-500 hover:bg-white/30 hover:text-neutral-800'}`}>
-                           <Route className="w-4 h-4" /> PATHS
-                        </button>
-                        <button disabled className="px-3 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all duration-200 flex flex-col items-center gap-1.5 text-neutral-300 cursor-not-allowed opacity-60">
-                           <Pentagon className="w-4 h-4" /> ZONES
-                        </button>
-                     </div>
-                   </GlassPanel>
-
-                   {/* COLLECTIONS DIRECTORY */}
-                   {collections.length > 0 && (
-                     <GlassPanel
-                       intensity="heavy"
-                       className="flex flex-col shrink-0 relative p-[17px] mb-2 overflow-hidden rounded-2xl shadow-[0px_8px_32px_0px_rgba(0,0,0,0.08)]"
-                       border="dark"
-                     >
-                       {awaitingLayerSelection && (
-                         <>
-                           <motion.div
-                             className="pointer-events-none absolute inset-0"
-                             animate={{
-                               opacity: [0.38, 0.72, 0.38],
-                               boxShadow: [
-                                 "inset 0 0 0 1px rgba(255,255,255,0.12), 0 0 0 rgba(47,107,255,0)",
-                                 "inset 0 0 0 1px rgba(255,255,255,0.24), 0 0 32px rgba(255,213,74,0.14)",
-                                 "inset 0 0 0 1px rgba(255,255,255,0.12), 0 0 0 rgba(47,107,255,0)"
-                               ]
-                             }}
-                             transition={{ duration: 2.4, repeat: Infinity, ease: [0.4, 0, 0.2, 1] }}
-                             style={{
-                               backgroundImage: "linear-gradient(135deg, rgba(47,107,255,0.16), rgba(255,213,74,0.28), rgba(230,57,70,0.12), rgba(255,255,255,0.05))",
-                             }}
-                           />
-                           <motion.div
-                             className="pointer-events-none absolute inset-y-0 -left-1/2 w-[70%]"
-                             animate={{ x: ["0%", "220%"] }}
-                             transition={{ duration: 2.8, repeat: Infinity, ease: "linear" }}
-                             style={{
-                               background: "linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,0.18), rgba(255,255,255,0))",
-                               filter: "blur(14px)",
-                               transform: "skewX(-20deg)",
-                             }}
-                           />
-                         </>
-                       )}
-                       <div className="max-h-[344px] overflow-y-auto overflow-x-hidden custom-scrollbar space-y-2 pt-0.5 pr-1">
-                          <AnimatePresence initial={false}>
-                          {collections.map(c => {
-                            const isEditing = editingCollection?.id === c.id;
-                            const flags = getLayerVisibilityFlags(layerVisibility, c.id);
-                            const hasSolo = hasAnySolo(layerVisibility);
-                            const isMuted = flags.muted;
-                            const isSolo = flags.solo;
-                            const focusTooltipLabel = isSolo
-                              ? "Stop Showing Only This Layer"
-                              : hasSolo
-                                ? "Add This Layer To Show Only"
-                                : "Show Only This Layer";
-
-                            return (
-                              <motion.div
-                                key={c.id}
-                                data-testid="layer-card"
-                                data-layer-id={c.id}
-                                layout
-                                initial={{ opacity: 0, y: 8 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.15 } }}
-                                transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                                whileHover={!isEditing ? { scale: 1.02 } : undefined}
-                                whileTap={!isEditing ? { scale: 0.98 } : undefined}
-                                onClick={() => void handleCollectionCardClick(c)}
-                                className={`overflow-hidden cursor-pointer flex rounded-xl ${
-                                  isEditing
-                                    ? "bg-white/60 border border-black/10 shadow-sm"
-                                    : activeCollectionId === c.id
-                                      ? "bg-white/60 border border-black/10 shadow-sm"
-                                      : "bg-white/30 border border-black/5 hover:bg-white/40"
-                                }`}
-                                style={{ minHeight: 66 }}
-                              >
-                                {/* Color Bar — spans full card height */}
-                                <div
-                                  className="ml-[13px] mt-[13px] h-10 w-1 rounded-full flex-shrink-0"
-                                  style={{ backgroundColor: isEditing ? (editingCollection?.color || c.color) : c.color }}
-                                />
-
-                                {/* Card content column */}
-                                <div className="flex-1 min-w-0">
-                                  {/* Header row */}
-                                  <div className="flex items-center justify-between px-[12px] py-[13px] min-h-[64px]">
-                                    <div className="flex-1 min-w-0">
-                                      {isEditing ? (
-                                        <input
-                                          autoFocus
-                                          type="text"
-                                          value={editingCollection?.name ?? ""}
-                                          onClick={e => e.stopPropagation()}
-                                          onChange={e => handleEditCollectionChange('name', e.target.value)}
-                                          className="m-0 w-full bg-transparent border-none p-0 text-[14px] leading-5 font-medium text-neutral-900 outline-none placeholder-neutral-300"
-                                          placeholder="Layer name..."
-                                        />
-                                      ) : (
-                                        <h4 className="truncate text-[14px] leading-5 font-medium text-neutral-900">{c.name}</h4>
-                                      )}
-                                      <p className="mt-0.5 text-[12px] leading-4 font-normal text-neutral-500">
-                                        {c.itemCount} {itemLabel}{c.itemCount === 1 ? "" : "s"}
-                                      </p>
-                                    </div>
-
-                                    {/* Right-side icons */}
-                                    <div className="ml-3 flex flex-shrink-0 items-center gap-1.5">
-                                      <Tooltip label={isMuted ? "Show Layer" : "Hide Layer"}>
-                                        <button
-                                          data-testid="layer-mute-button"
-                                          onClick={e => {
-                                            e.stopPropagation();
-                                            onToggleCollectionVisibility(c.id);
-                                          }}
-                                          className="flex h-6 w-6 items-center justify-center rounded-md text-neutral-400 transition-colors hover:bg-black/5 hover:text-neutral-600"
-                                          aria-label={isMuted ? "Show layer pins" : "Hide layer pins"}
-                                          aria-pressed={isMuted}
-                                        >
-                                          {isMuted ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                        </button>
-                                      </Tooltip>
-                                      <Tooltip label={focusTooltipLabel}>
-                                        <button
-                                          data-testid="layer-solo-button"
-                                          onClick={e => {
-                                            e.stopPropagation();
-                                            onShowOnlyCollection(c.id);
-                                          }}
-                                          className={`flex h-6 w-6 items-center justify-center rounded-md transition-colors ${
-                                            isSolo
-                                              ? "bg-black/5 text-neutral-700"
-                                              : "text-neutral-400 hover:bg-black/5 hover:text-neutral-600"
-                                          }`}
-                                          aria-label={focusTooltipLabel}
-                                          aria-pressed={isSolo}
-                                        >
-                                          <Focus className="w-4 h-4" />
-                                        </button>
-                                      </Tooltip>
-                                    </div>
-                                  </div>
-
-                                  {/* --- EXPANDED EDIT PANEL --- */}
-                                  <AnimatePresence initial={false}>
-                                    {isEditing && (
-                                      <motion.div
-                                        initial={{ height: 0, opacity: 0 }}
-                                        animate={{ height: 120, opacity: 1 }}
-                                        exit={{ height: 0, opacity: 0 }}
-                                        transition={{
-                                          height: { duration: 0.25, ease: [0.25, 0.1, 0.25, 1] },
-                                          opacity: { duration: 0.15, ease: "easeOut" }
-                                        }}
-                                        className="overflow-hidden"
-                                        onClick={e => e.stopPropagation()}
-                                      >
-                                        <div className="border-t border-black/5 px-4 pb-3.5 pt-1">
-                                          {/* Mondrian Color Picker */}
-                                          <div className="mb-3">
-                                            <p className="mb-2 text-[9px] font-bold uppercase tracking-widest text-neutral-400">COLOR</p>
-                                            <div className="flex items-center gap-2">
-                                              <div className="grid h-7 w-7 grid-cols-2 grid-rows-2 overflow-hidden rounded-lg border border-black/10 shadow-sm">
-                                                <div className="bg-[#ff0000]" />
-                                                <div className="bg-[#ffff00]" />
-                                                <div className="bg-[#0000ff]" />
-                                                <div className="bg-[#f8f6f1]" />
-                                              </div>
-                                              {["#E63946", "#2F6BFF", "#FFD54A", "#1A1A1A", "#4CAF50", "#9C27B0", "#FF9800"].map(swatch => (
-                                                <motion.button
-                                                  key={swatch}
-                                                  onClick={() => handleEditCollectionChange('color', swatch)}
-                                                  whileHover={{ scale: 1.15 }}
-                                                  whileTap={{ scale: 0.9 }}
-                                                  className={`h-6 w-6 rounded-full border-2 transition-colors duration-150 ${
-                                                    editingCollection?.color === swatch ? "border-black ring-2 ring-black/10" : "border-transparent hover:border-black/20"
-                                                  }`}
-                                                  style={{ backgroundColor: swatch }}
-                                                />
-                                              ))}
-                                              <label className="relative flex h-6 w-6 items-center justify-center overflow-hidden rounded-full border border-dashed border-black/15 transition-colors hover:border-black/30">
-                                                <span className="text-[9px] text-neutral-400">+</span>
-                                                <input
-                                                  type="color"
-                                                  value={editingCollection?.color ?? "#000000"}
-                                                  onChange={e => handleEditCollectionChange('color', e.target.value)}
-                                                  className="absolute inset-0 opacity-0 cursor-pointer"
-                                                />
-                                              </label>
-                                            </div>
-                                          </div>
-
-                                          {/* Actions row */}
-                                          <div className="flex items-center gap-2 pt-2 border-t border-black/5 pl-0.5">
-                                            <button
-                                              onClick={() => void handleCollectionDone(c.id)}
-                                              className="group flex h-8 min-w-0 flex-[1.1] items-center gap-2 rounded-full border border-black/10 bg-white px-1.5 shadow-sm transition-transform hover:scale-[1.01] hover:border-black/15"
-                                            >
-                                              <div className="flex h-5 w-7 items-center justify-center gap-[3px] rounded-full bg-[#f3f1eb] px-[5px]">
-                                                <span className="h-3 w-[3px] rounded-full bg-[#ff0000]" />
-                                                <span className="h-3 w-[3px] rounded-full bg-[#ffff00]" />
-                                                <span className="h-3 w-[3px] rounded-full bg-[#0000ff]" />
-                                              </div>
-                                              <div className="flex flex-1 items-center justify-center pr-2 text-[9px] font-black uppercase tracking-[0.22em] text-neutral-900">
-                                                {awaitingLayerSelection ? "Done & Pin" : "Done"}
-                                              </div>
-                                            </button>
-                                            <button
-                                              onClick={() => setCollectionPendingDelete(c)}
-                                              disabled={saving}
-                                              className="group flex h-8 min-w-0 flex-[0.9] items-center gap-2 rounded-full border border-black/10 bg-white px-1.5 shadow-sm transition-transform hover:scale-[1.01] hover:border-black/15"
-                                            >
-                                              <div className="flex h-5 w-7 items-center justify-center gap-[3px] rounded-full bg-[#f3f1eb] px-[5px]">
-                                                <span className="h-3 w-[3px] rounded-full bg-[#111111]" />
-                                                <span className="h-3 w-[3px] rounded-full bg-[#ff0000]" />
-                                                <span className="h-3 w-[3px] rounded-full bg-[#ffff00]" />
-                                              </div>
-                                              <div className="flex flex-1 items-center justify-center pr-2 text-[9px] font-black uppercase tracking-[0.22em] text-neutral-900 group-hover:text-[#ff0000] transition-colors">
-                                                Delete
-                                              </div>
-                                            </button>
-                                          </div>
-                                        </div>
-                                      </motion.div>
-                                    )}
-                                  </AnimatePresence>
-                                </div>
-                              </motion.div>
-                            );
-                          })}
-                          </AnimatePresence>
-                       </div>
-                    </GlassPanel>
-                   )}
-                   <motion.button
-                     onClick={handleCreateCollection}
-                     disabled={saving}
-                     className="group relative flex h-20 overflow-hidden rounded-2xl border border-black/20 bg-[#f8f6f1] shadow-[0px_10px_28px_rgba(0,0,0,0.14)]"
-                     whileHover={{ scale: 1.015, y: -1 }}
-                     whileTap={{ scale: 0.985 }}
-                   >
-                     <div className="flex w-16 flex-col">
-                       <div className="h-10 bg-[#ff0000]" />
-                       <div className="h-10 bg-[#0000ff]" />
-                     </div>
-                     <div className="flex w-16 items-center justify-center bg-[#ffff00] border-l border-black/15 border-r border-black/15">
-                       <Plus className="w-6 h-6 text-black transition-transform duration-200 group-hover:scale-110" />
-                     </div>
-                     <div className="relative flex flex-1 flex-col justify-center bg-[#f8f6f1] px-5 text-left">
-                       <div className="absolute inset-y-0 right-0 w-6 bg-white/60" />
-                       <span className="text-[10px] font-black uppercase tracking-[0.26em] text-neutral-500">Create</span>
-                       <span className="mt-1 text-[22px] font-black uppercase tracking-tight text-neutral-950">New Layer</span>
-                     </div>
-                   </motion.button>
-                   {/* MAP CONTROLS */}
-                   <GlassPanel intensity="heavy" className="p-4 shrink-0 mb-3">
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between cursor-pointer group" onClick={() => setIsSatellite(!isSatellite)}>
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-lg bg-neutral-200/60 flex items-center justify-center group-hover:bg-neutral-300/60 transition-colors">
-                              <Globe2 className="w-4 h-4 text-neutral-700" />
-                            </div>
-                            <span className="text-sm font-medium text-neutral-900 uppercase">Sat View</span>
-                          </div>
-                          <button className={`w-12 h-7 rounded-full transition-all duration-200 relative ${isSatellite ? "bg-[#0000ff]" : "bg-neutral-300"}`}>
-                            <div className={`w-5 h-5 rounded-full bg-white shadow-md absolute top-1 transition-transform duration-200 ${isSatellite ? "translate-x-6" : "translate-x-1"}`} />
-                          </button>
-                        </div>
-
-                        <div className="flex items-center justify-between cursor-pointer group" onClick={() => setTerrain3D(!terrain3D)}>
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-lg bg-neutral-200/60 flex items-center justify-center group-hover:bg-neutral-300/60 transition-colors">
-                              <Mountain className="w-4 h-4 text-neutral-700" />
-                            </div>
-                            <span className="text-sm font-medium text-neutral-900 uppercase">3D Terrain</span>
-                          </div>
-                          <button className={`w-12 h-7 rounded-full transition-all duration-200 relative ${terrain3D ? "bg-[#0000ff]" : "bg-neutral-300"}`}>
-                            <div className={`w-5 h-5 rounded-full bg-white shadow-md absolute top-1 transition-transform duration-200 ${terrain3D ? "translate-x-6" : "translate-x-1"}`} />
-                          </button>
-                        </div>
-
-                        <div className="flex items-center justify-between cursor-pointer group" onClick={() => setCurveMode(!curveMode)}>
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-lg bg-neutral-200/60 flex items-center justify-center group-hover:bg-neutral-300/60 transition-colors">
-                              <Waves className="w-4 h-4 text-neutral-700" />
-                            </div>
-                            <span className="text-sm font-medium text-neutral-900 uppercase">Smooth Curves</span>
-                          </div>
-                          <button className={`w-12 h-7 rounded-full transition-all duration-200 relative ${curveMode ? "bg-[#0000ff]" : "bg-neutral-300"}`}>
-                            <div className={`w-5 h-5 rounded-full bg-white shadow-md absolute top-1 transition-transform duration-200 ${curveMode ? "translate-x-6" : "translate-x-1"}`} />
-                          </button>
-                        </div>
-                      </div>
-                   </GlassPanel>
-
-                   <motion.button
-                     onClick={onResetView}
-                     className="group relative flex h-20 overflow-hidden rounded-2xl border border-black/20 bg-[#f8f6f1] shadow-[0px_10px_28px_rgba(0,0,0,0.14)]"
-                     whileHover={{ scale: 1.015, y: -1 }}
-                     whileTap={{ scale: 0.985 }}
-                   >
-                     <div className="grid w-16 grid-cols-1 grid-rows-3">
-                       <div className="bg-[#ff0000]" />
-                       <div className="bg-[#ffff00]" />
-                       <div className="bg-[#0000ff]" />
-                     </div>
-                     <div className="flex w-16 items-center justify-center bg-white border-l border-black/15 border-r border-black/15">
-                       <RotateCcw className="w-6 h-6 text-black transition-transform duration-200 group-hover:scale-110" />
-                     </div>
-                     <div className="relative flex flex-1 flex-col justify-center bg-[#f8f6f1] px-5 text-left">
-                       <div className="absolute inset-y-0 right-0 w-2 bg-[#ff0000]" />
-                       <div className="absolute inset-y-0 right-2 w-2 bg-[#ffff00]" />
-                       <div className="absolute inset-y-0 right-4 w-2 bg-[#0000ff]/85" />
-                       <span className="text-[10px] font-black uppercase tracking-[0.26em] text-neutral-500">Camera</span>
-                       <span className="mt-1 text-[22px] font-black uppercase tracking-tight text-neutral-950">Reset View</span>
-                     </div>
-                   </motion.button>
-                 </div>
-            
-        </div>
-      </motion.div>
+        </ShellRuntimeScrollContainer>
+      </ShellRuntimeProvider>
     </>
+  );
+}
+
+function ShellRuntimeInteractionLockSync({
+  interactionLocked,
+}: {
+  interactionLocked: boolean;
+}) {
+  const runtimeInteractionLocked = useShellRuntimeValue("interactionLocked", false);
+  const { setValue } = useShellRuntimeActions();
+
+  useEffect(() => {
+    if (runtimeInteractionLocked !== interactionLocked) {
+      setValue("interactionLocked", interactionLocked);
+    }
+  }, [interactionLocked, runtimeInteractionLocked, setValue]);
+
+  return null;
+}
+
+function ShellRuntimeModeSync({
+  mode,
+}: {
+  mode: InteractionMode;
+}) {
+  const runtimeMode = useShellRuntimeValue<InteractionMode>("interactionMode", "pin");
+  const { setValue } = useShellRuntimeActions();
+
+  useEffect(() => {
+    const normalizedMode = normalizeRuntimeMode(mode);
+
+    if (normalizedMode !== runtimeMode) {
+      setValue("interactionMode", normalizedMode);
+    }
+  }, [mode, runtimeMode, setValue]);
+
+  return null;
+}
+
+function normalizeRuntimeMode(mode: InteractionMode): InteractionMode {
+  if (mode === "editTrace") {
+    return "trace";
+  }
+
+  if (mode === "editArea") {
+    return "area";
+  }
+
+  if (mode === "editPin") {
+    return "pin";
+  }
+
+  return mode;
+}
+
+function ShellRuntimeCollectionSelectionSync({
+  highlightedCollectionId,
+  editingCollectionId,
+}: {
+  highlightedCollectionId: string;
+  editingCollectionId: string | null;
+}) {
+  const runtimeHighlightedCollectionId = useShellRuntimeValue("highlightedCollectionId", "");
+  const runtimeEditingCollectionId = useShellRuntimeValue<string | null>("editingCollectionId", null);
+  const { patchState } = useShellRuntimeActions();
+
+  useEffect(() => {
+    if (
+      runtimeHighlightedCollectionId !== highlightedCollectionId ||
+      runtimeEditingCollectionId !== editingCollectionId
+    ) {
+      patchState({
+        highlightedCollectionId,
+        editingCollectionId,
+      });
+    }
+  }, [
+    highlightedCollectionId,
+    editingCollectionId,
+    patchState,
+    runtimeHighlightedCollectionId,
+    runtimeEditingCollectionId,
+  ]);
+
+  return null;
+}
+
+const ShellRuntimeScrollContainer = (props: HTMLMotionProps<"div">) => {
+  const { registerScrollContainer } = useShellRuntimeActions();
+
+  const handleContainerRef = useCallback((element: HTMLDivElement | null) => {
+    registerScrollContainer(element);
+  }, [registerScrollContainer]);
+
+  return (
+    <motion.div
+      {...props}
+      ref={handleContainerRef}
+    />
   );
 }

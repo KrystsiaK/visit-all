@@ -5,13 +5,13 @@
 Document the concrete first-launch deployment path for this project:
 
 1. Railway for the app
-2. Railway Postgres for the database
+2. Railway PostGIS for the database
 3. Cloudflare R2 for media
 
 ## Recommended production shape
 
 1. one Railway service for the Next.js app
-2. one Railway Postgres instance
+2. one Railway PostGIS instance
 3. one Cloudflare R2 bucket
 4. GitHub Actions for CI checks before merge
 
@@ -26,8 +26,9 @@ Document the concrete first-launch deployment path for this project:
 ### 2. Add database
 
 1. add a PostgreSQL service in Railway
-2. copy the generated `DATABASE_URL`
-3. keep managed backups enabled
+2. use a PostGIS-enabled Railway template, not plain PostgreSQL
+3. copy the generated `DATABASE_URL`
+4. keep managed backups enabled
 
 ### 3. App settings
 

@@ -59,6 +59,18 @@ This is the living product behavior document for the current implementation. We 
 2. The `New Layer` CTA should use a solid Mondrian-inspired treatment rather than a translucent glass style.
 3. The old `Add New Marker` bottom CTA is removed to avoid competing actions.
 
+### Shell lock during authoring
+
+1. During pending authoring flows, the left shell should behave as a guided surface rather than a fully open control board.
+2. While a pending pin exists, or while a path or area draft is actively being drawn, non-essential shell controls should be disabled.
+3. The shell must keep these widgets active:
+   - collection search
+   - collection stack
+   - `New Layer`
+   - mode switch
+4. Path-specific completion widgets such as `Finish Path` and `Remove Point` stay active when they are part of the current draft flow.
+5. General map controls such as `SAT VIEW`, `3D TERRAIN`, `SMOOTH CURVES`, and `Reset View` should be disabled during that authoring lock.
+
 ### Motion
 
 1. Pending-layer attention should be visible but restrained.

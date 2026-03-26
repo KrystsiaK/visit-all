@@ -13,8 +13,9 @@
     "security:audit": "npm audit --omit=dev",
     "test": "npm run test:unit && npm run test:e2e",
     "test:unit": "vitest run",
+    "test:unit:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
-    "ci:quality": "npm run lint && npm run typecheck && npm run build && npm run test:unit && npm run security:audit",
+    "ci:quality": "npm run lint && npm run typecheck && npm run build && npm run test:unit:coverage && npm run security:audit",
     "ci:verify": "npm run ci:quality && npm run test:e2e",
     "prepare": "husky"
   },
@@ -43,6 +44,7 @@
     "@types/pg": "^8.20.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitest/coverage-v8": "^4.1.1",
     "eslint": "^9",
     "eslint-config-next": "16.2.1",
     "husky": "^9.1.7",

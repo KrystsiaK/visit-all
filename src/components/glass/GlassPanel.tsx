@@ -22,9 +22,9 @@ export function GlassPanel({
   ...props
 }: GlassPanelProps) {
   const intensityClasses = {
-    light: "bg-white/8",
-    medium: "bg-white/15",
-    heavy: "bg-white/30",
+    light: "bg-white/24",
+    medium: "bg-white/48",
+    heavy: "bg-white/70",
   };
 
   const borderClasses = {

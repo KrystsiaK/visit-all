@@ -7,7 +7,8 @@ import type { FeatureCollection, Feature, Point, LineString, Polygon } from "geo
 import type { InteractionMode } from "@/app/page";
 import type { FeatureProperties } from "@/components/widgets/WidgetContext";
 import type { StyleSpecification } from "maplibre-gl";
-import * as turf from "@turf/turf";
+import { lineString } from "@turf/helpers";
+import bezierSpline from "@turf/bezier-spline";
 import { useWidgetContext } from "@/components/widgets/WidgetContext";
 import { GlassPinIcon } from "@/components/icons/GlassPinIcon";
 
@@ -67,8 +68,8 @@ interface AreaMapRecord {
 function applySmoothingToLine(coords: [number, number][], curveMode?: boolean) {
   if (!curveMode || coords.length < 3) return coords;
   try {
-    const line = turf.lineString(coords);
-    return turf.bezierSpline(line, { resolution: 10000, sharpness: 0.85 }).geometry.coordinates as [number, number][];
+    const line = lineString(coords);
+    return bezierSpline(line, { resolution: 10000, sharpness: 0.85 }).geometry.coordinates as [number, number][];
   } catch {
     return coords;
   }
@@ -77,7 +78,7 @@ function applySmoothingToLine(coords: [number, number][], curveMode?: boolean) {
 function applySmoothingToPolygon(polyCoords: [number, number][], curveMode?: boolean) {
   if (!curveMode || polyCoords.length < 4) return polyCoords;
   try {
-    return turf.bezierSpline(turf.lineString(polyCoords), { resolution: 10000, sharpness: 0.85 }).geometry.coordinates as [number, number][];
+    return bezierSpline(lineString(polyCoords), { resolution: 10000, sharpness: 0.85 }).geometry.coordinates as [number, number][];
   } catch {
     return polyCoords;
   }
@@ -114,6 +115,7 @@ export default function MapCanvas({
 }: MapCanvasProps) {
   const previousResetViewTrigger = useRef(resetViewTrigger);
   const mapRef = useRef<MapRef | null>(null);
+  const [shouldLoadSpatialData, setShouldLoadSpatialData] = useState(false);
   const [pins, setPins] = useState<PinMapRecord[]>([]);
   const [traces, setTraces] = useState<TraceMapRecord[]>([]);
   const [areas, setAreas] = useState<AreaMapRecord[]>([]);
@@ -155,6 +157,37 @@ export default function MapCanvas({
   }, [flyToMapCommand, clearFlyToMapCommand]);
 
   useEffect(() => {
+    const idleWindow = window as Window & {
+      requestIdleCallback?: (callback: IdleRequestCallback, options?: IdleRequestOptions) => number;
+      cancelIdleCallback?: (handle: number) => void;
+    };
+
+    if (shouldLoadSpatialData) {
+      return;
+    }
+
+    if (typeof idleWindow.requestIdleCallback === "function") {
+      const idleId = idleWindow.requestIdleCallback(() => setShouldLoadSpatialData(true), { timeout: 1200 });
+
+      return () => {
+        idleWindow.cancelIdleCallback?.(idleId);
+      };
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setShouldLoadSpatialData(true);
+    }, 320);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [shouldLoadSpatialData]);
+
+  useEffect(() => {
+    if (!shouldLoadSpatialData) {
+      return;
+    }
+
     async function loadData() {
       try {
         const [pinData, traceData, areaData] = await Promise.all([getPins(), getTraces(), getAreas()]);
@@ -164,7 +197,7 @@ export default function MapCanvas({
       } catch (err) { console.error("Failed to load map data:", err); }
     }
     loadData();
-  }, [refreshTrigger]);
+  }, [refreshTrigger, shouldLoadSpatialData]);
 
   const visiblePins = useMemo(
     () => pins.filter((pin) => !pin.collection_id || !hiddenCollectionIds.includes(pin.collection_id)),

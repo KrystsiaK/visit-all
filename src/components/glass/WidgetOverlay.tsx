@@ -4,6 +4,7 @@ import { X } from "lucide-react";
 import { getEntityWidgetPayload, getEntityWidgets, updatePinDetails, deletePin } from "@/app/actions";
 import { useDebouncedCallback } from "@/hooks/useDebounce";
 import type { WidgetEntityPayload, WidgetEntityType, WidgetInstanceRecord } from "@/lib/widgets";
+import { overlayItemVariants, overlaySectionVariants, overlayShellVariants } from "@/lib/motion";
 import { EntityInfoWidgetCard } from "@/components/widgets/EntityInfoWidgetCard";
 import { EntityDeleteWidgetCard } from "@/components/widgets/EntityDeleteWidgetCard";
 import { Tooltip } from "@/components/ui/Tooltip";
@@ -27,6 +28,29 @@ interface WidgetOverlayProps {
     coordinates?: { lat: number; lng: number };
     collectionId?: string;
   };
+}
+
+function WidgetOverlaySkeletonCard({ emphasis = "default" }: { emphasis?: "default" | "hero" }) {
+  return (
+    <motion.div
+      variants={overlayItemVariants}
+      className={`overflow-hidden rounded-2xl border border-black/10 bg-white/50 p-[17px] shadow-[0px_8px_32px_rgba(0,0,0,0.08)] backdrop-blur-3xl ${
+        emphasis === "hero" ? "min-h-[288px]" : "min-h-[168px]"
+      }`}
+    >
+      <div className="animate-pulse">
+        <div className="h-8 w-8 rounded-xl bg-black/8" />
+        {emphasis === "hero" ? <div className="mt-4 h-32 rounded-xl bg-black/6" /> : null}
+        <div className="mt-4 h-4 w-32 rounded-full bg-black/8" />
+        <div className="mt-3 h-3 w-24 rounded-full bg-black/6" />
+        <div className="mt-5 grid grid-cols-2 gap-2">
+          <div className="h-24 rounded-xl bg-black/6" />
+          <div className="h-24 rounded-xl bg-black/6" />
+        </div>
+        <div className="mt-4 h-28 rounded-xl bg-black/6" />
+      </div>
+    </motion.div>
+  );
 }
 
 export function WidgetOverlay({ isOpen, onClose, onDataSaved, onDeletePin, entityType, entityId, data }: WidgetOverlayProps) {
@@ -300,17 +324,20 @@ export function WidgetOverlay({ isOpen, onClose, onDataSaved, onDeletePin, entit
           {/* Widget Container */}
           <motion.div
             className="fixed inset-x-3 bottom-3 top-auto z-50 h-[min(78vh,720px)] pointer-events-none md:inset-x-auto md:right-8 md:top-28 md:bottom-6 md:h-auto md:w-[376px]"
-            initial={{ opacity: 0, y: 36 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 36 }}
-            transition={{ duration: 0.35, ease: [0.25, 0.1, 0.25, 1] }}
+            variants={overlayShellVariants}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
           >
             <div className="h-full pointer-events-auto">
               <div className="flex h-full flex-col gap-3 overflow-hidden md:gap-4 md:py-6">
-                <div className="flex justify-center md:hidden">
+                <motion.div variants={overlaySectionVariants} className="flex justify-center md:hidden">
                   <div className="h-1.5 w-14 rounded-full bg-black/12" />
-                </div>
-                <div className="rounded-2xl border border-black/10 bg-white/70 p-6 shadow-[0px_8px_32px_rgba(0,0,0,0.08)] backdrop-blur-3xl">
+                </motion.div>
+                <motion.div
+                  variants={overlaySectionVariants}
+                  className="rounded-2xl border border-black/10 bg-white/70 p-6 shadow-[0px_8px_32px_rgba(0,0,0,0.08)] backdrop-blur-3xl"
+                >
                   <div className="flex items-start justify-between">
                     <div>
                       {supportsDirectPinEditing ? (
@@ -346,11 +373,34 @@ export function WidgetOverlay({ isOpen, onClose, onDataSaved, onDeletePin, entit
                       </button>
                     </Tooltip>
                   </div>
-                </div>
+                </motion.div>
 
                 {/* Main Content Area */}
-                <div className="flex-1 flex flex-col gap-3 overflow-y-auto no-scrollbar pr-1">
-                  {entityWidgets.map((widget) => {
+                <motion.div
+                  variants={overlaySectionVariants}
+                  className="flex-1 flex flex-col gap-3 overflow-y-auto no-scrollbar pr-1"
+                >
+                  {loading ? (
+                    <>
+                      <WidgetOverlaySkeletonCard emphasis="hero" />
+                      <WidgetOverlaySkeletonCard />
+                    </>
+                  ) : entityWidgets.length === 0 ? (
+                    <motion.div
+                      variants={overlayItemVariants}
+                      className="rounded-2xl border border-black/10 bg-white/50 p-6 shadow-[0px_8px_32px_rgba(0,0,0,0.08)] backdrop-blur-3xl"
+                    >
+                      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-neutral-500">
+                        Widgets Ready
+                      </p>
+                      <h3 className="mt-3 text-xl font-semibold tracking-tight text-neutral-900">
+                        Panel loaded cleanly
+                      </h3>
+                      <p className="mt-3 text-sm leading-6 text-neutral-600">
+                        This entity has no active cards yet, so the panel stays stable instead of popping in empty sections.
+                      </p>
+                    </motion.div>
+                  ) : entityWidgets.map((widget) => {
                     const normalizedEntity = entityPayload ?? {
                       id: activeData.id,
                       type: (entityType || "pin"),
@@ -365,39 +415,41 @@ export function WidgetOverlay({ isOpen, onClose, onDataSaved, onDeletePin, entit
 
                     if (widget.componentKey === "entity_info") {
                       return (
-                        <EntityInfoWidgetCard
-                          key={widget.id}
-                          widget={widget}
-                          entity={normalizedEntity}
-                          pinNote={pinNote}
-                          pinImage={pinImage}
-                          imageFile={imageFile}
-                          saving={saving}
-                          editable={supportsDirectPinEditing}
-                          interactionsDisabled={widgetInteractionsDeferred}
-                          onNoteChange={handleNoteChange}
-                          onImageUpload={handleImageUpload}
-                          onImageDelete={handleImageDelete}
-                        />
+                        <motion.div key={widget.id} variants={overlayItemVariants} layout="position">
+                          <EntityInfoWidgetCard
+                            widget={widget}
+                            entity={normalizedEntity}
+                            pinNote={pinNote}
+                            pinImage={pinImage}
+                            imageFile={imageFile}
+                            saving={saving}
+                            editable={supportsDirectPinEditing}
+                            interactionsDisabled={widgetInteractionsDeferred}
+                            onNoteChange={handleNoteChange}
+                            onImageUpload={handleImageUpload}
+                            onImageDelete={handleImageDelete}
+                          />
+                        </motion.div>
                       );
                     }
 
                     if (widget.componentKey === "entity_delete" && supportsDirectPinEditing) {
                       return (
-                        <EntityDeleteWidgetCard
-                          key={widget.id}
-                          widget={widget}
-                          entity={normalizedEntity}
-                          saving={saving}
-                          disabled={widgetInteractionsDeferred}
-                          onDelete={() => setDeleteWarningOpen(true)}
-                        />
+                        <motion.div key={widget.id} variants={overlayItemVariants} layout="position">
+                          <EntityDeleteWidgetCard
+                            widget={widget}
+                            entity={normalizedEntity}
+                            saving={saving}
+                            disabled={widgetInteractionsDeferred}
+                            onDelete={() => setDeleteWarningOpen(true)}
+                          />
+                        </motion.div>
                       );
                     }
 
                     return null;
                   })}
-                </div>
+                </motion.div>
               </div>
             </div>
           </motion.div>

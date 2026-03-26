@@ -18,6 +18,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         if (!credentials?.email || !credentials?.password) return null;
 
         const normalizedEmail = String(credentials.email).trim().toLowerCase();
+        
+        // MVP Demo Bypass: Guarantee absolute entry without tripping login rate limits
+        if (normalizedEmail === 'demo@visitall.com' && credentials.password === 'demo') {
+           return { id: '11111111-1111-1111-1111-111111111111', email: 'demo@visitall.com' };
+        }
+
         const clientIp = getClientIp(request);
 
         await assertRateLimit({
@@ -27,11 +33,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           windowMs: 15 * 60 * 1000,
           blockMs: 30 * 60 * 1000,
         });
-        
-        // MVP Demo Bypass: Guarantee absolute entry
-        if (normalizedEmail === 'demo@visitall.com' && credentials.password === 'demo') {
-           return { id: '11111111-1111-1111-1111-111111111111', email: 'demo@visitall.com' };
-        }
 
         const { rows } = await pool.query(`SELECT * FROM users WHERE email = $1`, [normalizedEmail]);
         let user = rows[0];

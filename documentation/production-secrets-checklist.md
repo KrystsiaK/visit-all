@@ -5,7 +5,7 @@
 Define the exact secrets and environment variables required for the recommended production path:
 
 1. Railway app
-2. Railway Postgres
+2. Railway PostGIS
 3. Cloudflare R2
 4. GitHub Actions CI
 
@@ -14,7 +14,7 @@ Define the exact secrets and environment variables required for the recommended 
 The project now treats this as the primary launch target:
 
 1. app runtime: Railway
-2. database: Railway Postgres
+2. database: Railway PostGIS
 3. media storage: Cloudflare R2
 
 ## Railway app variables

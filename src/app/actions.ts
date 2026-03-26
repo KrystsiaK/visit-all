@@ -4,6 +4,9 @@ import type { PoolClient } from "pg";
 import { pool } from "@/lib/db";
 import { auth } from "@/auth";
 import type { WidgetComponentKey, WidgetDefinitionRecord, WidgetEntityPayload, WidgetEntityType, WidgetInstanceRecord, WidgetLayerType } from "@/lib/widgets";
+import type { WidgetPlacementRecord } from "@/lib/widgets";
+import type { LeftSidebarShellInstance, TopChromeShellInstance } from "@/lib/shells";
+import { defaultLeftSidebarShellConfig, defaultShellState, defaultTopChromeShellConfig } from "@/lib/shells";
 import { validateImageUpload } from "@/lib/security";
 import { deleteUploadFromUrl, writeUpload } from "@/lib/storage";
 import { assertRateLimit } from "@/lib/rate-limit";
@@ -51,6 +54,118 @@ const widgetLibrarySeed: Array<{
     componentKey: "entity_delete",
     defaultConfig: {},
   },
+  {
+    slug: "shell_chrome_primary",
+    name: "Shell Chrome Primary",
+    layer: "shell",
+    supportedEntityTypes: [],
+    componentKey: "shell_chrome_primary",
+    defaultConfig: {},
+  },
+  {
+    slug: "shell_header",
+    name: "Shell Header",
+    layer: "shell",
+    supportedEntityTypes: [],
+    componentKey: "shell_header",
+    defaultConfig: {},
+  },
+  {
+    slug: "shell_search",
+    name: "Shell Search",
+    layer: "shell",
+    supportedEntityTypes: [],
+    componentKey: "shell_search",
+    defaultConfig: {},
+  },
+  {
+    slug: "shell_mode_switch",
+    name: "Shell Mode Switch",
+    layer: "shell",
+    supportedEntityTypes: [],
+    componentKey: "shell_mode_switch",
+    defaultConfig: {
+      kind: "button_group",
+      valueChannel: "interactionMode",
+      buttons: [
+        {
+          id: "pins",
+          label: "PINS",
+          value: "pin",
+          icon: "pin",
+        },
+        {
+          id: "paths",
+          label: "PATHS",
+          value: "trace",
+          icon: "route",
+        },
+        {
+          id: "zones",
+          label: "ZONES",
+          value: "area",
+          icon: "polygon",
+          disabledChannel: "areasDisabled",
+        },
+      ],
+    },
+  },
+  {
+    slug: "shell_collections",
+    name: "Shell Collections",
+    layer: "shell",
+    supportedEntityTypes: [],
+    componentKey: "shell_collections",
+    defaultConfig: {},
+  },
+  {
+    slug: "shell_controls",
+    name: "Shell Controls",
+    layer: "shell",
+    supportedEntityTypes: [],
+    componentKey: "shell_controls",
+    defaultConfig: {},
+  },
+  {
+    slug: "shell_actions",
+    name: "Shell Actions",
+    layer: "shell",
+    supportedEntityTypes: [],
+    componentKey: "shell_actions",
+    defaultConfig: {},
+  },
+  {
+    slug: "shell_create_collection",
+    name: "Shell Create Collection",
+    layer: "shell",
+    supportedEntityTypes: [],
+    componentKey: "shell_create_collection",
+    defaultConfig: {},
+  },
+  {
+    slug: "shell_reset_view",
+    name: "Shell Reset View",
+    layer: "shell",
+    supportedEntityTypes: [],
+    componentKey: "shell_reset_view",
+    defaultConfig: {},
+  },
+  {
+    slug: "shell_finish_trace",
+    name: "Shell Finish Trace",
+    layer: "shell",
+    supportedEntityTypes: [],
+    componentKey: "shell_finish_trace",
+    defaultConfig: {},
+  },
+  {
+    slug: "shell_remove_trace_point",
+    name: "Shell Remove Trace Point",
+    layer: "shell",
+    supportedEntityTypes: [],
+    componentKey: "shell_remove_trace_point",
+    defaultConfig: {},
+  },
 ];
 
 async function ensureWidgetLibrarySeed() {
@@ -61,7 +176,14 @@ async function ensureWidgetLibrarySeed() {
           slug, name, layer, supported_entity_types, component_key, default_config, is_system
         )
         VALUES ($1, $2, $3, $4, $5, $6::jsonb, TRUE)
-        ON CONFLICT (slug) DO NOTHING
+        ON CONFLICT (slug) DO UPDATE
+        SET
+          name = EXCLUDED.name,
+          layer = EXCLUDED.layer,
+          supported_entity_types = EXCLUDED.supported_entity_types,
+          component_key = EXCLUDED.component_key,
+          default_config = EXCLUDED.default_config,
+          is_system = EXCLUDED.is_system
       `,
       [
         widget.slug,
@@ -72,6 +194,494 @@ async function ensureWidgetLibrarySeed() {
         JSON.stringify(widget.defaultConfig),
       ]
     );
+  }
+}
+
+async function ensureShellDefinitionSeed() {
+  const definitions = [
+    {
+      slug: "left_sidebar",
+      name: "Left Sidebar",
+      config: defaultLeftSidebarShellConfig,
+    },
+    {
+      slug: "top_chrome",
+      name: "Top Chrome",
+      config: defaultTopChromeShellConfig,
+    },
+  ] as const;
+
+  for (const definition of definitions) {
+    await pool.query(
+      `
+        INSERT INTO shell_definitions (
+          slug,
+          name,
+          kind,
+          scope,
+          default_config,
+          default_state,
+          is_system
+        )
+        VALUES ($1, $2, 'panel', 'app', $3::jsonb, $4::jsonb, TRUE)
+        ON CONFLICT (slug) DO NOTHING
+      `,
+      [
+        definition.slug,
+        definition.name,
+        JSON.stringify(definition.config),
+        JSON.stringify(defaultShellState),
+      ]
+    );
+  }
+}
+
+async function ensureUserShellInstance(userId: string, slug: "left_sidebar" | "top_chrome") {
+  await ensureShellDefinitionSeed();
+
+  await pool.query(
+    `
+      INSERT INTO shell_instances (definition_id, owner_type, owner_id, config, state)
+      SELECT d.id, 'user', $1, d.default_config, d.default_state
+      FROM shell_definitions d
+      WHERE d.slug = $2
+      AND NOT EXISTS (
+        SELECT 1
+        FROM shell_instances si
+        WHERE si.definition_id = d.id
+          AND si.owner_type = 'user'
+          AND si.owner_id = $1
+      )
+    `,
+    [userId, slug]
+  );
+}
+
+async function ensureDefaultShellWidgets(userId: string, shellSlug: "left_sidebar" | "top_chrome") {
+  await ensureWidgetLibrarySeed();
+  await ensureUserShellInstance(userId, shellSlug);
+
+  const desiredWidgets =
+    shellSlug === "top_chrome"
+      ? ([{ slug: "shell_chrome_primary", position: 0 }] as const)
+        : ([
+          { slug: "shell_search", position: 0 },
+          { slug: "shell_mode_switch", position: 1 },
+          { slug: "shell_collections", position: 2 },
+          { slug: "shell_create_collection", position: 3 },
+          { slug: "shell_reset_view", position: 4 },
+          { slug: "shell_finish_trace", position: 5 },
+          { slug: "shell_remove_trace_point", position: 6 },
+          { slug: "shell_controls", position: 7 },
+        ] as const);
+
+  for (const widget of desiredWidgets) {
+    await pool.query(
+      `
+        INSERT INTO widget_instances (definition_id, layer, position, title, user_id)
+        SELECT d.id, 'shell', $2, d.name, $1
+        FROM widget_definitions d
+        WHERE d.slug = $3
+        AND NOT EXISTS (
+          SELECT 1
+          FROM widget_instances wi
+          WHERE wi.user_id = $1
+            AND wi.layer = 'shell'
+            AND wi.definition_id = d.id
+        )
+        RETURNING id
+      `,
+      [userId, widget.position, widget.slug]
+    );
+  }
+
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const shellResult = await client.query(
+      `
+        SELECT si.id
+        FROM shell_instances si
+        INNER JOIN shell_definitions sd ON sd.id = si.definition_id
+        WHERE si.owner_type = 'user'
+          AND si.owner_id = $1
+          AND sd.slug = $2
+        LIMIT 1
+      `,
+      [userId, shellSlug]
+    );
+
+    const shellInstanceId = shellResult.rows[0]?.id as string | undefined;
+
+    if (!shellInstanceId) {
+      throw new Error(`Shell instance not found for ${shellSlug}.`);
+    }
+
+    const desiredInstanceRows = await client.query(
+      `
+        SELECT
+          wi.id as "widgetInstanceId",
+          wd.slug
+        FROM widget_instances wi
+        INNER JOIN widget_definitions wd ON wd.id = wi.definition_id
+        WHERE wi.user_id = $1
+          AND wi.layer = 'shell'
+          AND wd.slug = ANY($2::text[])
+      `,
+      [userId, desiredWidgets.map((widget) => widget.slug)]
+    );
+
+    const desiredInstanceIdBySlug = new Map<string, string>(
+      desiredInstanceRows.rows.map((row) => [row.slug as string, row.widgetInstanceId as string])
+    );
+
+    const placementRows = await client.query(
+      `
+        SELECT
+          wp.id,
+          wp.widget_instance_id as "widgetInstanceId",
+          wp.position,
+          wd.slug
+        FROM widget_placements wp
+        INNER JOIN widget_instances wi ON wi.id = wp.widget_instance_id
+        INNER JOIN widget_definitions wd ON wd.id = wi.definition_id
+        WHERE wp.shell_instance_id = $1
+        ORDER BY wp.position ASC, wp.created_at ASC
+      `,
+      [shellInstanceId]
+    );
+
+    const existingPlacementByWidgetInstanceId = new Map<string, { id: string; slug: string; position: number }>(
+      placementRows.rows.map((row) => [
+        row.widgetInstanceId as string,
+        {
+          id: row.id as string,
+          slug: row.slug as string,
+          position: row.position as number,
+        },
+      ])
+    );
+
+    const maxExistingPosition = placementRows.rows.reduce(
+      (max, row) => Math.max(max, row.position as number),
+      -1
+    );
+
+    let nextInsertPosition = maxExistingPosition + 100;
+
+    for (const widget of desiredWidgets) {
+      const widgetInstanceId = desiredInstanceIdBySlug.get(widget.slug);
+
+      if (!widgetInstanceId || existingPlacementByWidgetInstanceId.has(widgetInstanceId)) {
+        continue;
+      }
+
+      const insertResult = await client.query(
+        `
+          INSERT INTO widget_placements (shell_instance_id, widget_instance_id, slot, position)
+          VALUES ($1, $2::uuid, 'main', $3)
+          RETURNING id
+        `,
+        [shellInstanceId, widgetInstanceId, nextInsertPosition]
+      );
+
+      existingPlacementByWidgetInstanceId.set(widgetInstanceId, {
+        id: insertResult.rows[0].id as string,
+        slug: widget.slug,
+        position: nextInsertPosition,
+      });
+
+      nextInsertPosition += 1;
+    }
+
+    const refreshedPlacementRows = await client.query(
+      `
+        SELECT
+          wp.id,
+          wp.widget_instance_id as "widgetInstanceId",
+          wp.position,
+          wd.slug
+        FROM widget_placements wp
+        INNER JOIN widget_instances wi ON wi.id = wp.widget_instance_id
+        INNER JOIN widget_definitions wd ON wd.id = wi.definition_id
+        WHERE wp.shell_instance_id = $1
+        ORDER BY wp.position ASC, wp.created_at ASC
+      `,
+      [shellInstanceId]
+    );
+
+    const desiredPlacementIds = desiredWidgets
+      .map((widget) => desiredInstanceIdBySlug.get(widget.slug))
+      .filter((value): value is string => !!value)
+      .map((widgetInstanceId) => {
+        const placement = refreshedPlacementRows.rows.find(
+          (row) => (row.widgetInstanceId as string) === widgetInstanceId
+        );
+
+        return placement?.id as string | undefined;
+      })
+      .filter((value): value is string => !!value);
+
+    const remainingPlacementIds = refreshedPlacementRows.rows
+      .filter((row) => !desiredPlacementIds.includes(row.id as string))
+      .map((row) => row.id as string);
+
+    const orderedPlacementIds = [...desiredPlacementIds, ...remainingPlacementIds];
+
+    await client.query(
+      `
+        UPDATE widget_placements
+        SET
+          position = position + 1000,
+          updated_at = NOW()
+        WHERE shell_instance_id = $1
+      `,
+      [shellInstanceId]
+    );
+
+    for (const [position, placementId] of orderedPlacementIds.entries()) {
+      await client.query(
+        `
+          UPDATE widget_placements
+          SET
+            position = $3,
+            updated_at = NOW()
+          WHERE shell_instance_id = $1
+            AND id = $2::uuid
+        `,
+        [shellInstanceId, placementId, position]
+      );
+    }
+
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function getLeftSidebarShell(): Promise<LeftSidebarShellInstance> {
+  const userId = await getUserId();
+  await ensureUserShellInstance(userId, "left_sidebar");
+
+  const { rows } = await pool.query(
+    `
+      SELECT
+        si.id,
+        sd.slug,
+        sd.name,
+        sd.kind,
+        sd.scope,
+        si.owner_type as "ownerType",
+        si.owner_id as "ownerId",
+        si.config,
+        si.state
+      FROM shell_instances si
+      INNER JOIN shell_definitions sd ON sd.id = si.definition_id
+      WHERE si.owner_type = 'user'
+        AND si.owner_id = $1
+        AND sd.slug = 'left_sidebar'
+      LIMIT 1
+    `,
+    [userId]
+  );
+
+  return rows[0] as LeftSidebarShellInstance;
+}
+
+export async function getTopChromeShell(): Promise<TopChromeShellInstance> {
+  const userId = await getUserId();
+  await ensureUserShellInstance(userId, "top_chrome");
+
+  const { rows } = await pool.query(
+    `
+      SELECT
+        si.id,
+        sd.slug,
+        sd.name,
+        sd.kind,
+        sd.scope,
+        si.owner_type as "ownerType",
+        si.owner_id as "ownerId",
+        si.config,
+        si.state
+      FROM shell_instances si
+      INNER JOIN shell_definitions sd ON sd.id = si.definition_id
+      WHERE si.owner_type = 'user'
+        AND si.owner_id = $1
+        AND sd.slug = 'top_chrome'
+      LIMIT 1
+    `,
+    [userId]
+  );
+
+  return rows[0] as TopChromeShellInstance;
+}
+
+export async function getLeftSidebarShellWidgets() {
+  const userId = await getUserId();
+  await ensureDefaultShellWidgets(userId, "left_sidebar");
+
+  const { rows } = await pool.query(
+    `
+      SELECT
+        wp.id,
+        wp.shell_instance_id as "shellInstanceId",
+        wp.widget_instance_id as "widgetInstanceId",
+        wp.slot,
+        wp.position,
+        wi.definition_id as "definitionId",
+        wd.slug,
+        COALESCE(wi.title, wd.name) as name,
+        wi.layer,
+        wi.entity_type as "entityType",
+        wi.entity_id as "entityId",
+        wd.component_key as "componentKey",
+        COALESCE(wd.default_config, '{}'::jsonb) || COALESCE(wi.config, '{}'::jsonb) as config,
+        wi.state
+      FROM widget_placements wp
+      INNER JOIN widget_instances wi ON wi.id = wp.widget_instance_id
+      INNER JOIN widget_definitions wd ON wd.id = wi.definition_id
+      INNER JOIN shell_instances si ON si.id = wp.shell_instance_id
+      INNER JOIN shell_definitions sd ON sd.id = si.definition_id
+      WHERE si.owner_type = 'user'
+        AND si.owner_id = $1
+        AND sd.slug = 'left_sidebar'
+      ORDER BY wp.position ASC, wp.created_at ASC
+    `,
+    [userId]
+  );
+
+  return rows as Array<WidgetPlacementRecord & WidgetInstanceRecord>;
+}
+
+export async function getTopChromeShellWidgets() {
+  const userId = await getUserId();
+  await ensureDefaultShellWidgets(userId, "top_chrome");
+
+  const { rows } = await pool.query(
+    `
+      SELECT
+        wp.id,
+        wp.shell_instance_id as "shellInstanceId",
+        wp.widget_instance_id as "widgetInstanceId",
+        wp.slot,
+        wp.position,
+        wi.definition_id as "definitionId",
+        wd.slug,
+        COALESCE(wi.title, wd.name) as name,
+        wi.layer,
+        wi.entity_type as "entityType",
+        wi.entity_id as "entityId",
+        wd.component_key as "componentKey",
+        COALESCE(wd.default_config, '{}'::jsonb) || COALESCE(wi.config, '{}'::jsonb) as config,
+        wi.state
+      FROM widget_placements wp
+      INNER JOIN widget_instances wi ON wi.id = wp.widget_instance_id
+      INNER JOIN widget_definitions wd ON wd.id = wi.definition_id
+      INNER JOIN shell_instances si ON si.id = wp.shell_instance_id
+      INNER JOIN shell_definitions sd ON sd.id = si.definition_id
+      WHERE si.owner_type = 'user'
+        AND si.owner_id = $1
+        AND sd.slug = 'top_chrome'
+      ORDER BY wp.position ASC, wp.created_at ASC
+    `,
+    [userId]
+  );
+
+  return rows as Array<WidgetPlacementRecord & WidgetInstanceRecord>;
+}
+
+export async function updateLeftSidebarShellState(partialState: Partial<LeftSidebarShellInstance["state"]>) {
+  const userId = await getUserId();
+  await ensureUserShellInstance(userId, "left_sidebar");
+
+  const { rows } = await pool.query(
+    `
+      UPDATE shell_instances si
+      SET
+        state = COALESCE(si.state, '{}'::jsonb) || $2::jsonb,
+        updated_at = NOW()
+      FROM shell_definitions sd
+      WHERE sd.id = si.definition_id
+        AND sd.slug = 'left_sidebar'
+        AND si.owner_type = 'user'
+        AND si.owner_id = $1
+      RETURNING si.id
+    `,
+    [userId, JSON.stringify(partialState)]
+  );
+
+  return rows[0];
+}
+
+export async function reorderShellWidgetPlacements(
+  shellInstanceId: string,
+  orderedPlacementIds: string[]
+) {
+  const userId = await getUserId();
+
+  if (orderedPlacementIds.length === 0) {
+    return;
+  }
+
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const ownership = await client.query(
+      `
+        SELECT si.id
+        FROM shell_instances si
+        WHERE si.id = $1
+          AND si.owner_type = 'user'
+          AND si.owner_id = $2
+        LIMIT 1
+      `,
+      [shellInstanceId, userId]
+    );
+
+    if (ownership.rowCount === 0) {
+      throw new Error("Shell instance not found.");
+    }
+
+    await client.query(
+      `
+        UPDATE widget_placements
+        SET
+          position = position + 1000,
+          updated_at = NOW()
+        WHERE shell_instance_id = $1
+          AND id = ANY($2::uuid[])
+      `,
+      [shellInstanceId, orderedPlacementIds]
+    );
+
+    for (const [position, placementId] of orderedPlacementIds.entries()) {
+      await client.query(
+        `
+          UPDATE widget_placements
+          SET
+            position = $3,
+            updated_at = NOW()
+          WHERE shell_instance_id = $1
+            AND id = $2::uuid
+        `,
+        [shellInstanceId, placementId, position]
+      );
+    }
+
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
   }
 }
 

@@ -8,10 +8,14 @@ async function login(page: Page) {
   await page.waitForURL("**/");
 }
 
-test("demo login reaches the main app shell", async ({ page }) => {
+test("demo login reaches the main app shell", async ({ page, isMobile }) => {
   await login(page);
   await expect(page.getByRole("button", { name: /widgets/i })).toBeVisible();
-  await expect(page.getByText("Synarava")).toBeVisible();
+  await expect(
+    page.getByRole("button", {
+      name: isMobile ? /layers drawer/i : /layers panel/i,
+    })
+  ).toBeVisible();
 });
 
 test("widget center opens and closes on desktop", async ({ page, isMobile }) => {
@@ -40,9 +44,9 @@ test("show only activates from a visible layer without muting it", async ({ page
   test.skip(isMobile, "Desktop-only assertion");
   await login(page);
 
-  const layerCard = page.getByTestId("layer-card").first();
-  const eyeButton = layerCard.getByTestId("layer-mute-button");
-  const soloButton = layerCard.getByTestId("layer-solo-button");
+  const collectionCard = page.getByTestId("collection-card").first();
+  const eyeButton = collectionCard.getByTestId("collection-mute-button");
+  const soloButton = collectionCard.getByTestId("collection-solo-button");
 
   await expect(eyeButton).toBeVisible();
   await expect(soloButton).toBeVisible();
@@ -59,9 +63,9 @@ test("show only unmutes the same layer when activated after eye off", async ({ p
   test.skip(isMobile, "Desktop-only assertion");
   await login(page);
 
-  const layerCard = page.getByTestId("layer-card").first();
-  const eyeButton = layerCard.getByTestId("layer-mute-button");
-  const soloButton = layerCard.getByTestId("layer-solo-button");
+  const collectionCard = page.getByTestId("collection-card").first();
+  const eyeButton = collectionCard.getByTestId("collection-mute-button");
+  const soloButton = collectionCard.getByTestId("collection-solo-button");
 
   await eyeButton.click();
   await expect(eyeButton).toHaveAttribute("aria-pressed", "true");

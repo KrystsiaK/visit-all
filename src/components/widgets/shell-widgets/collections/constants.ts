@@ -1,0 +1,1 @@
+export const COLLECTION_SWATCHES = ["#E63946", "#2F6BFF", "#FFD54A", "#1A1A1A", "#4CAF50", "#9C27B0", "#FF9800"];
