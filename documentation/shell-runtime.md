@@ -174,9 +174,32 @@ Current shared shell capabilities:
   - widgets can be dragged by a shell-level handle in the top slot area
   - the shell owns reorder geometry and persistence
   - widgets remain unaware of drag-and-drop internals
+  - the same `ShellWidgetSlot` and shared reorder hook now power both left and right shell surfaces
 - interaction lock
   - shell can expose an `interactionLocked` runtime channel during guided authoring flows
   - widgets can stay active or disable themselves based on whether they are essential to completing the current flow
+
+The same shell runtime model now also backs the right entity surface:
+
+- `RightEntityShell`
+  - owns shell placement, close behavior, shell-level error isolation, and scroll surface
+  - exposes a runtime for entity widgets
+  - renders entity widgets through the same slot layer used by the left shell
+  - keeps the shell/container concerns separate from the entity widgets themselves
+
+The same shell runtime model now also backs the global widget surfaces:
+
+- `WidgetCenterShell`
+  - owns the global widget center surface
+  - renders global widgets through the same slot layer and reorder hook used by the other shells
+- `WidgetLibraryShell`
+  - is a full-screen shell, not a special modal
+  - hosts the widget catalog used to add widgets into shells
+
+Current transitional state:
+
+- the right shell now exists as a shell
+- entity widgets still keep some local business logic and have not yet been fully moved to a binding layer
 
 That keeps instrument widgets portable:
 

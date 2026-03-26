@@ -8,7 +8,12 @@ export const ShellSearchWidget = () => {
   const hasQuery = collectionQuery.trim().length > 0;
 
   return (
-    <WidgetFrame className="pointer-events-auto border-black/10 bg-[#f8f6f1]/80" bodyClassName="relative flex items-center gap-3">
+    <WidgetFrame
+      className="pointer-events-auto border-black/10 bg-[#f8f6f1]/80"
+      bodyClassName="relative flex items-center gap-3"
+      title="Search Collections"
+      identityVisibility="settings-only"
+    >
       <Search className="ml-1 h-4 w-4 text-neutral-400" />
       <input
         type="text"

@@ -55,6 +55,75 @@ const widgetLibrarySeed: Array<{
     defaultConfig: {},
   },
   {
+    slug: "entity_gallery",
+    name: "Entity Gallery",
+    layer: "entity",
+    supportedEntityTypes: ["pin", "trace", "area"],
+    componentKey: "entity_gallery",
+    defaultConfig: {
+      kind: "gallery",
+      allowMultiple: true,
+    },
+  },
+  {
+    slug: "entity_stories",
+    name: "Entity Stories",
+    layer: "entity",
+    supportedEntityTypes: ["pin", "trace", "area"],
+    componentKey: "entity_stories",
+    defaultConfig: {
+      kind: "stories",
+      format: "markdown",
+      allowMultiple: true,
+    },
+  },
+  {
+    slug: "entity_resources",
+    name: "Entity Resources",
+    layer: "entity",
+    supportedEntityTypes: ["pin", "trace", "area"],
+    componentKey: "entity_resources",
+    defaultConfig: {
+      kind: "resources",
+      allowMultiple: true,
+    },
+  },
+  {
+    slug: "entity_rating",
+    name: "Entity Rating",
+    layer: "entity",
+    supportedEntityTypes: ["pin"],
+    componentKey: "entity_rating",
+    defaultConfig: {
+      kind: "rating",
+      scale: 5,
+    },
+  },
+  {
+    slug: "entity_nearby_pins",
+    name: "Nearby Pins",
+    layer: "entity",
+    supportedEntityTypes: ["pin"],
+    componentKey: "entity_nearby_pins",
+    defaultConfig: {
+      kind: "nearby_pins",
+      maxItems: 3,
+      minRating: 4,
+    },
+  },
+  {
+    slug: "entity_transport_mode",
+    name: "Transport Mode",
+    layer: "entity",
+    supportedEntityTypes: ["trace"],
+    componentKey: "entity_transport_mode",
+    defaultConfig: {
+      kind: "transport_mode",
+      options: ["walk", "car", "bus", "tram", "train", "ferry"],
+      allowMultiple: false,
+    },
+  },
+  {
     slug: "shell_chrome_primary",
     name: "Shell Chrome Primary",
     layer: "shell",
@@ -195,6 +264,247 @@ async function ensureWidgetLibrarySeed() {
       ]
     );
   }
+
+  await ensureWidgetSignalFrameworkSeed();
+}
+
+const signalFrameworkSeed = [
+  {
+    scopeType: "shell",
+    signalKey: "shell.disabled",
+    valueType: "boolean",
+    description: "Published by a shell when hosted widgets should become disabled.",
+  },
+  {
+    scopeType: "shell",
+    signalKey: "shell.hidden",
+    valueType: "boolean",
+    description: "Published by a shell when hosted widgets should become visually hidden.",
+  },
+  {
+    scopeType: "shell",
+    signalKey: "shell.mode",
+    valueType: "string",
+    description: "Published by a shell to describe the active interaction mode.",
+  },
+  {
+    scopeType: "shell",
+    signalKey: "shell.collection_query",
+    valueType: "string",
+    description: "Published by a shell search widget to filter visible collections.",
+  },
+] as const;
+
+const widgetPortSeed = [
+  {
+    widgetSlug: "shell_mode_switch",
+    direction: "output",
+    portKey: "selected_mode",
+    valueType: "string",
+    required: false,
+    autoBindable: false,
+    description: "Emits the selected interaction mode.",
+  },
+  {
+    widgetSlug: "shell_mode_switch",
+    direction: "input",
+    portKey: "disabled",
+    valueType: "boolean",
+    required: false,
+    autoBindable: true,
+    description: "Disables mode switching when the shell locks interactions.",
+  },
+  {
+    widgetSlug: "shell_search",
+    direction: "output",
+    portKey: "collection_query",
+    valueType: "string",
+    required: false,
+    autoBindable: false,
+    description: "Emits the current search query for collection filtering.",
+  },
+  {
+    widgetSlug: "shell_search",
+    direction: "input",
+    portKey: "disabled",
+    valueType: "boolean",
+    required: false,
+    autoBindable: true,
+    description: "Disables the search widget from shell-level signals.",
+  },
+  {
+    widgetSlug: "shell_collections",
+    direction: "input",
+    portKey: "filter_mode",
+    valueType: "string",
+    required: false,
+    autoBindable: false,
+    description: "Filters collections by interaction mode.",
+  },
+  {
+    widgetSlug: "shell_collections",
+    direction: "input",
+    portKey: "collection_query",
+    valueType: "string",
+    required: false,
+    autoBindable: false,
+    description: "Filters collections by shell query.",
+  },
+  {
+    widgetSlug: "shell_collections",
+    direction: "input",
+    portKey: "disabled",
+    valueType: "boolean",
+    required: false,
+    autoBindable: true,
+    description: "Disables collection interactions from shell-level signals.",
+  },
+  {
+    widgetSlug: "entity_rating",
+    direction: "input",
+    portKey: "disabled",
+    valueType: "boolean",
+    required: false,
+    autoBindable: true,
+    description: "Disables rating changes when the hosting shell locks interactions.",
+  },
+] as const;
+
+const shellSignalBindingSeed = [
+  {
+    widgetSlug: "shell_mode_switch",
+    portKey: "disabled",
+    signalKey: "shell.disabled",
+    bindingMode: "auto",
+    defaultEnabled: true,
+  },
+  {
+    widgetSlug: "shell_search",
+    portKey: "disabled",
+    signalKey: "shell.disabled",
+    bindingMode: "auto",
+    defaultEnabled: true,
+  },
+  {
+    widgetSlug: "shell_collections",
+    portKey: "disabled",
+    signalKey: "shell.disabled",
+    bindingMode: "auto",
+    defaultEnabled: true,
+  },
+  {
+    widgetSlug: "entity_rating",
+    portKey: "disabled",
+    signalKey: "shell.disabled",
+    bindingMode: "auto",
+    defaultEnabled: true,
+  },
+] as const;
+
+async function ensureWidgetSignalFrameworkSeed() {
+  for (const signal of signalFrameworkSeed) {
+    await pool.query(
+      `
+        INSERT INTO signal_definitions (
+          scope_type,
+          signal_key,
+          value_type,
+          description,
+          is_system
+        )
+        VALUES ($1, $2, $3, $4, TRUE)
+        ON CONFLICT (scope_type, signal_key) DO UPDATE
+        SET
+          value_type = EXCLUDED.value_type,
+          description = EXCLUDED.description,
+          is_system = EXCLUDED.is_system,
+          updated_at = NOW()
+      `,
+      [signal.scopeType, signal.signalKey, signal.valueType, signal.description]
+    );
+  }
+
+  for (const port of widgetPortSeed) {
+    await pool.query(
+      `
+        INSERT INTO widget_ports (
+          widget_definition_id,
+          direction,
+          port_key,
+          value_type,
+          required,
+          auto_bindable,
+          description
+        )
+        SELECT
+          wd.id,
+          $2,
+          $3,
+          $4,
+          $5,
+          $6,
+          $7
+        FROM widget_definitions wd
+        WHERE wd.slug = $1
+        ON CONFLICT (widget_definition_id, direction, port_key) DO UPDATE
+        SET
+          value_type = EXCLUDED.value_type,
+          required = EXCLUDED.required,
+          auto_bindable = EXCLUDED.auto_bindable,
+          description = EXCLUDED.description,
+          updated_at = NOW()
+      `,
+      [
+        port.widgetSlug,
+        port.direction,
+        port.portKey,
+        port.valueType,
+        port.required,
+        port.autoBindable,
+        port.description,
+      ]
+    );
+  }
+
+  for (const binding of shellSignalBindingSeed) {
+    await pool.query(
+      `
+        INSERT INTO shell_signal_bindings (
+          widget_definition_id,
+          widget_port_id,
+          signal_definition_id,
+          binding_mode,
+          default_enabled
+        )
+        SELECT
+          wd.id,
+          wp.id,
+          sd.id,
+          $4,
+          $5
+        FROM widget_definitions wd
+        INNER JOIN widget_ports wp
+          ON wp.widget_definition_id = wd.id
+         AND wp.port_key = $2
+        INNER JOIN signal_definitions sd
+          ON sd.scope_type = 'shell'
+         AND sd.signal_key = $3
+        WHERE wd.slug = $1
+        ON CONFLICT (widget_definition_id, widget_port_id, signal_definition_id) DO UPDATE
+        SET
+          binding_mode = EXCLUDED.binding_mode,
+          default_enabled = EXCLUDED.default_enabled,
+          updated_at = NOW()
+      `,
+      [
+        binding.widgetSlug,
+        binding.portKey,
+        binding.signalKey,
+        binding.bindingMode,
+        binding.defaultEnabled,
+      ]
+    );
+  }
 }
 
 async function ensureShellDefinitionSeed() {
@@ -208,6 +518,61 @@ async function ensureShellDefinitionSeed() {
       slug: "top_chrome",
       name: "Top Chrome",
       config: defaultTopChromeShellConfig,
+    },
+    {
+      slug: "pin_entity_shell",
+      name: "Pin Entity Shell",
+      config: {
+        version: 1,
+        placement: "right",
+        sizePreset: "regular",
+        width: 376,
+        motionPreset: "overlay-soft",
+      },
+    },
+    {
+      slug: "trace_entity_shell",
+      name: "Trace Entity Shell",
+      config: {
+        version: 1,
+        placement: "right",
+        sizePreset: "regular",
+        width: 376,
+        motionPreset: "overlay-soft",
+      },
+    },
+    {
+      slug: "area_entity_shell",
+      name: "Area Entity Shell",
+      config: {
+        version: 1,
+        placement: "right",
+        sizePreset: "regular",
+        width: 376,
+        motionPreset: "overlay-soft",
+      },
+    },
+    {
+      slug: "widget_center",
+      name: "Widget Center",
+      config: {
+        version: 1,
+        placement: "right",
+        sizePreset: "regular",
+        width: 376,
+        motionPreset: "overlay-soft",
+      },
+    },
+    {
+      slug: "widget_library",
+      name: "Widget Library",
+      config: {
+        version: 1,
+        placement: "center",
+        sizePreset: "wide",
+        width: 960,
+        motionPreset: "overlay-soft",
+      },
     },
   ] as const;
 
@@ -257,6 +622,41 @@ async function ensureUserShellInstance(userId: string, slug: "left_sidebar" | "t
   );
 }
 
+const getEntityShellSlug = (entityType: WidgetEntityType) => {
+  if (entityType === "trace") {
+    return "trace_entity_shell";
+  }
+
+  if (entityType === "area") {
+    return "area_entity_shell";
+  }
+
+  return "pin_entity_shell";
+};
+
+async function ensureEntityShellInstance(entityType: WidgetEntityType, entityId: string) {
+  await ensureShellDefinitionSeed();
+
+  const slug = getEntityShellSlug(entityType);
+
+  await pool.query(
+    `
+      INSERT INTO shell_instances (definition_id, owner_type, owner_id, config, state)
+      SELECT d.id, 'entity', $1, d.default_config, d.default_state
+      FROM shell_definitions d
+      WHERE d.slug = $2
+      AND NOT EXISTS (
+        SELECT 1
+        FROM shell_instances si
+        WHERE si.definition_id = d.id
+          AND si.owner_type = 'entity'
+          AND si.owner_id = $1
+      )
+    `,
+    [entityId, slug]
+  );
+}
+
 async function ensureDefaultShellWidgets(userId: string, shellSlug: "left_sidebar" | "top_chrome") {
   await ensureWidgetLibrarySeed();
   await ensureUserShellInstance(userId, shellSlug);
@@ -265,14 +665,15 @@ async function ensureDefaultShellWidgets(userId: string, shellSlug: "left_sideba
     shellSlug === "top_chrome"
       ? ([{ slug: "shell_chrome_primary", position: 0 }] as const)
         : ([
-          { slug: "shell_search", position: 0 },
-          { slug: "shell_mode_switch", position: 1 },
-          { slug: "shell_collections", position: 2 },
-          { slug: "shell_create_collection", position: 3 },
-          { slug: "shell_reset_view", position: 4 },
-          { slug: "shell_finish_trace", position: 5 },
-          { slug: "shell_remove_trace_point", position: 6 },
-          { slug: "shell_controls", position: 7 },
+          { slug: "shell_header", position: 0 },
+          { slug: "shell_search", position: 1 },
+          { slug: "shell_mode_switch", position: 2 },
+          { slug: "shell_finish_trace", position: 3 },
+          { slug: "shell_remove_trace_point", position: 4 },
+          { slug: "shell_collections", position: 5 },
+          { slug: "shell_create_collection", position: 6 },
+          { slug: "shell_reset_view", position: 7 },
+          { slug: "shell_controls", position: 8 },
         ] as const);
 
   for (const widget of desiredWidgets) {
@@ -542,7 +943,8 @@ export async function getLeftSidebarShellWidgets() {
         wi.entity_id as "entityId",
         wd.component_key as "componentKey",
         COALESCE(wd.default_config, '{}'::jsonb) || COALESCE(wi.config, '{}'::jsonb) as config,
-        wi.state
+        wi.state,
+        wi.runtime_overrides as "runtimeOverrides"
       FROM widget_placements wp
       INNER JOIN widget_instances wi ON wi.id = wp.widget_instance_id
       INNER JOIN widget_definitions wd ON wd.id = wi.definition_id
@@ -1382,9 +1784,16 @@ async function ensureDefaultGlobalWidgets(userId: string) {
 
 async function ensureDefaultEntityWidget(userId: string, entityType: WidgetEntityType, entityId: string) {
   await ensureWidgetLibrarySeed();
+  await ensureEntityShellInstance(entityType, entityId);
 
   const defaultEntityWidgets = [
     { slug: "entity_info", position: 0 },
+    { slug: "entity_rating", position: 10 },
+    { slug: "entity_resources", position: 20 },
+    { slug: "entity_stories", position: 30 },
+    { slug: "entity_gallery", position: 40 },
+    { slug: "entity_nearby_pins", position: 50 },
+    { slug: "entity_transport_mode", position: 60 },
     { slug: "entity_delete", position: 99 },
   ];
 
@@ -1395,6 +1804,7 @@ async function ensureDefaultEntityWidget(userId: string, entityType: WidgetEntit
         SELECT d.id, 'entity', $2, $3::uuid, $4, d.name, $1
         FROM widget_definitions d
         WHERE d.slug = $5
+          AND $2 = ANY(d.supported_entity_types)
         AND NOT EXISTS (
           SELECT 1
           FROM widget_instances wi
@@ -1408,6 +1818,34 @@ async function ensureDefaultEntityWidget(userId: string, entityType: WidgetEntit
       [userId, entityType, entityId, widget.position, widget.slug]
     );
   }
+
+  await pool.query(
+    `
+      WITH entity_shell AS (
+        SELECT si.id
+        FROM shell_instances si
+        INNER JOIN shell_definitions sd ON sd.id = si.definition_id
+        WHERE si.owner_type = 'entity'
+          AND si.owner_id = $2
+          AND sd.slug = $3
+        LIMIT 1
+      )
+      INSERT INTO widget_placements (shell_instance_id, widget_instance_id, slot, position)
+      SELECT entity_shell.id, wi.id, 'main', wi.position
+      FROM widget_instances wi
+      CROSS JOIN entity_shell
+      WHERE wi.user_id = $1
+        AND wi.layer = 'entity'
+        AND wi.entity_type = $4
+        AND wi.entity_id = $2::uuid
+        AND NOT EXISTS (
+          SELECT 1
+          FROM widget_placements wp
+          WHERE wp.widget_instance_id = wi.id
+        )
+    `,
+    [userId, entityId, getEntityShellSlug(entityType), entityType]
+  );
 }
 
 export async function getGlobalWidgets() {
@@ -1440,6 +1878,96 @@ export async function getGlobalWidgets() {
   return rows as WidgetInstanceRecord[];
 }
 
+export async function addGlobalWidget(definitionSlug: string) {
+  const userId = await getUserId();
+  await ensureWidgetLibrarySeed();
+
+  const { rows } = await pool.query(
+    `
+      WITH next_position AS (
+        SELECT COALESCE(MAX(wi.position), -1) + 1 AS value
+        FROM widget_instances wi
+        WHERE wi.user_id = $1
+          AND wi.layer = 'global'
+      )
+      INSERT INTO widget_instances (definition_id, layer, position, title, user_id)
+      SELECT d.id, 'global', next_position.value, d.name, $1
+      FROM widget_definitions d
+      CROSS JOIN next_position
+      WHERE d.slug = $2
+        AND d.layer = 'global'
+      RETURNING id
+    `,
+    [userId, definitionSlug]
+  );
+
+  return rows[0];
+}
+
+export async function reorderGlobalWidgets(orderedWidgetIds: string[]) {
+  const userId = await getUserId();
+
+  if (orderedWidgetIds.length === 0) {
+    return;
+  }
+
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const ownership = await client.query(
+      `
+        SELECT wi.id
+        FROM widget_instances wi
+        WHERE wi.user_id = $1
+          AND wi.layer = 'global'
+          AND wi.id = ANY($2::uuid[])
+      `,
+      [userId, orderedWidgetIds]
+    );
+
+    if (ownership.rowCount !== orderedWidgetIds.length) {
+      throw new Error("Global widgets not found.");
+    }
+
+    await client.query(
+      `
+        UPDATE widget_instances
+        SET
+          position = position + 1000,
+          updated_at = NOW()
+        WHERE user_id = $1
+          AND layer = 'global'
+          AND id = ANY($2::uuid[])
+      `,
+      [userId, orderedWidgetIds]
+    );
+
+    for (const [position, widgetId] of orderedWidgetIds.entries()) {
+      await client.query(
+        `
+          UPDATE widget_instances
+          SET
+            position = $3,
+            updated_at = NOW()
+          WHERE user_id = $1
+            AND layer = 'global'
+            AND id = $2::uuid
+        `,
+        [userId, widgetId, position]
+      );
+    }
+
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 export async function getEntityWidgets(entityType: WidgetEntityType, entityId: string) {
   const userId = await getUserId();
   await ensureDefaultEntityWidget(userId, entityType, entityId);
@@ -1455,21 +1983,241 @@ export async function getEntityWidgets(entityType: WidgetEntityType, entityId: s
         wi.entity_type as "entityType",
         wi.entity_id as "entityId",
         wd.component_key as "componentKey",
-        wi.position,
+        wp.position,
         wi.config,
-        wi.state
+        wi.state,
+        wi.runtime_overrides as "runtimeOverrides",
+        FALSE as "placedInLeftSidebar"
       FROM widget_instances wi
       INNER JOIN widget_definitions wd ON wd.id = wi.definition_id
+      INNER JOIN widget_placements wp ON wp.widget_instance_id = wi.id
+      INNER JOIN shell_instances si ON si.id = wp.shell_instance_id
+      INNER JOIN shell_definitions sd ON sd.id = si.definition_id
       WHERE wi.user_id = $1
         AND wi.layer = 'entity'
         AND wi.entity_type = $2
         AND wi.entity_id = $3::uuid
-      ORDER BY wi.position ASC, wi.created_at ASC
+        AND si.owner_type = 'entity'
+        AND si.owner_id = $3::text
+        AND sd.slug = $4
+      ORDER BY wp.position ASC, wp.created_at ASC
     `,
-    [userId, entityType, entityId]
+    [userId, entityType, entityId, getEntityShellSlug(entityType)]
   );
 
   return rows as WidgetInstanceRecord[];
+}
+
+export async function moveEntityWidgetHost(
+  entityType: WidgetEntityType,
+  entityId: string,
+  widgetId: string,
+  targetHost: "pin_entity_shell" | "left_sidebar"
+) {
+  const userId = await getUserId();
+
+  if (entityType !== "pin") {
+    throw new Error("Entity host move is currently supported only for pin widgets.");
+  }
+
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const widgetResult = await client.query(
+      `
+        SELECT wi.id
+        FROM widget_instances wi
+        WHERE wi.user_id = $1
+          AND wi.layer = 'entity'
+          AND wi.entity_type = $2
+          AND wi.entity_id = $3::uuid
+          AND wi.id = $4::uuid
+        LIMIT 1
+      `,
+      [userId, entityType, entityId, widgetId]
+    );
+
+    if (widgetResult.rowCount === 0) {
+      throw new Error("Entity widget not found.");
+    }
+
+    const shellResult = await client.query(
+      `
+        SELECT si.id
+        FROM shell_instances si
+        INNER JOIN shell_definitions sd ON sd.id = si.definition_id
+        WHERE si.owner_type = 'user'
+          AND si.owner_id = $1
+          AND sd.slug = 'left_sidebar'
+        LIMIT 1
+      `,
+      [userId]
+    );
+
+    const leftShellId = shellResult.rows[0]?.id as string | undefined;
+
+    if (!leftShellId) {
+      throw new Error("Left sidebar shell not found.");
+    }
+
+    const entityShellResult = await client.query(
+      `
+        SELECT si.id
+        FROM shell_instances si
+        INNER JOIN shell_definitions sd ON sd.id = si.definition_id
+        WHERE si.owner_type = 'entity'
+          AND si.owner_id = $1
+          AND sd.slug = $2
+        LIMIT 1
+      `,
+      [entityId, getEntityShellSlug(entityType)]
+    );
+
+    const entityShellId = entityShellResult.rows[0]?.id as string | undefined;
+
+    if (!entityShellId) {
+      throw new Error("Entity shell not found.");
+    }
+
+    if (targetHost === "left_sidebar") {
+      await client.query(
+        `
+          DELETE FROM widget_placements
+          WHERE widget_instance_id = $1::uuid
+        `,
+        [widgetId]
+      );
+
+      await client.query(
+        `
+          WITH next_position AS (
+            SELECT COALESCE(MAX(position), -1) + 1 AS value
+            FROM widget_placements
+            WHERE shell_instance_id = $1
+          )
+          INSERT INTO widget_placements (
+            shell_instance_id,
+            widget_instance_id,
+            slot,
+            position
+          )
+          SELECT $1, $2::uuid, 'main', next_position.value
+          FROM next_position
+        `,
+        [leftShellId, widgetId]
+      );
+    } else {
+      await client.query(
+        `
+          DELETE FROM widget_placements
+          WHERE widget_instance_id = $1::uuid
+        `,
+        [widgetId]
+      );
+
+      await client.query(
+        `
+          WITH next_position AS (
+            SELECT COALESCE(MAX(position), -1) + 1 AS value
+            FROM widget_placements
+            WHERE shell_instance_id = $1
+          )
+          INSERT INTO widget_placements (
+            shell_instance_id,
+            widget_instance_id,
+            slot,
+            position
+          )
+          SELECT $1, $2::uuid, 'main', next_position.value
+          FROM next_position
+        `,
+        [entityShellId, widgetId]
+      );
+    }
+
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function reorderEntityWidgets(
+  entityType: WidgetEntityType,
+  entityId: string,
+  orderedWidgetIds: string[]
+) {
+  const userId = await getUserId();
+
+  if (orderedWidgetIds.length === 0) {
+    return;
+  }
+
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const ownership = await client.query(
+      `
+        SELECT wi.id
+        FROM widget_instances wi
+        WHERE wi.user_id = $1
+          AND wi.layer = 'entity'
+          AND wi.entity_type = $2
+          AND wi.entity_id = $3::uuid
+          AND wi.id = ANY($4::uuid[])
+      `,
+      [userId, entityType, entityId, orderedWidgetIds]
+    );
+
+    if (ownership.rowCount !== orderedWidgetIds.length) {
+      throw new Error("Entity widgets not found.");
+    }
+
+    await client.query(
+      `
+        UPDATE widget_instances
+        SET
+          position = position + 1000,
+          updated_at = NOW()
+        WHERE user_id = $1
+          AND layer = 'entity'
+          AND entity_type = $2
+          AND entity_id = $3::uuid
+          AND id = ANY($4::uuid[])
+      `,
+      [userId, entityType, entityId, orderedWidgetIds]
+    );
+
+    for (const [position, widgetId] of orderedWidgetIds.entries()) {
+      await client.query(
+        `
+          UPDATE widget_instances
+          SET
+            position = $4,
+            updated_at = NOW()
+          WHERE user_id = $1
+            AND layer = 'entity'
+            AND entity_type = $2
+            AND entity_id = $3::uuid
+            AND id = $5::uuid
+        `,
+        [userId, entityType, entityId, position, widgetId]
+      );
+    }
+
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 export async function getEntityWidgetPayload(entityType: WidgetEntityType, entityId: string) {
@@ -1485,6 +2233,7 @@ export async function getEntityWidgetPayload(entityType: WidgetEntityType, entit
     `
       SELECT
         e.id,
+        e.container_id as "containerId",
         $1::text as type,
         COALESCE(e.name, CONCAT('Untitled ', INITCAP($1::text))) as title,
         c.name as subtitle,
@@ -1524,8 +2273,50 @@ export async function getEntityWidgetPayload(entityType: WidgetEntityType, entit
         }
       : null,
     geometryKind,
-    metadata: {},
+    metadata: {
+      containerId: row.containerId ?? null,
+    },
   };
 
   return payload;
+}
+
+export async function getEntityRating(containerId: string) {
+  const userId = await getUserId();
+
+  const { rows } = await pool.query<{ value: number }>(
+    `
+      SELECT value
+      FROM entity_ratings
+      WHERE entity_container_id = $1::uuid
+        AND user_id = $2
+      LIMIT 1
+    `,
+    [containerId, userId]
+  );
+
+  return rows[0]?.value ?? null;
+}
+
+export async function updateEntityRating(containerId: string, value: number) {
+  const userId = await getUserId();
+
+  if (!Number.isInteger(value) || value < 1 || value > 5) {
+    throw new Error("Rating must be an integer between 1 and 5.");
+  }
+
+  const { rows } = await pool.query<{ value: number }>(
+    `
+      INSERT INTO entity_ratings (entity_container_id, user_id, value, updated_at)
+      VALUES ($1::uuid, $2, $3, NOW())
+      ON CONFLICT (entity_container_id)
+      DO UPDATE
+      SET value = EXCLUDED.value,
+          updated_at = NOW()
+      RETURNING value
+    `,
+    [containerId, userId, value]
+  );
+
+  return rows[0]?.value ?? value;
 }

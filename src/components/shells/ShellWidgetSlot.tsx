@@ -28,7 +28,7 @@ export const ShellWidgetSlot = ({
 }: ShellWidgetSlotProps) => (
   <div
     className={cn(
-      "group relative pointer-events-auto",
+      "group relative w-full pt-4 pointer-events-auto",
       isDragging && "z-10"
     )}
     onDragOver={onDragOver}
@@ -74,15 +74,15 @@ export const ShellWidgetSlot = ({
         </>
       ) : null}
 
-      <div
-        draggable
-        onDragStart={onDragStart}
-        onDragEnd={onDragEnd}
-        className="absolute inset-x-0 top-0 z-[2] flex h-5 items-start justify-center cursor-grab active:cursor-grabbing"
-        aria-label="Reorder widget"
-        title="Drag to reorder widget"
-      >
-        <div className="mt-0 flex h-3.5 min-w-14 items-start justify-center rounded-full text-neutral-300 transition-colors duration-200 group-hover:text-neutral-500">
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-[4] flex h-4 items-start justify-center">
+        <div
+          draggable
+          onDragStart={onDragStart}
+          onDragEnd={onDragEnd}
+          className="pointer-events-auto flex h-3.5 min-w-10 items-start justify-center rounded-full px-2 text-neutral-300 transition-colors duration-200 group-hover:text-neutral-500 cursor-grab active:cursor-grabbing"
+          aria-label="Reorder widget"
+          title="Drag to reorder widget"
+        >
           <GripHorizontal className="h-3.5 w-3.5" />
         </div>
       </div>

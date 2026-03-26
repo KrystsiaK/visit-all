@@ -1,4 +1,5 @@
 import { Trash2 } from "lucide-react";
+import { WidgetChrome } from "@/components/widgets/WidgetChrome";
 import type { WidgetEntityPayload, WidgetInstanceRecord } from "@/lib/widgets";
 
 interface EntityDeleteWidgetCardProps {
@@ -17,20 +18,16 @@ export function EntityDeleteWidgetCard({
   onDelete,
 }: EntityDeleteWidgetCardProps) {
   return (
-    <div className="rounded-2xl border border-[rgba(214,0,0,0.12)] bg-white/50 p-[17px] shadow-[0px_8px_32px_rgba(0,0,0,0.08)] backdrop-blur-3xl">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <div className="mb-3 flex h-8 w-8 items-center justify-center rounded-xl bg-[#ff1b0a] text-white">
-            <Trash2 className="h-4 w-4" />
-          </div>
-          <h3 className="text-sm font-medium leading-5 text-[#171717]">
-            {widget.name}
-          </h3>
-          <p className="mt-1 text-xs leading-4 text-[#737373]">
-            Delete the {entity.type} and all widget-linked data attached to it.
-          </p>
+    <WidgetChrome
+      title={widget.name}
+      subtitle={`Delete the ${entity.type} and all widget-linked data attached to it.`}
+      className="border-[rgba(214,0,0,0.12)]"
+      accent={
+        <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#ff1b0a] text-white">
+          <Trash2 className="h-4 w-4" />
         </div>
-      </div>
+      }
+    >
 
       <div className="mt-4 rounded-xl bg-[rgba(255,0,0,0.04)] px-4 py-4">
         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#a33b3b]">
@@ -60,6 +57,6 @@ export function EntityDeleteWidgetCard({
           {disabled ? "Deferred" : "Delete"}
         </button>
       </div>
-    </div>
+    </WidgetChrome>
   );
 }

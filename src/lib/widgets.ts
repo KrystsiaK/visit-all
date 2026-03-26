@@ -2,11 +2,23 @@ export type WidgetEntityType = "pin" | "trace" | "area";
 export type WidgetLayerType = "global" | "entity" | "shell";
 export type WidgetGeometryKind = "point" | "line" | "polygon";
 export type WidgetRuntimeChannel = string;
+export type WidgetMobility = "free" | "restricted" | "locked";
+export type WidgetInstanceStatus = "library" | "placed" | "disabled" | "broken";
+export type SignalScopeType = "shell" | "widget" | "map" | "app";
+export type SignalValueType = "boolean" | "string" | "number" | "json";
+export type WidgetPortDirection = "input" | "output";
+export type WidgetConnectionTargetType = "widget" | "shell" | "map";
 
 export type WidgetComponentKey =
   | "global_overview"
   | "entity_info"
   | "entity_delete"
+  | "entity_gallery"
+  | "entity_stories"
+  | "entity_resources"
+  | "entity_rating"
+  | "entity_nearby_pins"
+  | "entity_transport_mode"
   | "shell_chrome_primary"
   | "shell_header"
   | "shell_search"
@@ -47,6 +59,10 @@ export interface WidgetDefinitionRecord {
   componentKey: WidgetComponentKey;
   defaultConfig: Record<string, unknown>;
   isSystem: boolean;
+  mobility?: WidgetMobility;
+  supportsManualConnections?: boolean;
+  supportsAutoShellSignals?: boolean;
+  settingsSchema?: Record<string, unknown>;
 }
 
 export interface WidgetInstanceRecord {
@@ -61,6 +77,11 @@ export interface WidgetInstanceRecord {
   position: number;
   config: Record<string, unknown>;
   state: Record<string, unknown>;
+  status?: WidgetInstanceStatus;
+  lockedToHost?: boolean;
+  settings?: Record<string, unknown>;
+  runtimeOverrides?: Record<string, unknown>;
+  placedInLeftSidebar?: boolean;
 }
 
 export interface WidgetPlacementRecord {
@@ -69,6 +90,47 @@ export interface WidgetPlacementRecord {
   widgetInstanceId: string;
   slot: string;
   position: number;
+}
+
+export interface SignalDefinitionRecord {
+  id: string;
+  scopeType: SignalScopeType;
+  signalKey: string;
+  valueType: SignalValueType;
+  description: string | null;
+  isSystem: boolean;
+}
+
+export interface WidgetPortRecord {
+  id: string;
+  widgetDefinitionId: string;
+  direction: WidgetPortDirection;
+  portKey: string;
+  valueType: SignalValueType;
+  required: boolean;
+  autoBindable: boolean;
+  description: string | null;
+}
+
+export interface ShellSignalBindingRecord {
+  id: string;
+  widgetDefinitionId: string;
+  widgetPortId: string;
+  signalDefinitionId: string;
+  bindingMode: "auto" | "manual";
+  defaultEnabled: boolean;
+}
+
+export interface WidgetConnectionRecord {
+  id: string;
+  sourceWidgetInstanceId: string;
+  sourcePortId: string;
+  targetType: WidgetConnectionTargetType;
+  targetWidgetInstanceId: string | null;
+  targetPortId: string | null;
+  targetSignalDefinitionId: string | null;
+  transformConfig: Record<string, unknown>;
+  enabled: boolean;
 }
 
 export type ButtonGroupWidgetIcon = "pin" | "route" | "polygon";
@@ -85,6 +147,53 @@ export interface ButtonGroupWidgetConfig {
   kind: "button_group";
   valueChannel: WidgetRuntimeChannel;
   buttons: ButtonGroupWidgetButtonBinding[];
+}
+
+export interface GalleryWidgetConfig {
+  kind: "gallery";
+  allowMultiple: boolean;
+  maxItems?: number;
+}
+
+export interface StoriesWidgetConfig {
+  kind: "stories";
+  format: "markdown";
+  allowMultiple: boolean;
+}
+
+export interface ResourceLinkWidgetConfig {
+  label?: string;
+  url: string;
+}
+
+export interface ResourcesWidgetConfig {
+  kind: "resources";
+  allowMultiple: boolean;
+}
+
+export interface RatingWidgetConfig {
+  kind: "rating";
+  scale: 5;
+}
+
+export interface NearbyPinsWidgetConfig {
+  kind: "nearby_pins";
+  maxItems: number;
+  minRating?: number;
+}
+
+export type TransportModeWidgetOption =
+  | "walk"
+  | "car"
+  | "bus"
+  | "tram"
+  | "train"
+  | "ferry";
+
+export interface TransportModeWidgetConfig {
+  kind: "transport_mode";
+  options: TransportModeWidgetOption[];
+  allowMultiple: boolean;
 }
 
 export function isButtonGroupWidgetConfig(

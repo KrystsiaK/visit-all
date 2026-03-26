@@ -86,6 +86,9 @@ This is the living product behavior document for the current implementation. We 
 6. Drawing-specific options such as path smoothing are not map controls and should not be mixed into the pure map tools cluster.
 7. Native-looking map library controls should be replaced with styled product controls when they are visible on top of the map.
 8. On-map controls should stay quiet and tool-like; Mondrian accents should be minimal and should never overpower the map or the primary widget controls.
+9. The map should try to initialize around the user's current location when the browser allows geolocation.
+10. If geolocation is blocked, unsupported, or fails, the map should gracefully fall back to the default home view.
+11. A dedicated `Locate Me` control should remain available so the user can re-center the map to their current position later.
 
 ### Widgets
 
@@ -95,6 +98,14 @@ This is the living product behavior document for the current implementation. We 
 4. The `Zone` mode is temporarily disabled in the main mode switcher until that flow is resumed.
 5. If an entity becomes invisible on the map because its layer is hidden or isolated away, its right-side entity panel should close automatically.
 6. On desktop, right-side widget surfaces should sit below the top-right control cluster rather than competing with it.
+7. Planned entity widgets include:
+   - multi-photo gallery
+   - markdown stories / notes
+   - resource links
+   - place rating
+   - nearby high-rated pins
+   - path transport mode
+8. These enrichments should be delivered as separate entity widgets, not as ad-hoc fields inside one giant entity editor.
 
 ### Mobile view
 

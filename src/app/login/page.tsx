@@ -70,15 +70,6 @@ export default function LoginPage() {
             >
               {loading ? "Authenticating..." : "Enter Exhibition"}
             </button>
-            
-            <div className="pt-8 mt-8 border-t border-gray-100 flex flex-col items-center">
-              <p className="text-center text-[10px] text-gray-400 font-bold uppercase tracking-widest">
-                Public Exhibition Pass
-              </p>
-              <p className="text-center text-sm text-gray-600 mt-2 font-display">
-                <span className="font-bold text-[#00327d]">demo@visitall.com</span> <span className="text-gray-300 mx-2">|</span> <span className="font-bold text-[#b7102a]">demo</span>
-              </p>
-            </div>
           </form>
         </div>
       </div>

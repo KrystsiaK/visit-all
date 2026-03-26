@@ -161,6 +161,87 @@ Reasons:
 
 1. `widget_placements`
 
+## Signal Framework Foundation
+
+The framework is now growing a backend layer for signals and connections.
+
+This adds four important concepts:
+
+### Signal definition
+
+This is a named signal that can exist in the system.
+
+Examples:
+
+1. `shell.disabled`
+2. `shell.hidden`
+3. `shell.mode`
+4. `shell.collection_query`
+
+Table:
+
+1. `signal_definitions`
+
+### Widget port
+
+This is an input or output that belongs to a widget type.
+
+Examples:
+
+1. `shell_mode_switch.output.selected_mode`
+2. `shell_search.output.collection_query`
+3. `shell_collections.input.filter_mode`
+4. `entity_rating.input.disabled`
+
+Table:
+
+1. `widget_ports`
+
+### Auto shell binding
+
+This is a standard connection between a widget port and a shell signal.
+
+This is how a widget can automatically understand shell-native behavior without extra application wiring.
+
+Example:
+
+1. `shell.disabled -> entity_rating.input.disabled`
+
+Table:
+
+1. `shell_signal_bindings`
+
+### Widget connection
+
+This is an explicit app-level wire between concrete widget instances or between a widget and a shell/map target.
+
+Example:
+
+1. `mode_switch.selected_mode -> collections.filter_mode`
+
+Table:
+
+1. `widget_connections`
+
+## Why this matters
+
+Without these tables, the database only knows:
+
+1. which widget exists
+2. where it is placed
+
+With these tables, the database can also know:
+
+1. what a widget can emit
+2. what a widget can listen to
+3. what can be auto-connected by the framework
+4. what has been manually connected by the application or user
+
+That is the difference between:
+
+1. layout storage
+2. actual framework composition storage
+
 ## Current v1 constraints
 
 This iteration is intentionally disciplined.

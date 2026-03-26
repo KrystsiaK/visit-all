@@ -1,16 +1,21 @@
 import type { WidgetInstanceRecord, WidgetPlacementRecord } from "@/lib/widgets";
 
+export interface ShellWidgetLike {
+  id: string;
+  position: number;
+}
+
 export type ShellWidgetRecord = WidgetPlacementRecord & WidgetInstanceRecord;
 export type ShellDropEdge = "before" | "after";
 
-const withUpdatedPositions = (widgets: ShellWidgetRecord[]) =>
+const withUpdatedPositions = <T extends ShellWidgetLike>(widgets: T[]) =>
   widgets.map((widget, position) => ({
     ...widget,
-    position,
+  position,
   }));
 
-export const moveShellWidget = (
-  widgets: ShellWidgetRecord[],
+export const moveShellWidget = <T extends ShellWidgetLike>(
+  widgets: T[],
   draggedWidgetId: string,
   targetWidgetId: string,
   edge: ShellDropEdge

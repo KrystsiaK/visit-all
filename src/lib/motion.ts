@@ -19,10 +19,15 @@ export const glassSectionTransition: Transition = {
   ease: glassEase,
 };
 
+const sidebarShellTransition: Transition = {
+  duration: 0.24,
+  ease: [0.16, 1, 0.3, 1],
+};
+
 export const sidebarShellVariants: Variants = {
   hidden: {
     opacity: 0,
-    x: "-118%",
+    x: "-106%",
     y: 0,
   },
   visible: {
@@ -30,10 +35,19 @@ export const sidebarShellVariants: Variants = {
     x: 0,
     y: 0,
     transition: {
-      ...glassShellTransition,
+      ...sidebarShellTransition,
       when: "beforeChildren",
-      staggerChildren: 0.055,
-      delayChildren: 0.04,
+      staggerChildren: 0.02,
+      delayChildren: 0,
+    },
+  },
+  exit: {
+    opacity: 0,
+    x: "-102%",
+    y: 0,
+    transition: {
+      duration: 0.16,
+      ease: [0.4, 0, 1, 1],
     },
   },
 };

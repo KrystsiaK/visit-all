@@ -56,10 +56,18 @@ export function ShellRuntimeProvider({
   }, []);
 
   const patchState = useCallback((patch: Partial<ShellRuntimeState>) => {
-    setState((currentState) => ({
-      ...currentState,
-      ...patch,
-    }));
+    setState((currentState) => {
+      const entries = Object.entries(patch);
+
+      if (entries.every(([key, value]) => currentState[key] === value)) {
+        return currentState;
+      }
+
+      return {
+        ...currentState,
+        ...patch,
+      };
+    });
   }, []);
 
   const resetState = useCallback(() => {

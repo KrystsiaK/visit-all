@@ -1,4 +1,5 @@
 import { ChevronLeft, Layers3, X } from "lucide-react";
+import { LogoMark } from "@/components/brand/LogoMark";
 
 interface ShellChromePrimaryWidgetProps {
   desktopSidebarVisible: boolean;
@@ -23,12 +24,7 @@ export const ShellChromePrimaryWidget = ({
       style={{ width: `${shellWidth}px` }}
       aria-label={desktopSidebarVisible ? "Close layers panel" : "Open layers panel"}
     >
-      <div className="grid h-10 w-10 grid-cols-2 grid-rows-2 overflow-hidden rounded-xl border border-black/10">
-        <div className="bg-[#ff0000]" />
-        <div className="bg-[#ffff00]" />
-        <div className="bg-[#0000ff]" />
-        <div className="bg-[#111111]" />
-      </div>
+      <LogoMark className="h-10 w-10 overflow-hidden rounded-xl border border-black/10" />
       <div className="flex flex-col items-start justify-center">
         <span className="text-[10px] font-black uppercase tracking-[0.24em] text-neutral-500">Synarava</span>
         <span className="text-[16px] font-black tracking-tight text-neutral-950">Visit</span>
@@ -48,12 +44,7 @@ export const ShellChromePrimaryWidget = ({
       className="flex h-14 items-center gap-3 overflow-hidden rounded-2xl border border-black/12 bg-white/72 px-4 shadow-[0px_6px_18px_rgba(0,0,0,0.06)] backdrop-blur-2xl [backface-visibility:hidden] [transform:translateZ(0)] md:hidden"
       aria-label={mobileSidebarOpen ? "Close layers drawer" : "Open layers drawer"}
     >
-      <div className="grid h-8 w-8 grid-cols-2 grid-rows-2 overflow-hidden rounded-xl border border-black/10">
-        <div className="bg-[#ff0000]" />
-        <div className="bg-[#ffff00]" />
-        <div className="bg-[#0000ff]" />
-        <div className="bg-[#111111]" />
-      </div>
+      <LogoMark className="h-8 w-8 overflow-hidden rounded-xl border border-black/10" />
       <div className="flex flex-col items-start justify-center">
         <span className="text-[9px] font-black uppercase tracking-[0.24em] text-neutral-500">Synarava</span>
         <span className="text-[16px] font-black tracking-tight text-neutral-950">Visit</span>

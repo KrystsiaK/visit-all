@@ -1,7 +1,11 @@
 import { WidgetFrame } from "@/components/widgets/WidgetFrame";
 
 export const ShellCollectionsEmptyWidget = () => (
-  <WidgetFrame className="pointer-events-auto" bodyClassName="space-y-3">
+  <WidgetFrame
+    className="pointer-events-auto"
+    bodyClassName="space-y-3"
+    title="Collections"
+  >
     <div className="rounded-2xl border border-dashed border-black/10 bg-[#f8f6f1]/78 px-4 py-5 text-center">
       <p className="text-[10px] font-black uppercase tracking-[0.22em] text-neutral-500">
         Layer Stack

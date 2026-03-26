@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import Map, { Marker, Source, Layer, MapLayerMouseEvent, type MapRef } from "react-map-gl/maplibre";
+import { LoaderCircle, LocateFixed } from "lucide-react";
 import { getPins, getTraces, getAreas } from "@/app/actions";
 import type { FeatureCollection, Feature, Point, LineString, Polygon } from "geojson";
 import type { InteractionMode } from "@/app/page";
@@ -11,6 +12,8 @@ import { lineString } from "@turf/helpers";
 import bezierSpline from "@turf/bezier-spline";
 import { useWidgetContext } from "@/components/widgets/WidgetContext";
 import { GlassPinIcon } from "@/components/icons/GlassPinIcon";
+import { DEFAULT_HOME_VIEW } from "@/components/map/geolocation";
+import { useUserGeolocation } from "@/components/map/useUserGeolocation";
 
 const VOYAGER_STYLE = "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json";
 const SATELLITE_STYLE: StyleSpecification = {
@@ -84,6 +87,29 @@ function applySmoothingToPolygon(polyCoords: [number, number][], curveMode?: boo
   }
 }
 
+const getLocateButtonLabel = (
+  permissionState: ReturnType<typeof useUserGeolocation>["permissionState"],
+  isLocating: boolean
+) => {
+  if (isLocating) {
+    return "Locating you";
+  }
+
+  if (permissionState === "denied") {
+    return "Location blocked. Enable browser location and try again";
+  }
+
+  if (permissionState === "unsupported") {
+    return "Location unavailable on this device";
+  }
+
+  if (permissionState === "error") {
+    return "Could not get your location";
+  }
+
+  return "Center on my location";
+};
+
 interface MapCanvasProps {
   mode: InteractionMode;
   onMapClick?: (lng: number, lat: number) => void;
@@ -115,12 +141,24 @@ export default function MapCanvas({
 }: MapCanvasProps) {
   const previousResetViewTrigger = useRef(resetViewTrigger);
   const mapRef = useRef<MapRef | null>(null);
+  const homeViewRef = useRef(DEFAULT_HOME_VIEW);
   const [shouldLoadSpatialData, setShouldLoadSpatialData] = useState(false);
   const [pins, setPins] = useState<PinMapRecord[]>([]);
   const [traces, setTraces] = useState<TraceMapRecord[]>([]);
   const [areas, setAreas] = useState<AreaMapRecord[]>([]);
+  const { isLocating, location, permissionState, requestLocation } = useUserGeolocation();
 
   const { setActiveFeature, flyToMapCommand, clearFlyToMapCommand, highlightedFeatureId } = useWidgetContext();
+
+  const flyToHomeView = useCallback((duration = 900) => {
+    mapRef.current?.flyTo({
+      center: [homeViewRef.current.lng, homeViewRef.current.lat],
+      zoom: homeViewRef.current.zoom,
+      bearing: 0,
+      pitch: terrain3D ? 60 : 0,
+      duration,
+    });
+  }, [terrain3D]);
 
   useEffect(() => {
     mapRef.current?.easeTo({
@@ -135,14 +173,26 @@ export default function MapCanvas({
     }
 
     previousResetViewTrigger.current = resetViewTrigger;
+    flyToHomeView();
+  }, [resetViewTrigger, flyToHomeView]);
+
+  useEffect(() => {
+    if (!location) {
+      return;
+    }
+
+    homeViewRef.current = {
+      lng: location.lng,
+      lat: location.lat,
+      zoom: 14,
+    };
+
     mapRef.current?.flyTo({
-      center: [27.5615, 53.9045],
-      zoom: 12,
-      bearing: 0,
-      pitch: terrain3D ? 60 : 0,
-      duration: 900,
+      center: [location.lng, location.lat],
+      zoom: Math.max(mapRef.current?.getZoom() ?? 12, 14),
+      duration: 1100,
     });
-  }, [resetViewTrigger, terrain3D]);
+  }, [location]);
 
   useEffect(() => {
     if (flyToMapCommand) {
@@ -359,9 +409,9 @@ export default function MapCanvas({
       <Map
         ref={mapRef}
         initialViewState={{
-          longitude: 27.5615,
-          latitude: 53.9045,
-          zoom: 12,
+          longitude: DEFAULT_HOME_VIEW.lng,
+          latitude: DEFAULT_HOME_VIEW.lat,
+          zoom: DEFAULT_HOME_VIEW.zoom,
           bearing: 0,
           pitch: terrain3D ? 60 : 0,
         }}
@@ -485,9 +535,47 @@ export default function MapCanvas({
              </div>
           </Marker>
         )}
+
+        {location ? (
+          <Marker
+            longitude={location.lng}
+            latitude={location.lat}
+            anchor="center"
+          >
+            <div className="pointer-events-none relative flex h-5 w-5 items-center justify-center">
+              <span className="absolute inset-0 rounded-full bg-[#2f6bff]/20 animate-ping" />
+              <span className="absolute inset-[2px] rounded-full bg-[#2f6bff]/25" />
+              <span className="relative h-3 w-3 rounded-full border-2 border-white bg-[#2f6bff] shadow-[0px_4px_14px_rgba(47,107,255,0.45)]" />
+            </div>
+          </Marker>
+        ) : null}
       </Map>
 
       <div className="pointer-events-none absolute right-4 top-20 z-30 flex flex-col gap-2 md:right-6 md:top-28">
+        <button
+          type="button"
+          onClick={() => requestLocation("manual")}
+          className={`pointer-events-auto group relative flex h-[54px] w-[54px] items-center justify-center overflow-hidden rounded-[20px] border border-black/12 bg-[#f8f6f1]/95 text-neutral-900 shadow-[0px_12px_24px_rgba(0,0,0,0.12)] backdrop-blur-xl transition-transform hover:scale-[1.02] ${
+            permissionState === "denied" ? "text-[#b42318]" : ""
+          }`}
+          aria-label={getLocateButtonLabel(permissionState, isLocating)}
+          title={getLocateButtonLabel(permissionState, isLocating)}
+        >
+          <span
+            className={`absolute inset-y-0 left-0 w-[4px] ${
+              permissionState === "denied"
+                ? "bg-[#ff3b30]"
+                : permissionState === "granted"
+                  ? "bg-[#2f6bff]"
+                  : "bg-[#ffd84d]"
+            }`}
+          />
+          {isLocating ? (
+            <LoaderCircle className="h-5 w-5 animate-spin" />
+          ) : (
+            <LocateFixed className="h-5 w-5 transition-transform duration-200 group-hover:scale-110" />
+          )}
+        </button>
         <button
           type="button"
           onClick={() =>

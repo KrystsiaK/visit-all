@@ -210,6 +210,39 @@ export default function HomePage() {
       cancelled = true;
       window.clearTimeout(timeoutId);
     };
+  }, [dbRefreshTrigger]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const idleWindow = window as Window & {
+      requestIdleCallback?: (callback: IdleRequestCallback, options?: IdleRequestOptions) => number;
+      cancelIdleCallback?: (handle: number) => void;
+    };
+
+    const preloadRightShells = () => {
+      if (cancelled) {
+        return;
+      }
+
+      void import("@/components/glass/WidgetOverlay");
+      void import("@/components/glass/WidgetPanel");
+    };
+
+    if (typeof idleWindow.requestIdleCallback === "function") {
+      const idleId = idleWindow.requestIdleCallback(() => preloadRightShells(), { timeout: 1500 });
+
+      return () => {
+        cancelled = true;
+        idleWindow.cancelIdleCallback?.(idleId);
+      };
+    }
+
+    const timeoutId = window.setTimeout(preloadRightShells, 300);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+    };
   }, []);
 
   useEffect(() => {
@@ -241,7 +274,7 @@ export default function HomePage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [dbRefreshTrigger]);
 
   const getActiveColor = () => collections.find(c => c.id === targetCollectionId)?.color || "#0000ff";
 
@@ -700,6 +733,8 @@ export default function HomePage() {
             onClearSelection={handleCancel}
             onUndo={handleUndo}
             onDataSaved={handleDataSaved}
+            onDeletePin={handleDeleteSavedPin}
+            onWidgetHostMoved={() => setDbRefreshTrigger(prev => prev + 1)}
             refreshTrigger={dbRefreshTrigger}
             mobileSidebarOpen={mobileSidebarOpen}
             setMobileSidebarOpen={setMobileSidebarOpen}
@@ -762,29 +797,35 @@ export default function HomePage() {
             )}
             
             {mode === 'editPin' && !!editingPinData ? (
-              <WidgetOverlay 
-                isOpen={mode === 'editPin' && !!editingPinData} 
-                onClose={() => { setEditingPinData(null); setMode('pin'); }}
-                onDataSaved={handleDataSaved}
-                onDeletePin={handleDeleteSavedPin}
-                entityType="pin"
-                entityId={editingPinData?.id}
-                data={editingPinData ? {
-                  id: editingPinData.id,
-                  title: editingPinData.name || "Untitled Marker",
-                  description: editingPinData.note || "",
-                  imageUrl: editingPinData.image_url,
-                  collectionId: editingPinData.collectionId,
-                  tags: ["Curated Map", "Location"],
-                } : undefined}
-              />
+              <ShellErrorBoundary title="Right Entity Shell Fault">
+                <WidgetOverlay 
+                  isOpen={mode === 'editPin' && !!editingPinData} 
+                  onClose={() => { setEditingPinData(null); setMode('pin'); }}
+                  onDataSaved={handleDataSaved}
+                  onWidgetHostMoved={() => setDbRefreshTrigger(prev => prev + 1)}
+                  refreshTrigger={dbRefreshTrigger}
+                  onDeletePin={handleDeleteSavedPin}
+                  entityType="pin"
+                  entityId={editingPinData?.id}
+                  data={editingPinData ? {
+                    id: editingPinData.id,
+                    title: editingPinData.name || "Untitled Marker",
+                    description: editingPinData.note || "",
+                    imageUrl: editingPinData.image_url,
+                    collectionId: editingPinData.collectionId,
+                    tags: ["Curated Map", "Location"],
+                  } : undefined}
+                />
+              </ShellErrorBoundary>
             ) : null}
 
             {isWidgetPanelOpen ? (
-              <WidgetPanel
-                isOpen={isWidgetPanelOpen}
-                onClose={() => setIsWidgetPanelOpen(false)}
-              />
+              <ShellErrorBoundary title="Widget Center Shell Fault">
+                <WidgetPanel
+                  isOpen={isWidgetPanelOpen}
+                  onClose={() => setIsWidgetPanelOpen(false)}
+                />
+              </ShellErrorBoundary>
             ) : null}
             
             {/* SPATIAL FLOATING CORNER WIDGETS */}

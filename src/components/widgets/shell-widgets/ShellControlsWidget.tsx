@@ -20,7 +20,12 @@ export const ShellControlsWidget = ({
   setCurveMode,
   disabled = false,
 }: ShellControlsWidgetProps) => (
-  <WidgetFrame className="pointer-events-auto" bodyClassName="space-y-3">
+  <WidgetFrame
+    className="pointer-events-auto"
+    bodyClassName="space-y-3"
+    title="Map Controls"
+    identityVisibility="settings-only"
+  >
     {[
       { label: "Sat View", icon: Globe2, value: isSatellite, onToggle: () => setIsSatellite(!isSatellite) },
       { label: "3D Terrain", icon: Mountain, value: terrain3D, onToggle: () => setTerrain3D(!terrain3D) },

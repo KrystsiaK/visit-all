@@ -23,6 +23,10 @@ The shell/container side of this system is now further described in:
 
 `documentation/shell-data-model.md`
 
+`documentation/strict-lego-architecture.md`
+
+`documentation/framework-architecture.md`
+
 ## Library rule
 
 Each widget should live as its own file inside the widget library.
@@ -43,6 +47,21 @@ Practical rule:
 2. `components/widgets/shell-widgets/*` = widgets that can be mounted into a shell
 3. shell-specific bindings may live next to the widget they adapt, but the shell container still stays outside the widget library
 
+## Widget Chrome
+
+Widgets should also share one common chrome layer instead of inventing header/settings UI per widget.
+
+Current shared widget chrome rules:
+
+1. the drag affordance belongs to the shell slot layer
+2. the widget itself owns a neutral header
+3. settings expand under the header, not in a separate modal
+4. host selection belongs to widget settings
+5. fixed-host widgets show a disabled host selector with the locked host value
+6. unplaced widgets live in the widget library shell until they are assigned to a host shell
+7. `WidgetFrame` is now only a thin compatibility wrapper over the shared `WidgetChrome`
+8. shell-owned host settings must be provided once via `WidgetChromeProvider`, not manually repeated inside each widget file
+
 ## Panel model
 
 Panels and widgets are not the same thing.
@@ -60,6 +79,8 @@ Current panel shells:
    Entity-focused inspection and editing surface.
 3. `widget center shell`
    Global widget surface opened from the top-right button.
+4. `widget library shell`
+   Full-screen widget catalog used to choose widgets and decide where they should be used.
 
 Each panel shell should be responsible only for:
 
@@ -68,6 +89,8 @@ Each panel shell should be responsible only for:
 3. motion orchestration
 4. scroll containment
 5. mobile / desktop presentation
+6. shell capabilities such as slot rendering, widget drag-and-drop, and widget-centered scrolling
+7. opening deeper shells such as the widget library without inventing a new UI paradigm
 
 Each panel shell should not own widget business logic directly.
 
@@ -108,7 +131,12 @@ Examples:
 
 1. `entity_info`
 2. `entity_delete`
-3. future media, metadata, provenance, or AI widgets
+3. `entity_gallery`
+4. `entity_stories`
+5. `entity_resources`
+6. `entity_rating`
+7. `entity_nearby_pins`
+8. `entity_transport_mode`
 
 #### Global widgets
 
@@ -220,6 +248,10 @@ The destructive companion widget is `entity_delete`.
 
 It is separate from `entity_info` because deletion is a view-level operation over the whole entity and its associated widget data, not a field inside one informational widget.
 
+The planned next entity widgets are defined in:
+
+`documentation/entity-widget-expansion-plan.md`
+
 ## Current implementation status
 
 1. `widget_definitions` and `widget_instances` are the backend foundation.
@@ -231,6 +263,8 @@ It is separate from `entity_info` because deletion is a view-level operation ove
 7. Entity deletion must be exposed through a separate `entity_delete` widget, not embedded inside `entity_info`.
 8. Editable entity fields such as a pin title or curator note should prefer quiet background save over explicit save buttons when the operation is low-risk and field-local.
 9. Motion should be standardized across shell widgets and entity widgets so both sides of the interface feel like one product system.
+10. The right-side entity surface now mounts through an explicit shell container instead of a free-standing overlay monolith.
+11. `entity_info` and `entity_delete` still contain transitional business logic, but they now live inside a dedicated right shell rather than owning the whole surface themselves.
 
 ## Rules
 

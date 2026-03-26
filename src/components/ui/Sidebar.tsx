@@ -1,29 +1,33 @@
 "use client";
 
 import * as React from "react";
-import { useCallback, useEffect, useMemo, useState, type CSSProperties, type Dispatch, type SetStateAction } from "react";
+import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import { createCollection } from "@/app/actions";
 import type { InteractionMode, Collection } from "@/app/page";
-import { motion, type HTMLMotionProps } from "framer-motion";
 import { ShellWidgetSlot } from "@/components/shells/ShellWidgetSlot";
-import { sidebarShellVariants } from "@/lib/motion";
 import type { LeftSidebarShellConfig } from "@/lib/shells";
 import type { WidgetInstanceRecord, WidgetPlacementRecord } from "@/lib/widgets";
-import { moveShellWidget, type ShellDropEdge } from "@/lib/shell-widget-order";
 import { isLeftShellWidgetEnabled, shellEntranceTimeoutMs } from "@/lib/shell-runtime";
+import { LeftSidebarShell } from "@/components/shells/LeftSidebarShell";
 import { ShellCollectionsWidget } from "@/components/widgets/shell-widgets/ShellCollectionsWidget";
 import { ShellControlsWidget } from "@/components/widgets/shell-widgets/ShellControlsWidget";
 import { ShellCreateCollectionWidget } from "@/components/widgets/shell-widgets/ShellCreateCollectionWidget";
 import { ShellFinishTraceWidget } from "@/components/widgets/shell-widgets/ShellFinishTraceWidget";
+import { ShellHeaderWidget } from "@/components/widgets/shell-widgets/ShellHeaderWidget";
 import { ShellModeSwitchWidget } from "@/components/widgets/shell-widgets/ShellModeSwitchWidget";
 import { ShellRemoveTracePointWidget } from "@/components/widgets/shell-widgets/ShellRemoveTracePointWidget";
 import { ShellResetViewWidget } from "@/components/widgets/shell-widgets/ShellResetViewWidget";
 import { ShellSearchWidget } from "@/components/widgets/shell-widgets/ShellSearchWidget";
 import { useShellCollectionsBinding } from "@/components/widgets/shell-widgets/collections/useShellCollectionsBinding";
 import { ShellWidgetBoundary } from "@/components/shells/ShellWidgetBoundary";
-import { ShellRuntimeProvider, useShellRuntimeActions, useShellRuntimeValue } from "@/components/shells/ShellRuntimeProvider";
+import { useShellRuntimeActions, useShellRuntimeValue } from "@/components/shells/ShellRuntimeProvider";
 import { type LayerVisibilityState } from "@/lib/layer-visibility";
 import { WidgetErrorBoundary } from "@/components/errors/WidgetErrorBoundary";
+import { useShellWidgetReorder } from "@/components/shells/useShellWidgetReorder";
+import { renderEntityWidget } from "@/components/widgets/entity-widgets/renderEntityWidget";
+import { useEntityWidgetBindings } from "@/components/widgets/entity-widgets/useEntityWidgetBindings";
+import { WidgetChromeProvider } from "@/components/widgets/WidgetChromeContext";
+import { getWidgetHostOptions } from "@/lib/widget-hosts";
 
 interface SidebarProps {
   mode: InteractionMode;
@@ -32,7 +36,7 @@ interface SidebarProps {
   drawingPath: { lng: number; lat: number }[];
   editingTraceId: string | null;
   editingAreaId: string | null;
-  editingPinData: { id: string, name?: string, note?: string, image_url?: string } | null;
+  editingPinData: { id: string, name?: string, note?: string, image_url?: string, collectionId?: string } | null;
   traceDraftFinalized: boolean;
   curveMode: boolean;
   setCurveMode: (val: boolean) => void;
@@ -44,6 +48,8 @@ interface SidebarProps {
   onClearSelection: () => void;
   onUndo: () => void;
   onDataSaved: () => void;
+  onDeletePin?: (pinId: string, collectionId?: string) => Promise<void>;
+  onWidgetHostMoved?: () => void;
   refreshTrigger?: number;
   mobileSidebarOpen?: boolean;
   setMobileSidebarOpen?: (val: boolean) => void;
@@ -72,9 +78,10 @@ interface SidebarProps {
 
 export default function Sidebar({ 
   mode, setMode, drawingPath, 
+  editingPinData,
   traceDraftFinalized,
   curveMode, setCurveMode, terrain3D, setTerrain3D, isSatellite, setIsSatellite, onResetView,
-  onClearSelection, onDataSaved,
+  onClearSelection, onDataSaved, onDeletePin, onWidgetHostMoved, refreshTrigger,
   mobileSidebarOpen, setMobileSidebarOpen,
   desktopSidebarVisible = true, sidebarReady = false, shellConfig, shellId = "left_sidebar", shellWidgets = [], shellWidgetsLoaded = false, collectionsLoaded = false,
   onShellWidgetsReorder,
@@ -119,8 +126,6 @@ const shellSections = useMemo(
   const [shellEntranceTimedOut, setShellEntranceTimedOut] = useState(false);
   const [shellHasEntered, setShellHasEntered] = useState(false);
   const [creatingCollection, setCreatingCollection] = useState(false);
-  const [draggedWidgetId, setDraggedWidgetId] = useState<string | null>(null);
-  const [dropTarget, setDropTarget] = useState<{ widgetId: string; edge: ShellDropEdge } | null>(null);
 
   const visibleShellWidgets = useMemo(
     () => orderedShellWidgets.filter((widget) => isLeftShellWidgetEnabled(widget.componentKey, shellSections)),
@@ -231,28 +236,83 @@ const shellSections = useMemo(
     finally { setCreatingCollection(false) }
   };
 
-  const commitShellWidgetReorder = useCallback(
-    (targetWidgetId: string, edge: ShellDropEdge) => {
-      if (!draggedWidgetId || !onShellWidgetsReorder) {
-        return;
-      }
+  const {
+    draggedWidgetId,
+    dropTarget,
+    handleDragStart,
+    handleDragEnd,
+    handleDragOver,
+    handleDrop,
+  } = useShellWidgetReorder({
+    widgets: orderedShellWidgets,
+    onReorder: onShellWidgetsReorder,
+  });
 
-      const nextWidgets = moveShellWidget(orderedShellWidgets, draggedWidgetId, targetWidgetId, edge);
+  const pinEntityBindings = useEntityWidgetBindings({
+    isOpen: mode === "editPin" && Boolean(editingPinData?.id),
+    refreshTrigger,
+    entityType: "pin",
+    entityId: editingPinData?.id,
+    data: editingPinData
+      ? {
+          id: editingPinData.id,
+          title: editingPinData.name || "Untitled Marker",
+          description: editingPinData.note || "",
+          imageUrl: editingPinData.image_url,
+          collectionId: editingPinData.collectionId,
+          tags: ["Curated Map", "Location"],
+        }
+      : undefined,
+    onDataSaved,
+    onWidgetHostMoved,
+    onClose: async () => {},
+    onDeletePin,
+  });
 
-      if (nextWidgets === orderedShellWidgets) {
-        return;
-      }
-
-      onShellWidgetsReorder(nextWidgets);
-    },
-    [draggedWidgetId, onShellWidgetsReorder, orderedShellWidgets]
-  );
-
-  const renderShellWidget = (widget: Pick<WidgetInstanceRecord, "id" | "slug" | "componentKey" | "config">) => {
+  const renderShellWidget = (widget: WidgetPlacementRecord & WidgetInstanceRecord) => {
     let content: React.ReactNode = null;
     let shouldRender = true;
+    const activePinEntityId = mode === "editPin" ? editingPinData?.id ?? null : null;
 
-    if (widget.componentKey === "shell_search") {
+    if (widget.componentKey === "shell_header") {
+      return (
+        <ShellWidgetBoundary
+          key={widget.id}
+          widgetId={widget.id}
+          layoutReady
+          onLayoutReady={handleWidgetLayoutReady}
+        >
+          <ShellHeaderWidget />
+        </ShellWidgetBoundary>
+      );
+    } else if (widget.componentKey === "entity_info" || widget.componentKey === "entity_rating" || widget.componentKey === "entity_gallery" || widget.componentKey === "entity_stories" || widget.componentKey === "entity_resources" || widget.componentKey === "entity_nearby_pins" || widget.componentKey === "entity_transport_mode") {
+      shouldRender =
+        mode === "editPin" &&
+        Boolean(activePinEntityId) &&
+        widget.entityType === "pin" &&
+        widget.entityId === activePinEntityId;
+
+      if (shouldRender) {
+        content = renderEntityWidget({
+          widget,
+          entity: pinEntityBindings.normalizedEntity,
+          bindings: {
+            pinNote: pinEntityBindings.pinNote,
+            pinImage: pinEntityBindings.pinImage,
+            imageFile: pinEntityBindings.imageFile,
+            saving: pinEntityBindings.saving,
+            supportsDirectPinEditing: pinEntityBindings.supportsDirectPinEditing,
+            widgetInteractionsDeferred: pinEntityBindings.widgetInteractionsDeferred,
+            entityRating: pinEntityBindings.entityRating,
+            handleNoteChange: pinEntityBindings.handleNoteChange,
+            handleImageUpload: pinEntityBindings.handleImageUpload,
+            handleImageDelete: pinEntityBindings.handleImageDelete,
+            handleRateEntity: pinEntityBindings.handleRateEntity,
+            setDeleteWarningOpen: pinEntityBindings.setDeleteWarningOpen,
+          },
+        });
+      }
+    } else if (widget.componentKey === "shell_search") {
       content = <ShellSearchWidget />;
     } else if (widget.componentKey === "shell_mode_switch") {
       content = (
@@ -344,44 +404,28 @@ const shellSections = useMemo(
         isDragging={draggedWidgetId === widget.id}
         isDropTarget={dropTarget?.widgetId === widget.id}
         dropEdge={dropTarget?.widgetId === widget.id ? dropTarget.edge : null}
-        onDragStart={(event) => {
-          event.dataTransfer.effectAllowed = "move";
-          event.dataTransfer.setData("text/plain", widget.id);
-          setDraggedWidgetId(widget.id);
-        }}
-        onDragEnd={() => {
-          setDraggedWidgetId(null);
-          setDropTarget(null);
-        }}
-        onDragOver={(event) => {
-          if (!draggedWidgetId || draggedWidgetId === widget.id) {
-            return;
-          }
-
-          event.preventDefault();
-          const targetRect = event.currentTarget.getBoundingClientRect();
-          const edge: ShellDropEdge =
-            event.clientY < targetRect.top + targetRect.height / 2 ? "before" : "after";
-
-          if (dropTarget?.widgetId !== widget.id || dropTarget.edge !== edge) {
-            setDropTarget({ widgetId: widget.id, edge });
-          }
-        }}
-        onDrop={(event) => {
-          event.preventDefault();
-
-          const edge = dropTarget?.widgetId === widget.id ? dropTarget.edge : "after";
-          commitShellWidgetReorder(widget.id, edge);
-          setDraggedWidgetId(null);
-          setDropTarget(null);
-        }}
+        onDragStart={(event) => handleDragStart(event, widget.id)}
+        onDragEnd={handleDragEnd}
+        onDragOver={(event) => handleDragOver(event, widget.id)}
+        onDrop={(event) => handleDrop(event, widget.id)}
       >
         <ShellWidgetBoundary
           widgetId={widget.id}
           layoutReady={isWidgetLayoutReady(widget)}
           onLayoutReady={handleWidgetLayoutReady}
         >
-          <WidgetErrorBoundary>{content}</WidgetErrorBoundary>
+          {widget.layer === "entity" ? (
+            <WidgetChromeProvider
+              currentHost="left_sidebar"
+              hostOptions={getWidgetHostOptions(["pin_entity_shell", "left_sidebar"])}
+              hostSelectionDisabled={false}
+              onHostChange={(host) => void pinEntityBindings.handleMoveWidgetHost(widget.widgetInstanceId, host)}
+            >
+              <WidgetErrorBoundary>{content}</WidgetErrorBoundary>
+            </WidgetChromeProvider>
+          ) : (
+            <WidgetErrorBoundary>{content}</WidgetErrorBoundary>
+          )}
         </ShellWidgetBoundary>
       </ShellWidgetSlot>
     );
@@ -393,15 +437,6 @@ const shellSections = useMemo(
         className="absolute top-0 right-0 bottom-0 left-0 z-0 bg-[#ffffff]/0" 
         onClick={onClearSelection} 
       />
-
-      {mobileSidebarOpen && (
-        <button
-          type="button"
-          aria-label="Close layers drawer"
-          onClick={() => setMobileSidebarOpen?.(false)}
-          className="fixed inset-0 z-[35] bg-black/14 backdrop-blur-[1px] md:hidden"
-        />
-      )}
 
       {collectionPendingDelete && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/18 backdrop-blur-sm p-6">
@@ -439,10 +474,11 @@ const shellSections = useMemo(
         </div>
       )}
       
-      {/* MONDRIAN SPATIAL SIDEBAR (FLOATING WIDGETS) */}
-        <ShellRuntimeProvider
+      <LeftSidebarShell
         key={shellId}
         shellId={shellId}
+        isOpen={mobileSidebarOpen || (desktopSidebarVisible && shellCanEnter)}
+        shellWidth={desktopWidth}
         initialState={{
           collectionQuery: "",
           interactionMode: mode,
@@ -451,6 +487,7 @@ const shellSections = useMemo(
           highlightedCollectionId,
           editingCollectionId,
         }}
+        onCloseMobile={() => setMobileSidebarOpen?.(false)}
       >
         <ShellRuntimeModeSync mode={mode} />
         <ShellRuntimeInteractionLockSync interactionLocked={shellInteractionLocked} />
@@ -458,43 +495,8 @@ const shellSections = useMemo(
           highlightedCollectionId={highlightedCollectionId}
           editingCollectionId={editingCollectionId}
         />
-        <ShellRuntimeScrollContainer
-          data-shell-scroll-container="true"
-          className={`fixed inset-y-0 left-4 z-40 flex w-[min(360px,calc(100vw-2rem))] flex-col gap-4 overflow-y-auto no-scrollbar pointer-events-none transform transition-[transform,opacity] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] md:left-6 md:w-[var(--sidebar-width)] ${
-            mobileSidebarOpen ? "translate-x-0 opacity-100" : "-translate-x-[calc(100%+1.5rem)] opacity-0"
-          } ${
-            desktopSidebarVisible && shellCanEnter
-              ? "md:translate-x-0 md:opacity-100"
-              : "md:translate-x-0 md:opacity-0"
-          }`}
-          variants={sidebarShellVariants}
-          initial="hidden"
-          animate={desktopSidebarVisible && shellCanEnter ? "visible" : "hidden"}
-          style={
-            {
-              pointerEvents: desktopSidebarVisible || mobileSidebarOpen ? undefined : "none",
-              "--sidebar-width": `${desktopWidth}px`,
-              willChange: "transform, opacity",
-              backfaceVisibility: "hidden",
-              transform: "translateZ(0)",
-            } as CSSProperties
-          }
-        >
-          <div className="flex flex-col gap-4 min-h-max pb-6 pr-2 md:pr-3">
-            <div className="flex flex-col gap-4 pointer-events-auto">
-              <div
-                aria-hidden="true"
-                className="h-24 shrink-0 md:h-28"
-              />
-              {orderedShellWidgets.map((widget) => renderShellWidget(widget))}
-              <div
-                aria-hidden="true"
-                className="h-24 shrink-0 md:h-28"
-              />
-            </div>
-          </div>
-        </ShellRuntimeScrollContainer>
-      </ShellRuntimeProvider>
+        {orderedShellWidgets.map((widget) => renderShellWidget(widget))}
+      </LeftSidebarShell>
     </>
   );
 }
@@ -581,19 +583,4 @@ function ShellRuntimeCollectionSelectionSync({
   ]);
 
   return null;
-}
-
-const ShellRuntimeScrollContainer = (props: HTMLMotionProps<"div">) => {
-  const { registerScrollContainer } = useShellRuntimeActions();
-
-  const handleContainerRef = useCallback((element: HTMLDivElement | null) => {
-    registerScrollContainer(element);
-  }, [registerScrollContainer]);
-
-  return (
-    <motion.div
-      {...props}
-      ref={handleContainerRef}
-    />
-  );
 }

@@ -2,6 +2,7 @@ import type { ChangeEvent } from "react";
 import { Calendar, Image as ImageIcon, MapPin } from "lucide-react";
 import type { WidgetEntityPayload, WidgetInstanceRecord } from "@/lib/widgets";
 import { Tooltip } from "@/components/ui/Tooltip";
+import { WidgetChrome } from "@/components/widgets/WidgetChrome";
 
 interface EntityInfoWidgetCardProps {
   widget: WidgetInstanceRecord;
@@ -50,10 +51,15 @@ export function EntityInfoWidgetCard({
         : "Location";
 
   return (
-    <div className="rounded-2xl border border-black/10 bg-white/50 p-[17px] shadow-[0px_8px_32px_rgba(0,0,0,0.08)] backdrop-blur-3xl">
-      <div className={`mb-3 flex h-8 w-8 items-center justify-center rounded-xl ${getAccentClasses(entity.type)}`}>
-        <MapPin className="h-4 w-4" />
-      </div>
+    <WidgetChrome
+      title={entity.title}
+      subtitle={entity.subtitle || `${entity.type} entity`}
+      accent={
+        <div className={`flex h-8 w-8 items-center justify-center rounded-xl ${getAccentClasses(entity.type)}`}>
+          <MapPin className="h-4 w-4" />
+        </div>
+      }
+    >
 
       {editable && interactionsDisabled && (
         <div className="mb-4 rounded-xl border border-dashed border-black/10 bg-white/35 px-4 py-3">
@@ -105,15 +111,6 @@ export function EntityInfoWidgetCard({
           />
         </label>
       ) : null}
-
-      <div>
-        <h3 className="text-sm font-medium leading-5 text-[#171717]">
-          {entity.title}
-        </h3>
-        <p className="mt-0.5 text-xs leading-4 text-[#737373]">
-          {entity.subtitle || `${entity.type} entity`}
-        </p>
-      </div>
 
       <div className="mt-4 grid grid-cols-2 gap-2">
         <div className="rounded-xl bg-white/40 px-3 py-3">
@@ -171,6 +168,6 @@ export function EntityInfoWidgetCard({
           </span>
         </div>
       </div>
-    </div>
+    </WidgetChrome>
   );
 }
