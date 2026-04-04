@@ -8,13 +8,11 @@ import { EntityDeleteDialog } from "@/components/widgets/entity-widgets/EntityDe
 import { EntityOverlayEmptyState, EntityOverlaySkeletonCard } from "@/components/widgets/entity-widgets/EntityOverlayStates";
 import { renderEntityWidget } from "@/components/widgets/entity-widgets/renderEntityWidget";
 import { useEntityWidgetBindings } from "@/components/widgets/entity-widgets/useEntityWidgetBindings";
-import { getWidgetHostOptions } from "@/lib/widget-hosts";
 
 interface WidgetOverlayProps {
   isOpen: boolean;
   onClose: () => void;
   onDataSaved?: () => void;
-  onWidgetHostMoved?: () => void;
   refreshTrigger?: number;
   onDeletePin?: (pinId: string, collectionId?: string) => Promise<void>;
   entityType?: WidgetEntityType;
@@ -33,7 +31,16 @@ interface WidgetOverlayProps {
   };
 }
 
-export function WidgetOverlay({ isOpen, onClose, onDataSaved, onWidgetHostMoved, refreshTrigger, onDeletePin, entityType, entityId, data }: WidgetOverlayProps) {
+export function WidgetOverlay({
+  isOpen,
+  onClose,
+  onDataSaved,
+  refreshTrigger,
+  onDeletePin,
+  entityType,
+  entityId,
+  data,
+}: WidgetOverlayProps) {
   const {
     widgetInteractionsDeferred,
     pinNote,
@@ -52,7 +59,6 @@ export function WidgetOverlay({ isOpen, onClose, onDataSaved, onWidgetHostMoved,
     handleDragEnd,
     handleDragOver,
     handleDrop,
-    handleMoveWidgetHost,
     handleNoteChange,
     handleImageUpload,
     handleImageDelete,
@@ -67,7 +73,6 @@ export function WidgetOverlay({ isOpen, onClose, onDataSaved, onWidgetHostMoved,
     entityId,
     data,
     onDataSaved,
-    onWidgetHostMoved,
     onClose,
     onDeletePin,
   });
@@ -158,9 +163,6 @@ export function WidgetOverlay({ isOpen, onClose, onDataSaved, onWidgetHostMoved,
                 >
                   <WidgetChromeProvider
                     currentHost="pin_entity_shell"
-                    hostOptions={getWidgetHostOptions(["pin_entity_shell", "left_sidebar"])}
-                    hostSelectionDisabled={widget.componentKey === "entity_delete"}
-                    onHostChange={(host) => void handleMoveWidgetHost(widget.id, host)}
                   >
                     <WidgetErrorBoundary>{content}</WidgetErrorBoundary>
                   </WidgetChromeProvider>

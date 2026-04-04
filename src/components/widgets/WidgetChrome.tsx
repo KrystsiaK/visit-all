@@ -1,12 +1,12 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { ChevronDown, Settings2 } from "lucide-react";
+import { Settings2 } from "lucide-react";
 import { useState, type ReactNode } from "react";
 
 import { cn } from "@/components/ui/utils";
 import { useWidgetChromeContext } from "@/components/widgets/WidgetChromeContext";
-import type { WidgetHost, WidgetHostOption } from "@/lib/widget-hosts";
+import { getWidgetHostLabel, type WidgetHost, type WidgetHostOption } from "@/lib/widget-hosts";
 
 interface WidgetChromeProps {
   title?: string;
@@ -36,7 +36,6 @@ export const WidgetChrome = ({
   currentHost,
   hostOptions,
   hostSelectionDisabled,
-  onHostChange,
   settingsContent,
   accent,
   identityVisibility = "inline",
@@ -47,7 +46,6 @@ export const WidgetChrome = ({
   const resolvedHostOptions = hostOptions ?? chromeContext?.hostOptions;
   const resolvedHostSelectionDisabled =
     hostSelectionDisabled ?? chromeContext?.hostSelectionDisabled ?? false;
-  const resolvedOnHostChange = onHostChange ?? chromeContext?.onHostChange;
   const hasSettings = Boolean(
     (resolvedCurrentHost && resolvedHostOptions?.length) || settingsContent
   );
@@ -151,26 +149,17 @@ export const WidgetChrome = ({
                   {resolvedCurrentHost && resolvedHostOptions?.length ? (
                     <>
                       <label className="block text-[10px] font-black uppercase tracking-[0.18em] text-neutral-500">
-                        Host Shell
+                        Shell
                       </label>
-                      <div className="relative mt-3">
-                        <select
-                          value={resolvedCurrentHost}
-                          disabled={resolvedHostSelectionDisabled}
-                          onChange={(event) =>
-                            resolvedOnHostChange?.(event.target.value as WidgetHost)
-                          }
-                          className="h-11 w-full appearance-none rounded-2xl border border-black/10 bg-white px-4 pr-12 text-sm font-medium text-neutral-900 outline-none transition-colors disabled:cursor-not-allowed disabled:bg-neutral-50 disabled:text-neutral-500"
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <span
+                          className={cn(
+                            "inline-flex min-h-11 items-center rounded-2xl border border-black/10 bg-white px-4 text-sm font-medium text-neutral-900",
+                            resolvedHostSelectionDisabled && "bg-neutral-50 text-neutral-500"
+                          )}
                         >
-                          {resolvedHostOptions.map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
-                        <div className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-neutral-400">
-                          <ChevronDown className="h-4 w-4" />
-                        </div>
+                          {getWidgetHostLabel(resolvedCurrentHost)}
+                        </span>
                       </div>
                     </>
                   ) : null}

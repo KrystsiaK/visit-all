@@ -1,14 +1,7 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
+import { login } from "./helpers/auth";
 
-async function login(page: Page) {
-  await page.goto("/login");
-  await page.getByPlaceholder("curator@atelier.com").fill("demo@visitall.com");
-  await page.getByPlaceholder("••••").fill("demo");
-  await page.getByRole("button", { name: /enter exhibition/i }).click();
-  await page.waitForURL("**/");
-}
-
-test("demo login reaches the main app shell", async ({ page, isMobile }) => {
+test("e2e login reaches the main app shell", async ({ page, isMobile }) => {
   await login(page);
   await expect(page.getByRole("button", { name: /widgets/i })).toBeVisible();
   await expect(

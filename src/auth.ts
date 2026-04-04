@@ -1,9 +1,10 @@
 import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { pool } from "@/lib/db";
-import bcrypt from "bcryptjs";
 import { authConfig } from "./auth.config";
 import { assertRateLimit, getClientIp } from "@/lib/rate-limit";
+import { authenticateUserWithPassword } from "@/lib/auth/users";
+import { normalizeEmail } from "@/lib/auth/passwords";
+import { authDebug } from "@/lib/auth/debug";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   ...authConfig,
@@ -11,18 +12,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     CredentialsProvider({
       name: "Credentials",
       credentials: {
-        email: { label: "Email", type: "email", placeholder: "demo@visitall.com" },
-        password: { label: "Password", type: "password", placeholder: "demo" }
+        email: { label: "Email", type: "email", placeholder: "name@example.com" },
+        password: { label: "Password", type: "password", placeholder: "••••••••••••" }
       },
       async authorize(credentials, request) {
         if (!credentials?.email || !credentials?.password) return null;
 
-        const normalizedEmail = String(credentials.email).trim().toLowerCase();
-        
-        // MVP Demo Bypass: Guarantee absolute entry without tripping login rate limits
-        if (normalizedEmail === 'demo@visitall.com' && credentials.password === 'demo') {
-           return { id: '11111111-1111-1111-1111-111111111111', email: 'demo@visitall.com' };
-        }
+        const normalizedEmail = normalizeEmail(String(credentials.email));
+        authDebug("login.attempt", { email: normalizedEmail });
 
         const clientIp = getClientIp(request);
 
@@ -34,22 +31,23 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           blockMs: 30 * 60 * 1000,
         });
 
-        const { rows } = await pool.query(`SELECT * FROM users WHERE email = $1`, [normalizedEmail]);
-        let user = rows[0];
+        const result = await authenticateUserWithPassword(normalizedEmail, String(credentials.password));
 
-        if (!user) {
-           const hash = await bcrypt.hash(credentials.password as string, 10);
-           const result = await pool.query(
-             `INSERT INTO users (email, password) VALUES ($1, $2) RETURNING id, email`,
-             [normalizedEmail, hash]
-           );
-           user = result.rows[0];
-        } else {
-           const isValid = await bcrypt.compare(credentials.password as string, user.password);
-           if (!isValid) return null;
+        if (!result.ok) {
+          authDebug("login.rejected", { email: normalizedEmail, code: result.code });
+          if (result.code === "email_not_verified") {
+            throw new Error("EMAIL_NOT_VERIFIED");
+          }
+
+          if (result.code === "inactive_user") {
+            throw new Error("ACCOUNT_DISABLED");
+          }
+
+          return null;
         }
-        
-        return { id: user.id, email: user.email };
+
+        authDebug("login.success", { email: normalizedEmail, userId: result.user.id });
+        return result.user;
       }
     })
   ]

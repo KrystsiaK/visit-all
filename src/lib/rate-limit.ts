@@ -3,7 +3,14 @@ import type { PoolClient } from "pg";
 
 import { pool } from "@/lib/db";
 
-type RateLimitScope = "auth_login" | "media_upload";
+type RateLimitScope =
+  | "auth_login"
+  | "auth_register"
+  | "auth_verify_email"
+  | "auth_password_reset_request"
+  | "auth_password_reset_confirm"
+  | "auth_password_change"
+  | "media_upload";
 
 type RateLimitOptions = {
   scope: RateLimitScope;
@@ -165,6 +172,10 @@ export async function checkRateLimit(options: RateLimitOptions) {
 }
 
 export async function assertRateLimit(options: RateLimitOptions) {
+  if (process.env.E2E_TEST_MODE === "1") {
+    return;
+  }
+
   const result = await checkRateLimit(options);
   if (!result.allowed) {
     throw new Error("Too many requests. Please try again later.");

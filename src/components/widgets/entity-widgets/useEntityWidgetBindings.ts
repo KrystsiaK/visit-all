@@ -7,14 +7,12 @@ import {
   getEntityRating,
   getEntityWidgetPayload,
   getEntityWidgets,
-  moveEntityWidgetHost,
   reorderEntityWidgets,
   updateEntityRating,
   updatePinDetails,
 } from "@/app/actions";
 import { useDebouncedCallback } from "@/hooks/useDebounce";
 import type { WidgetEntityPayload, WidgetEntityType, WidgetInstanceRecord } from "@/lib/widgets";
-import type { WidgetHost } from "@/lib/widget-hosts";
 import { useShellWidgetReorder } from "@/components/shells/useShellWidgetReorder";
 
 interface EntityOverlayData {
@@ -37,7 +35,6 @@ interface UseEntityWidgetBindingsProps {
   entityId?: string;
   data?: EntityOverlayData;
   onDataSaved?: () => void;
-  onWidgetHostMoved?: () => void;
   onClose: () => void;
   onDeletePin?: (pinId: string, collectionId?: string) => Promise<void>;
 }
@@ -63,7 +60,6 @@ export interface EntityWidgetBindingsResult {
   handleDragEnd: () => void;
   handleDragOver: (event: DragEvent<HTMLDivElement>, widgetId: string) => void;
   handleDrop: (event: DragEvent<HTMLDivElement>, widgetId: string) => void;
-  handleMoveWidgetHost: (widgetId: string, host: WidgetHost) => Promise<void>;
   handleNoteChange: (event: ChangeEvent<HTMLTextAreaElement>) => void;
   handleImageUpload: (file: File) => Promise<void>;
   handleImageDelete: () => Promise<void>;
@@ -80,7 +76,6 @@ export const useEntityWidgetBindings = ({
   entityId,
   data,
   onDataSaved,
-  onWidgetHostMoved,
   onClose,
   onDeletePin,
 }: UseEntityWidgetBindingsProps): EntityWidgetBindingsResult => {
@@ -123,32 +118,6 @@ export const useEntityWidgetBindings = ({
       });
     },
   });
-
-  const handleMoveWidgetHost = useCallback(
-    async (widgetId: string, host: WidgetHost) => {
-      if (!entityType || !entityId) {
-        return;
-      }
-
-      if (entityType !== "pin") {
-        return;
-      }
-
-      if (host !== "pin_entity_shell" && host !== "left_sidebar") {
-        return;
-      }
-
-      try {
-        await moveEntityWidgetHost(entityType, entityId, widgetId, host);
-        const nextWidgets = await getEntityWidgets(entityType, entityId);
-        setEntityWidgets(nextWidgets);
-        onWidgetHostMoved?.();
-      } catch (error) {
-        console.error(error);
-      }
-    },
-    [entityId, entityType, onWidgetHostMoved]
-  );
 
   const persistPinDetails = useCallback(
     async (override?: Partial<{ title: string; note: string; imageUrl: string | null }>) => {
@@ -416,7 +385,6 @@ export const useEntityWidgetBindings = ({
     handleDragEnd,
     handleDragOver,
     handleDrop,
-    handleMoveWidgetHost,
     handleNoteChange,
     handleImageUpload,
     handleImageDelete,

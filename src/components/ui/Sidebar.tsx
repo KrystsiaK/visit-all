@@ -24,10 +24,6 @@ import { useShellRuntimeActions, useShellRuntimeValue } from "@/components/shell
 import { type LayerVisibilityState } from "@/lib/layer-visibility";
 import { WidgetErrorBoundary } from "@/components/errors/WidgetErrorBoundary";
 import { useShellWidgetReorder } from "@/components/shells/useShellWidgetReorder";
-import { renderEntityWidget } from "@/components/widgets/entity-widgets/renderEntityWidget";
-import { useEntityWidgetBindings } from "@/components/widgets/entity-widgets/useEntityWidgetBindings";
-import { WidgetChromeProvider } from "@/components/widgets/WidgetChromeContext";
-import { getWidgetHostOptions } from "@/lib/widget-hosts";
 
 interface SidebarProps {
   mode: InteractionMode;
@@ -36,7 +32,6 @@ interface SidebarProps {
   drawingPath: { lng: number; lat: number }[];
   editingTraceId: string | null;
   editingAreaId: string | null;
-  editingPinData: { id: string, name?: string, note?: string, image_url?: string, collectionId?: string } | null;
   traceDraftFinalized: boolean;
   curveMode: boolean;
   setCurveMode: (val: boolean) => void;
@@ -48,9 +43,6 @@ interface SidebarProps {
   onClearSelection: () => void;
   onUndo: () => void;
   onDataSaved: () => void;
-  onDeletePin?: (pinId: string, collectionId?: string) => Promise<void>;
-  onWidgetHostMoved?: () => void;
-  refreshTrigger?: number;
   isMobileViewport?: boolean;
   mobileSidebarOpen?: boolean;
   setMobileSidebarOpen?: (val: boolean) => void;
@@ -79,10 +71,9 @@ interface SidebarProps {
 
 export default function Sidebar({ 
   mode, setMode, drawingPath, 
-  editingPinData,
   traceDraftFinalized,
   curveMode, setCurveMode, terrain3D, setTerrain3D, isSatellite, setIsSatellite, onResetView,
-  onClearSelection, onDataSaved, onDeletePin, onWidgetHostMoved, refreshTrigger,
+  onClearSelection, onDataSaved,
   isMobileViewport = false,
   mobileSidebarOpen, setMobileSidebarOpen,
   desktopSidebarVisible = true, sidebarReady = false, shellConfig, shellId = "left_sidebar", shellWidgets = [], shellWidgetsLoaded = false, collectionsLoaded = false,
@@ -250,31 +241,9 @@ const shellSections = useMemo(
     onReorder: onShellWidgetsReorder,
   });
 
-  const pinEntityBindings = useEntityWidgetBindings({
-    isOpen: mode === "editPin" && Boolean(editingPinData?.id),
-    refreshTrigger,
-    entityType: "pin",
-    entityId: editingPinData?.id,
-    data: editingPinData
-      ? {
-          id: editingPinData.id,
-          title: editingPinData.name || "Untitled Marker",
-          description: editingPinData.note || "",
-          imageUrl: editingPinData.image_url,
-          collectionId: editingPinData.collectionId,
-          tags: ["Curated Map", "Location"],
-        }
-      : undefined,
-    onDataSaved,
-    onWidgetHostMoved,
-    onClose: async () => {},
-    onDeletePin,
-  });
-
   const renderShellWidget = (widget: WidgetPlacementRecord & WidgetInstanceRecord) => {
     let content: React.ReactNode = null;
     let shouldRender = true;
-    const activePinEntityId = mode === "editPin" ? editingPinData?.id ?? null : null;
 
     if (widget.componentKey === "shell_header") {
       return (
@@ -287,33 +256,6 @@ const shellSections = useMemo(
           <ShellHeaderWidget />
         </ShellWidgetBoundary>
       );
-    } else if (widget.componentKey === "entity_info" || widget.componentKey === "entity_rating" || widget.componentKey === "entity_gallery" || widget.componentKey === "entity_stories" || widget.componentKey === "entity_resources" || widget.componentKey === "entity_nearby_pins" || widget.componentKey === "entity_transport_mode") {
-      shouldRender =
-        mode === "editPin" &&
-        Boolean(activePinEntityId) &&
-        widget.entityType === "pin" &&
-        widget.entityId === activePinEntityId;
-
-      if (shouldRender) {
-        content = renderEntityWidget({
-          widget,
-          entity: pinEntityBindings.normalizedEntity,
-          bindings: {
-            pinNote: pinEntityBindings.pinNote,
-            pinImage: pinEntityBindings.pinImage,
-            imageFile: pinEntityBindings.imageFile,
-            saving: pinEntityBindings.saving,
-            supportsDirectPinEditing: pinEntityBindings.supportsDirectPinEditing,
-            widgetInteractionsDeferred: pinEntityBindings.widgetInteractionsDeferred,
-            entityRating: pinEntityBindings.entityRating,
-            handleNoteChange: pinEntityBindings.handleNoteChange,
-            handleImageUpload: pinEntityBindings.handleImageUpload,
-            handleImageDelete: pinEntityBindings.handleImageDelete,
-            handleRateEntity: pinEntityBindings.handleRateEntity,
-            setDeleteWarningOpen: pinEntityBindings.setDeleteWarningOpen,
-          },
-        });
-      }
     } else if (widget.componentKey === "shell_search") {
       content = <ShellSearchWidget />;
     } else if (widget.componentKey === "shell_mode_switch") {
@@ -416,18 +358,7 @@ const shellSections = useMemo(
           layoutReady={isWidgetLayoutReady(widget)}
           onLayoutReady={handleWidgetLayoutReady}
         >
-          {widget.layer === "entity" ? (
-            <WidgetChromeProvider
-              currentHost="left_sidebar"
-              hostOptions={getWidgetHostOptions(["pin_entity_shell", "left_sidebar"])}
-              hostSelectionDisabled={false}
-              onHostChange={(host) => void pinEntityBindings.handleMoveWidgetHost(widget.widgetInstanceId, host)}
-            >
-              <WidgetErrorBoundary>{content}</WidgetErrorBoundary>
-            </WidgetChromeProvider>
-          ) : (
-            <WidgetErrorBoundary>{content}</WidgetErrorBoundary>
-          )}
+          <WidgetErrorBoundary>{content}</WidgetErrorBoundary>
         </ShellWidgetBoundary>
       </ShellWidgetSlot>
     );

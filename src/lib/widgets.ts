@@ -11,6 +11,8 @@ export type WidgetConnectionTargetType = "widget" | "shell" | "map";
 
 export type WidgetComponentKey =
   | "global_overview"
+  | "user_profile"
+  | "user_account_actions"
   | "entity_info"
   | "entity_delete"
   | "entity_gallery"

@@ -10,15 +10,20 @@ import {
 } from "@/components/widgets/global-widgets/GlobalWidgetStates";
 import { renderGlobalWidget } from "@/components/widgets/global-widgets/renderGlobalWidget";
 import { useGlobalWidgetBindings } from "@/components/widgets/global-widgets/useGlobalWidgetBindings";
+import type { WidgetEntityType } from "@/lib/widgets";
 
 interface WidgetPanelProps {
   isOpen: boolean;
   onClose: () => void;
+  entityType?: WidgetEntityType;
+  entityId?: string;
 }
 
 export const WidgetPanel = ({
   isOpen,
   onClose,
+  entityType,
+  entityId,
 }: WidgetPanelProps) => {
   const {
     widgets,
@@ -33,8 +38,8 @@ export const WidgetPanel = ({
     handleDragOver,
     handleDrop,
     setLibraryOpen,
-    handleAddGlobalWidget,
-  } = useGlobalWidgetBindings({ isOpen });
+    handleAddWidgetFromLibrary,
+  } = useGlobalWidgetBindings({ isOpen, entityType, entityId });
 
   return (
     <>
@@ -88,7 +93,7 @@ export const WidgetPanel = ({
             <GlobalWidgetLibraryCard
               key={definition.id}
               definition={definition}
-              onAdd={handleAddGlobalWidget}
+              onAdd={handleAddWidgetFromLibrary}
               adding={addingSlug === definition.slug}
             />
           ))}

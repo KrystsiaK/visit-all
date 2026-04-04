@@ -1,4 +1,4 @@
-export type ShellSlug = "left_sidebar" | "top_chrome";
+export type ShellSlug = "left_sidebar" | "top_chrome" | "user_shell";
 export type ShellKind = "panel";
 export type ShellScope = "app";
 export type ShellOwnerType = "user";
@@ -30,6 +30,14 @@ export interface TopChromeShellConfig {
   width: number;
   motionPreset: "overlay-soft";
   anchored: true;
+}
+
+export interface UserShellConfig {
+  version: 1;
+  placement: "right";
+  sizePreset: "regular";
+  width: number;
+  motionPreset: "overlay-soft";
 }
 
 export interface ShellStateRecord {
@@ -88,5 +96,10 @@ export type LeftSidebarShellInstance = ShellInstanceRecord<
 
 export type TopChromeShellInstance = ShellInstanceRecord<
   TopChromeShellConfig,
+  ShellStateRecord
+>;
+
+export type UserShellInstance = ShellInstanceRecord<
+  UserShellConfig,
   ShellStateRecord
 >;

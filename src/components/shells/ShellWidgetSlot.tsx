@@ -7,33 +7,36 @@ import { cn } from "@/components/ui/utils";
 
 interface ShellWidgetSlotProps {
   children: ReactNode;
-  isDragging: boolean;
-  isDropTarget: boolean;
-  dropEdge: "before" | "after" | null;
-  onDragStart: (event: DragEvent<HTMLDivElement>) => void;
-  onDragEnd: () => void;
-  onDragOver: (event: DragEvent<HTMLDivElement>) => void;
-  onDrop: (event: DragEvent<HTMLDivElement>) => void;
+  isDragging?: boolean;
+  isDropTarget?: boolean;
+  dropEdge?: "before" | "after" | null;
+  onDragStart?: (event: DragEvent<HTMLDivElement>) => void;
+  onDragEnd?: () => void;
+  onDragOver?: (event: DragEvent<HTMLDivElement>) => void;
+  onDrop?: (event: DragEvent<HTMLDivElement>) => void;
 }
 
 export const ShellWidgetSlot = ({
   children,
-  isDragging,
-  isDropTarget,
-  dropEdge,
+  isDragging = false,
+  isDropTarget = false,
+  dropEdge = null,
   onDragStart,
   onDragEnd,
   onDragOver,
   onDrop,
-}: ShellWidgetSlotProps) => (
-  <div
-    className={cn(
-      "group relative w-full pt-4 pointer-events-auto",
-      isDragging && "z-10"
-    )}
-    onDragOver={onDragOver}
-    onDrop={onDrop}
-  >
+}: ShellWidgetSlotProps) => {
+  const reorderEnabled = Boolean(onDragStart && onDragEnd && onDragOver && onDrop);
+
+  return (
+    <div
+      className={cn(
+        "group relative w-full pt-4 pointer-events-auto",
+        isDragging && "z-10"
+      )}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+    >
     <div
       className={cn(
         "pointer-events-none absolute inset-x-0 top-0 h-[2px] rounded-full bg-[#0f62fe] opacity-0 transition-opacity",
@@ -74,18 +77,20 @@ export const ShellWidgetSlot = ({
         </>
       ) : null}
 
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-[4] flex h-4 items-start justify-center">
-        <div
-          draggable
-          onDragStart={onDragStart}
-          onDragEnd={onDragEnd}
-          className="pointer-events-auto flex h-3.5 min-w-10 items-start justify-center rounded-full px-2 text-neutral-300 transition-colors duration-200 group-hover:text-neutral-500 cursor-grab active:cursor-grabbing"
-          aria-label="Reorder widget"
-          title="Drag to reorder widget"
-        >
-          <GripHorizontal className="h-3.5 w-3.5" />
+      {reorderEnabled ? (
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-[4] flex h-4 items-start justify-center">
+          <div
+            draggable
+            onDragStart={onDragStart}
+            onDragEnd={onDragEnd}
+            className="pointer-events-auto flex h-3.5 min-w-10 items-start justify-center rounded-full px-2 text-neutral-300 transition-colors duration-200 group-hover:text-neutral-500 cursor-grab active:cursor-grabbing"
+            aria-label="Reorder widget"
+            title="Drag to reorder widget"
+          >
+            <GripHorizontal className="h-3.5 w-3.5" />
+          </div>
         </div>
-      </div>
+      ) : null}
 
       <div className={cn("transition-[transform,opacity] duration-200", isDragging && "scale-[1.01] opacity-90")}>
         {children}
@@ -98,5 +103,6 @@ export const ShellWidgetSlot = ({
         isDropTarget && dropEdge === "after" && "opacity-100"
       )}
     />
-  </div>
-);
+    </div>
+  );
+};

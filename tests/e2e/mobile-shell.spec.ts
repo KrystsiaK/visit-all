@@ -1,12 +1,5 @@
-import { expect, test, type Page } from "@playwright/test";
-
-async function login(page: Page) {
-  await page.goto("/login");
-  await page.getByPlaceholder("curator@atelier.com").fill("demo@visitall.com");
-  await page.getByPlaceholder("••••").fill("demo");
-  await page.getByRole("button", { name: /enter exhibition/i }).click();
-  await page.waitForURL("**/");
-}
+import { expect, test } from "@playwright/test";
+import { login } from "./helpers/auth";
 
 test("mobile shell exposes the layers drawer", async ({ page, isMobile }) => {
   test.skip(!isMobile, "Mobile-only assertion");

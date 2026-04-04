@@ -3,24 +3,28 @@
 import { useEffect, useState } from "react";
 
 import {
-  addGlobalWidget,
+  addWidgetFromLibrary,
   getGlobalWidgets,
-  getWidgetDefinitions,
+  getWidgetLibraryCatalog,
   reorderGlobalWidgets,
 } from "@/app/actions";
 import { useShellWidgetReorder } from "@/components/shells/useShellWidgetReorder";
-import type { WidgetDefinitionRecord, WidgetInstanceRecord } from "@/lib/widgets";
-import type { WidgetHost } from "@/lib/widget-hosts";
+import type { WidgetLibraryCatalogRecord } from "@/app/actions";
+import type { WidgetEntityType, WidgetInstanceRecord } from "@/lib/widgets";
 
 interface UseGlobalWidgetBindingsProps {
   isOpen: boolean;
+  entityType?: WidgetEntityType;
+  entityId?: string;
 }
 
 export const useGlobalWidgetBindings = ({
   isOpen,
+  entityType,
+  entityId,
 }: UseGlobalWidgetBindingsProps) => {
   const [widgets, setWidgets] = useState<WidgetInstanceRecord[]>([]);
-  const [definitions, setDefinitions] = useState<WidgetDefinitionRecord[]>([]);
+  const [definitions, setDefinitions] = useState<WidgetLibraryCatalogRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [addingSlug, setAddingSlug] = useState<string | null>(null);
@@ -85,7 +89,7 @@ export const useGlobalWidgetBindings = ({
 
     void (async () => {
       try {
-        const nextDefinitions = await getWidgetDefinitions();
+        const nextDefinitions = await getWidgetLibraryCatalog(entityType, entityId);
 
         if (!cancelled) {
           setDefinitions(nextDefinitions);
@@ -101,19 +105,17 @@ export const useGlobalWidgetBindings = ({
     return () => {
       cancelled = true;
     };
-  }, [libraryOpen]);
+  }, [entityId, entityType, libraryOpen]);
 
-  const handleAddGlobalWidget = async (slug: string, host: WidgetHost) => {
-    if (host !== "widget_center") {
-      return;
-    }
-
+  const handleAddWidgetFromLibrary = async (slug: string) => {
     setAddingSlug(slug);
 
     try {
-      await addGlobalWidget(slug);
+      await addWidgetFromLibrary(slug, entityType, entityId);
       const nextWidgets = await getGlobalWidgets();
       setWidgets(nextWidgets);
+      const nextDefinitions = await getWidgetLibraryCatalog(entityType, entityId);
+      setDefinitions(nextDefinitions);
       setLibraryOpen(false);
     } catch (error) {
       console.error(error);
@@ -135,6 +137,6 @@ export const useGlobalWidgetBindings = ({
     handleDragOver,
     handleDrop,
     setLibraryOpen,
-    handleAddGlobalWidget,
+    handleAddWidgetFromLibrary,
   };
 };
