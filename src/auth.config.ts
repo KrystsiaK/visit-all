@@ -12,11 +12,23 @@ export const authConfig = {
   callbacks: {
     authorized({ auth, request: { nextUrl } }) {
       const isLoggedIn = !!auth?.user;
-      const isAuthPage = nextUrl.pathname.startsWith('/login');
-      if (isAuthPage) {
+      const isGuestOnlyPage =
+        nextUrl.pathname.startsWith('/login') ||
+        nextUrl.pathname.startsWith('/register');
+      const isPublicAuthUtilityPage =
+        nextUrl.pathname.startsWith('/verify-email') ||
+        nextUrl.pathname.startsWith('/forgot-password') ||
+        nextUrl.pathname.startsWith('/reset-password');
+
+      if (isGuestOnlyPage) {
         if (isLoggedIn) return Response.redirect(new URL('/', nextUrl));
         return true;
       }
+
+      if (isPublicAuthUtilityPage) {
+        return true;
+      }
+
       return isLoggedIn;
     },
     async jwt({ token, user }) {

@@ -15,6 +15,9 @@ export default defineConfig({
       provider: "v8",
       reporter: ["text", "html", "json-summary"],
       include: [
+        "src/lib/auth/email-policy.ts",
+        "src/lib/auth/password-policy.ts",
+        "src/lib/auth/passwords.ts",
         "src/components/widgets/shell-widgets/collections/reducer.ts",
         "src/components/widgets/shell-widgets/collections/utils.ts",
       ],

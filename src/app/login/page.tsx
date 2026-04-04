@@ -1,23 +1,59 @@
 "use client";
 
-import { useState } from "react";
+import Link from "next/link";
+import { useMemo, useState, type ChangeEvent } from "react";
 import { signIn } from "next-auth/react";
+
+import {
+  FieldFeedback,
+  FieldLabel,
+  PasswordInput,
+  INPUT_PLACEHOLDERS,
+  getFieldInputClassName,
+} from "@/components/inputs/FieldChrome";
+import { EMAIL_LOCAL_PART_MAX_LENGTH, EMAIL_MAX_LENGTH } from "@/lib/auth/email-policy";
+import { getEmailFieldErrors, getRequiredPasswordErrors } from "@/lib/auth/form-policy";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [submittedOnce, setSubmittedOnce] = useState(false);
+  const [serverError, setServerError] = useState<string | null>(null);
+  const emailErrors = useMemo(() => getEmailFieldErrors(email), [email]);
+  const passwordErrors = useMemo(() => getRequiredPasswordErrors(password), [password]);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmittedOnce(true);
+    setServerError(null);
+
+    if (emailErrors.length > 0 || passwordErrors.length > 0) {
+      return;
+    }
+
     setLoading(true);
     try {
       const res = await signIn("credentials", { email, password, redirect: false });
-      if (res?.error) { alert("Invalid credentials. Try again!"); } 
+      if (res?.error) {
+        if (res.error.includes("EMAIL_NOT_VERIFIED")) {
+          setServerError("Verify your email before signing in.");
+        } else if (res.error.includes("ACCOUNT_DISABLED")) {
+          setServerError("This account is disabled.");
+        } else {
+          setServerError("Invalid credentials. Try again.");
+        }
+      } 
       else { window.location.href = "/"; }
-    } catch { alert("System Authentication Node Offline."); } 
+    } catch { setServerError("System Authentication Node Offline."); } 
     finally { setLoading(false); }
   };
+
+  const handleFieldChange =
+    (setter: (value: string) => void) => (event: ChangeEvent<HTMLInputElement>) => {
+      setter(event.target.value);
+      setServerError(null);
+    };
 
   return (
     <div className="min-h-screen bg-[#f9f9f9] flex flex-col md:flex-row font-sans">
@@ -45,24 +81,60 @@ export default function LoginPage() {
             <div className="h-1.5 w-16 bg-[#b7102a] mt-6"></div>
           </div>
 
-          <form className="space-y-8" onSubmit={handleAuth}>
+          <form className="space-y-8" onSubmit={handleAuth} noValidate>
             <div className="group relative">
-              <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-[0.2em] mb-2 transition-colors group-focus-within:text-[#00327d]">Identity Email</label>
+              <FieldLabel
+                info={`Use a real address you can access. Max ${EMAIL_MAX_LENGTH} characters total and ${EMAIL_LOCAL_PART_MAX_LENGTH} before '@'.`}
+                invalid={submittedOnce && emailErrors.length > 0}
+              >
+                Email
+              </FieldLabel>
               <input
-                type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3.5 bg-[#f3f3f3] text-gray-900 border-b-[3px] border-transparent focus:border-[#00327d] focus:bg-white transition-all rounded-none outline-none font-medium placeholder-gray-400"
-                placeholder="curator@atelier.com"
+                name="email" type="email" required value={email} onChange={handleFieldChange(setEmail)}
+                className={getFieldInputClassName({
+                  attempted: submittedOnce,
+                  hasError: emailErrors.length > 0,
+                  isValid: submittedOnce && emailErrors.length === 0,
+                  baseClassName:
+                    "w-full px-4 py-3.5 bg-[#f3f3f3] text-gray-900 border-b-[3px] focus:bg-white transition-all rounded-none outline-none font-medium placeholder-gray-400",
+                })}
+                placeholder={INPUT_PLACEHOLDERS.email}
+              />
+              <FieldFeedback
+                attempted={submittedOnce}
+                errors={emailErrors}
+                successLabel="Email looks valid."
               />
             </div>
 
             <div className="group relative">
-              <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-[0.2em] mb-2 transition-colors group-focus-within:text-[#00327d]">Access Key</label>
-              <input
-                type="password" required value={password} onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3.5 bg-[#f3f3f3] text-gray-900 border-b-[3px] border-transparent focus:border-[#b7102a] focus:bg-white transition-all rounded-none outline-none font-black placeholder-gray-400 text-lg tracking-widest"
-                placeholder="••••"
+              <FieldLabel
+                info="Enter the password for your account."
+                invalid={submittedOnce && passwordErrors.length > 0}
+              >
+                Password
+              </FieldLabel>
+              <PasswordInput
+                name="password"
+                attempted={submittedOnce}
+                hasError={passwordErrors.length > 0}
+                isValid={submittedOnce && passwordErrors.length === 0}
+                value={password}
+                onChange={handleFieldChange(setPassword)}
+                className="w-full px-4 py-3.5 bg-[#f3f3f3] text-gray-900 border-b-[3px] focus:bg-white transition-all rounded-none outline-none font-black placeholder-gray-400 text-lg tracking-widest"
+                placeholder={INPUT_PLACEHOLDERS.password}
+                required
+              />
+              <FieldFeedback
+                attempted={submittedOnce}
+                errors={passwordErrors}
+                successLabel="Password looks good."
               />
             </div>
+
+            {serverError ? (
+              <p className="text-sm text-[#b7102a]">{serverError}</p>
+            ) : null}
 
             <button
               type="submit" disabled={loading}
@@ -71,6 +143,19 @@ export default function LoginPage() {
               {loading ? "Authenticating..." : "Enter Exhibition"}
             </button>
           </form>
+
+          <p className="mt-8 text-sm text-gray-500">
+            Need an account?{" "}
+            <Link href="/register" className="font-semibold text-[#00327d]">
+              Create one
+            </Link>
+          </p>
+          <p className="mt-3 text-sm text-gray-500">
+            Forgot your password?{" "}
+            <Link href="/forgot-password" className="font-semibold text-[#00327d]">
+              Reset it
+            </Link>
+          </p>
         </div>
       </div>
     </div>

@@ -9,6 +9,7 @@ export type WidgetHost =
   | "widget_library"
   | "widget_center"
   | "left_sidebar"
+  | "user_shell"
   | "pin_entity_shell"
   | "trace_entity_shell"
   | "area_entity_shell";
@@ -22,10 +23,13 @@ const widgetHostLabels: Record<WidgetHost, string> = {
   widget_library: "Widget Library",
   widget_center: "Widget Center",
   left_sidebar: "Left Shell",
+  user_shell: "Account Shell",
   pin_entity_shell: "Pin Shell",
   trace_entity_shell: "Path Shell",
   area_entity_shell: "Area Shell",
 };
+
+export const getWidgetHostLabel = (host: WidgetHost) => widgetHostLabels[host];
 
 export const getEntityWidgetHost = (entityType: WidgetEntityType): WidgetHost => {
   if (entityType === "trace") {
@@ -54,6 +58,10 @@ const getShellWidgetHost = (componentKey: WidgetComponentKey): WidgetHost => {
     componentKey === "shell_actions"
   ) {
     return "left_sidebar";
+  }
+
+  if (componentKey === "user_profile" || componentKey === "user_account_actions") {
+    return "user_shell";
   }
 
   return "left_sidebar";

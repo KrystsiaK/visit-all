@@ -97,6 +97,9 @@ export const ShellSurface = ({
               {mobileHandle ? (
                 <motion.div
                   variants={sectionVariants}
+                  initial={shellInitial}
+                  animate={shellAnimate}
+                  exit={shellExit}
                   className="flex justify-center md:hidden"
                 >
                   <div className="h-1.5 w-14 rounded-full bg-black/12" />
@@ -106,6 +109,9 @@ export const ShellSurface = ({
               {showHeader ? (
                 <motion.div
                   variants={sectionVariants}
+                  initial={shellInitial}
+                  animate={shellAnimate}
+                  exit={shellExit}
                   className={headerClassName}
                 >
                   <div className="flex items-start justify-between gap-4">
@@ -135,6 +141,9 @@ export const ShellSurface = ({
 
               <motion.div
                 variants={sectionVariants}
+                initial={shellInitial}
+                animate={shellAnimate}
+                exit={shellExit}
                 ref={scrollContainerRef}
                 className={bodyClassName}
               >

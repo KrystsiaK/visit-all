@@ -3,8 +3,8 @@ import type { Transition, Variants } from "framer-motion";
 export const glassEase: [number, number, number, number] = [0.22, 1, 0.36, 1];
 
 export const glassDurations = {
-  shell: 0.52,
-  section: 0.28,
+  shell: 0.24,
+  section: 0.2,
   item: 0.22,
   micro: 0.18,
 } as const;
@@ -77,16 +77,16 @@ export const overlayShellVariants: Variants = {
     transition: {
       ...glassShellTransition,
       when: "beforeChildren",
-      staggerChildren: 0.06,
-      delayChildren: 0.05,
+      staggerChildren: 0.02,
+      delayChildren: 0,
     },
   },
   exit: {
     opacity: 0,
-    x: 16,
-    y: 20,
+    x: 10,
+    y: 10,
     transition: {
-      duration: 0.24,
+      duration: 0.16,
       ease: [0.4, 0, 1, 1],
     },
   },

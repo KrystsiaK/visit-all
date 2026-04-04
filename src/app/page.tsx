@@ -1,16 +1,18 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useState, useEffect, useCallback, useReducer } from "react";
+import { useState, useEffect, useCallback, useMemo, useReducer } from "react";
 import Sidebar from "@/components/ui/Sidebar";
 import { WidgetProvider } from "@/components/widgets/WidgetContext";
-import { getCollections, getLeftSidebarShell, getLeftSidebarShellWidgets, getTopChromeShell, getTopChromeShellWidgets, reorderShellWidgetPlacements, savePin, saveTrace, updateTrace, deleteTrace, saveArea, updateArea, deleteArea, createCollection, deleteCollection, deletePin, updateLeftSidebarShellState } from "@/app/actions";
+import { changeCurrentUserPassword, getCollections, getCurrentUserProfile, getLeftSidebarShell, getLeftSidebarShellWidgets, getTopChromeShell, getTopChromeShellWidgets, getUserShell, getUserShellWidgets, reorderShellWidgetPlacements, requestCurrentUserPasswordReset, resendCurrentUserVerificationEmail, savePin, saveTrace, updateCurrentUserProfile, updateTrace, deleteTrace, saveArea, updateArea, deleteArea, createCollection, deleteCollection, deletePin, updateLeftSidebarShellState } from "@/app/actions";
 import type { FeatureProperties } from "@/components/widgets/WidgetContext";
-import type { LeftSidebarShellInstance, TopChromeShellInstance } from "@/lib/shells";
+import type { LeftSidebarShellInstance, TopChromeShellInstance, UserShellInstance } from "@/lib/shells";
 import type { WidgetInstanceRecord, WidgetPlacementRecord } from "@/lib/widgets";
 import { TopChromeShell } from "@/components/shells/TopChromeShell";
 import { MapErrorBoundary } from "@/components/errors/MapErrorBoundary";
 import { ShellErrorBoundary } from "@/components/errors/ShellErrorBoundary";
+import { UserAvatarBadge } from "@/components/user/avatar-styles";
+import type { UserProfileViewModel } from "@/components/widgets/user-widgets/UserProfileWidgetCard";
 import {
   modeToCollectionType,
   shouldAutoOpenLayerDrawer,
@@ -22,7 +24,6 @@ import {
   layerVisibilityReducer,
 } from "@/lib/layer-visibility";
 import { removePathPoint } from "@/lib/path-editing";
-
 const MapCanvas = dynamic(() => import("@/components/map/MapCanvas"), {
   ssr: false,
   loading: () => (
@@ -42,6 +43,10 @@ const WidgetPanel = dynamic(
   {
     ssr: false,
   }
+);
+const UserShellPanel = dynamic(
+  () => import("@/components/glass/UserShellPanel").then((mod) => mod.UserShellPanel),
+  { ssr: false }
 );
 
 export interface Collection {
@@ -83,10 +88,17 @@ export default function HomePage() {
   const [leftSidebarWidgetsLoaded, setLeftSidebarWidgetsLoaded] = useState(false);
   const [topChromeShell, setTopChromeShell] = useState<TopChromeShellInstance | null>(null);
   const [topChromeWidgets, setTopChromeWidgets] = useState<Array<WidgetPlacementRecord & WidgetInstanceRecord>>([]);
+  const [userShell, setUserShell] = useState<UserShellInstance | null>(null);
+  const [userShellWidgets, setUserShellWidgets] = useState<Array<WidgetPlacementRecord & WidgetInstanceRecord>>([]);
+  const [userProfile, setUserProfile] = useState<UserProfileViewModel | null>(null);
+  const [isUserShellOpen, setIsUserShellOpen] = useState(false);
+  const [savingUserProfile, setSavingUserProfile] = useState(false);
+  const [resendingVerification, setResendingVerification] = useState(false);
+  const [sendingPasswordReset, setSendingPasswordReset] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
   const [collectionsHydrated, setCollectionsHydrated] = useState(false);
   
   const [dbRefreshTrigger, setDbRefreshTrigger] = useState(0);
-
   const [collections, setCollections] = useState<Collection[]>([]);
   const [allCollections, setAllCollections] = useState<Collection[]>([]);
   const [targetCollectionId, setTargetCollectionId] = useState<string>("");
@@ -135,7 +147,7 @@ export default function HomePage() {
     }
 
     fetchAllCollections();
-  }, [dbRefreshTrigger]);
+  }, []);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(max-width: 767px)");
@@ -174,6 +186,68 @@ export default function HomePage() {
     [leftSidebarShell?.id]
   );
 
+  const displayLeftSidebarWidgets = useMemo(() => leftSidebarWidgets, [leftSidebarWidgets]);
+
+  const handleSaveUserProfile = useCallback(
+    async (input: { displayName: string; avatarStyle: string }) => {
+      setSavingUserProfile(true);
+      try {
+        const nextProfile = await updateCurrentUserProfile(input);
+        setUserProfile(nextProfile);
+      } catch (error) {
+        console.error("Failed to update user profile", error);
+      } finally {
+        setSavingUserProfile(false);
+      }
+    },
+    []
+  );
+
+  const handleResendVerification = useCallback(async () => {
+    setResendingVerification(true);
+    try {
+      await resendCurrentUserVerificationEmail();
+    } catch (error) {
+      console.error("Failed to resend verification email", error);
+    } finally {
+      setResendingVerification(false);
+    }
+  }, []);
+
+  const handleRequestPasswordReset = useCallback(async () => {
+    setSendingPasswordReset(true);
+    try {
+      await requestCurrentUserPasswordReset();
+    } catch (error) {
+      console.error("Failed to request password reset", error);
+    } finally {
+      setSendingPasswordReset(false);
+    }
+  }, []);
+
+  const handleChangePassword = useCallback(
+    async (input: {
+      currentPassword: string;
+      nextPassword: string;
+      confirmPassword: string;
+    }) => {
+      setChangingPassword(true);
+      try {
+        return await changeCurrentUserPassword(input);
+      } catch (error) {
+        console.error("Failed to change password", error);
+        return {
+          ok: false,
+          message: "Could not update password.",
+          fieldErrors: {},
+        };
+      } finally {
+        setChangingPassword(false);
+      }
+    },
+    []
+  );
+
   useEffect(() => {
     const timer = window.setTimeout(() => {
       setSidebarReady(true);
@@ -210,7 +284,7 @@ export default function HomePage() {
       cancelled = true;
       window.clearTimeout(timeoutId);
     };
-  }, [dbRefreshTrigger]);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -226,6 +300,7 @@ export default function HomePage() {
 
       void import("@/components/glass/WidgetOverlay");
       void import("@/components/glass/WidgetPanel");
+      void import("@/components/glass/UserShellPanel");
     };
 
     if (typeof idleWindow.requestIdleCallback === "function") {
@@ -250,11 +325,14 @@ export default function HomePage() {
 
     void (async () => {
       try {
-        const [shell, shellWidgets, chromeShell, chromeWidgets] = await Promise.all([
+        const [shell, shellWidgets, chromeShell, chromeWidgets, accountShell, accountWidgets, profile] = await Promise.all([
           getLeftSidebarShell(),
           getLeftSidebarShellWidgets(),
           getTopChromeShell(),
           getTopChromeShellWidgets(),
+          getUserShell(),
+          getUserShellWidgets(),
+          getCurrentUserProfile(),
         ]);
         if (cancelled) {
           return;
@@ -265,6 +343,9 @@ export default function HomePage() {
         setLeftSidebarWidgetsLoaded(true);
         setTopChromeShell(chromeShell);
         setTopChromeWidgets(chromeWidgets);
+        setUserShell(accountShell);
+        setUserShellWidgets(accountWidgets);
+        setUserProfile(profile);
         setDesktopSidebarVisible(!shell.state.hidden);
       } catch (error) {
         console.error("Failed to load left sidebar shell", error);
@@ -721,7 +802,6 @@ export default function HomePage() {
             drawingPath={drawingPath}
             editingTraceId={editingTraceId}
             editingAreaId={editingAreaId}
-            editingPinData={editingPinData}
             traceDraftFinalized={traceDraftFinalized}
             curveMode={curveMode}
             setCurveMode={setCurveMode}
@@ -733,9 +813,6 @@ export default function HomePage() {
             onClearSelection={handleCancel}
             onUndo={handleUndo}
             onDataSaved={handleDataSaved}
-            onDeletePin={handleDeleteSavedPin}
-            onWidgetHostMoved={() => setDbRefreshTrigger(prev => prev + 1)}
-            refreshTrigger={dbRefreshTrigger}
             isMobileViewport={isMobileViewport}
             mobileSidebarOpen={mobileSidebarOpen}
             setMobileSidebarOpen={setMobileSidebarOpen}
@@ -743,7 +820,7 @@ export default function HomePage() {
             sidebarReady={sidebarReady}
             shellId={leftSidebarShell?.id ?? "left_sidebar"}
             shellConfig={leftSidebarShell?.config}
-            shellWidgets={leftSidebarWidgets}
+            shellWidgets={displayLeftSidebarWidgets}
             onShellWidgetsReorder={handleLeftSidebarWidgetsReorder}
             shellWidgetsLoaded={leftSidebarWidgetsLoaded}
             collectionsLoaded={collectionsHydrated}
@@ -803,7 +880,6 @@ export default function HomePage() {
                   isOpen={mode === 'editPin' && !!editingPinData} 
                   onClose={() => { setEditingPinData(null); setMode('pin'); }}
                   onDataSaved={handleDataSaved}
-                  onWidgetHostMoved={() => setDbRefreshTrigger(prev => prev + 1)}
                   refreshTrigger={dbRefreshTrigger}
                   onDeletePin={handleDeleteSavedPin}
                   entityType="pin"
@@ -822,9 +898,31 @@ export default function HomePage() {
 
             {isWidgetPanelOpen ? (
               <ShellErrorBoundary title="Widget Center Shell Fault">
-                <WidgetPanel
-                  isOpen={isWidgetPanelOpen}
-                  onClose={() => setIsWidgetPanelOpen(false)}
+              <WidgetPanel
+                isOpen={isWidgetPanelOpen}
+                onClose={() => setIsWidgetPanelOpen(false)}
+                entityType={mode === "editPin" ? "pin" : undefined}
+                entityId={mode === "editPin" ? editingPinData?.id : undefined}
+              />
+              </ShellErrorBoundary>
+            ) : null}
+
+            {isUserShellOpen ? (
+              <ShellErrorBoundary title="User Shell Fault">
+                <UserShellPanel
+                  isOpen={isUserShellOpen}
+                  onClose={() => setIsUserShellOpen(false)}
+                  widgets={userShellWidgets}
+                  profile={userProfile}
+                  loading={!userShell || !userProfile}
+                  savingProfile={savingUserProfile}
+                  resendPending={resendingVerification}
+                  resetPending={sendingPasswordReset}
+                  passwordChangePending={changingPassword}
+                  onSaveProfile={handleSaveUserProfile}
+                  onResendVerification={handleResendVerification}
+                  onRequestPasswordReset={handleRequestPasswordReset}
+                  onChangePassword={handleChangePassword}
                 />
               </ShellErrorBoundary>
             ) : null}
@@ -850,15 +948,21 @@ export default function HomePage() {
                  <span className="text-[10px]">✨</span>
                </button>
 
-               <div className="hidden bg-white/20 backdrop-blur-xl border border-white/20 rounded-full md:flex items-center shadow-sm p-1 pr-4 pointer-events-auto hover:bg-white/40 transition-colors cursor-pointer gap-3">
-                 <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-600 to-indigo-600 flex items-center justify-center shadow-inner">
-                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+               <button
+                 type="button"
+                 onClick={() => setIsUserShellOpen((value) => !value)}
+                 className="hidden bg-white/20 backdrop-blur-xl border border-white/20 rounded-full md:flex items-center shadow-sm p-1 pr-4 pointer-events-auto hover:bg-white/40 transition-colors cursor-pointer gap-3"
+               >
+                 <UserAvatarBadge styleId={userProfile?.avatarStyle} size="sm" />
+                 <div className="flex flex-col justify-center text-left">
+                   <span className="text-[10px] font-black uppercase tracking-wider leading-none">
+                     {userProfile?.displayName || "Curator"}
+                   </span>
+                   <span className="text-[8px] text-black/50 uppercase tracking-widest leading-none mt-0.5">
+                     {userProfile?.emailVerifiedAt ? "Verified" : "Pending"}
+                   </span>
                  </div>
-                 <div className="flex flex-col justify-center">
-                   <span className="text-[10px] font-black uppercase tracking-wider leading-none">Curator</span>
-                   <span className="text-[8px] text-black/50 uppercase tracking-widest leading-none mt-0.5">Premium</span>
-                 </div>
-               </div>
+               </button>
             </div>
 
       </div>

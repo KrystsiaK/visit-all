@@ -61,7 +61,7 @@ export function Tooltip({ label, children }: TooltipProps) {
 
   return (
     <>
-      <span ref={triggerRef} className="inline-flex">
+      <span ref={triggerRef} className="inline-flex cursor-pointer">
         {child}
       </span>
 
@@ -83,7 +83,7 @@ export function Tooltip({ label, children }: TooltipProps) {
                     <span className="flex-1 bg-[#ffff00]" />
                     <span className="flex-1 bg-[#0000ff]" />
                   </span>
-                  <span className="whitespace-nowrap px-3 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-neutral-800">
+                  <span className="max-w-[320px] px-3 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-neutral-800 whitespace-normal leading-5">
                     {label}
                   </span>
                 </span>
