@@ -1,7 +1,7 @@
-import { WidgetFrame } from "@/components/widgets/WidgetFrame";
+import { BaseWidget } from "@synarava/shell-kit";
 
 export const ShellCollectionsEmptyWidget = () => (
-  <WidgetFrame
+  <BaseWidget
     className="pointer-events-auto"
     bodyClassName="space-y-3"
     title="Collections"
@@ -17,5 +17,5 @@ export const ShellCollectionsEmptyWidget = () => (
         Create a layer and this shell will keep its shape without jumping.
       </p>
     </div>
-  </WidgetFrame>
+  </BaseWidget>
 );

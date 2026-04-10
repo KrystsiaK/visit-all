@@ -32,20 +32,32 @@ export const GlobalWidgetLibraryCard = ({
             {definition.layer}
           </p>
           <p className="mt-1 text-xs font-medium text-neutral-700">
-            Native shell: {getWidgetHostLabel(definition.nativeHost)}
+            Placement: {definition.placementSummary}
           </p>
+          {definition.placedHosts.length > 0 ? (
+            <p className="mt-2 text-xs leading-5 text-neutral-500">
+              Current: {definition.placedHosts.map((host) => getWidgetHostLabel(host)).join(", ")}
+            </p>
+          ) : null}
           {definition.disabledReason ? (
             <p className="mt-2 text-xs leading-5 text-neutral-500">
               {definition.disabledReason}
             </p>
           ) : null}
         </div>
-        <Tooltip label={definition.canAdd ? "Add Widget" : definition.disabledReason ?? "Unavailable"}>
+        <Tooltip
+          label={
+            definition.canAdd
+              ? definition.actionLabel
+              : definition.disabledReason ?? "Unavailable"
+          }
+        >
           <button
             type="button"
             onClick={() => onAdd(definition.slug)}
             disabled={disabled}
             className="flex h-11 min-w-11 items-center justify-center rounded-2xl border border-black/10 bg-white text-neutral-700 transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-60"
+            aria-label={definition.actionLabel}
           >
             <Plus className="h-5 w-5" />
           </button>

@@ -1,6 +1,6 @@
 "use client";
 
-import { ShellWidgetSlot } from "@/components/shells/ShellWidgetSlot";
+import { ShellSlot } from "@synarava/shell-kit";
 import { UserShell } from "@/components/shells/UserShell";
 import { UserAccountActionsWidgetCard } from "@/components/widgets/user-widgets/UserAccountActionsWidgetCard";
 import {
@@ -87,7 +87,7 @@ export function UserShellPanel({
           return null;
         }
 
-        return <ShellWidgetSlot key={widget.id}>{content}</ShellWidgetSlot>;
+        return <ShellSlot key={widget.id}>{content}</ShellSlot>;
       })}
     </UserShell>
   );

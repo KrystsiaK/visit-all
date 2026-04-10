@@ -1,13 +1,14 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useState, useEffect, useCallback, useMemo, useReducer } from "react";
+import { useState, useEffect, useCallback, useMemo, useReducer, useRef } from "react";
 import Sidebar from "@/components/ui/Sidebar";
-import { WidgetProvider } from "@/components/widgets/WidgetContext";
-import { changeCurrentUserPassword, getCollections, getCurrentUserProfile, getLeftSidebarShell, getLeftSidebarShellWidgets, getTopChromeShell, getTopChromeShellWidgets, getUserShell, getUserShellWidgets, reorderShellWidgetPlacements, requestCurrentUserPasswordReset, resendCurrentUserVerificationEmail, savePin, saveTrace, updateCurrentUserProfile, updateTrace, deleteTrace, saveArea, updateArea, deleteArea, createCollection, deleteCollection, deletePin, updateLeftSidebarShellState } from "@/app/actions";
-import type { FeatureProperties } from "@/components/widgets/WidgetContext";
+import { ActiveFeatureProvider } from "@/components/widgets/ActiveFeatureContext";
+import { addWidgetFromLibrary, changeCurrentUserPassword, getCollections, getCurrentUserProfile, getLeftSidebarShell, getLeftSidebarShellWidgets, getTopChromeShell, getTopChromeShellWidgets, getUserShell, getUserShellWidgets, reorderShellWidgetPlacements, requestCurrentUserPasswordReset, resendCurrentUserVerificationEmail, savePin, saveTrace, updateCurrentUserProfile, updateTrace, deleteTrace, saveArea, updateArea, deleteArea, createCollection, deleteCollection, deletePin, updateLeftSidebarShellState } from "@/app/actions";
+import type { FeatureProperties } from "@/components/widgets/ActiveFeatureContext";
 import type { LeftSidebarShellInstance, TopChromeShellInstance, UserShellInstance } from "@/lib/shells";
 import type { WidgetInstanceRecord, WidgetPlacementRecord } from "@/lib/widgets";
+import type { EntityNearbyPinRecord } from "@/app/actions";
 import { TopChromeShell } from "@/components/shells/TopChromeShell";
 import { MapErrorBoundary } from "@/components/errors/MapErrorBoundary";
 import { ShellErrorBoundary } from "@/components/errors/ShellErrorBoundary";
@@ -59,6 +60,9 @@ export interface Collection {
 
 export type InteractionMode = 'pin' | 'trace' | 'area' | 'editTrace' | 'editArea' | 'editPin';
 
+const E2E_SHELL_PIN_ID = "11111111-1111-4111-8111-111111111111";
+const IS_E2E_TEST_MODE = process.env.NEXT_PUBLIC_E2E_TEST_MODE === "1";
+
 export default function HomePage() {
   const [mode, setMode] = useState<InteractionMode>('pin');
   const [shouldMountMap, setShouldMountMap] = useState(false);
@@ -66,6 +70,7 @@ export default function HomePage() {
   const [selectedPoint, setSelectedPoint] = useState<{lng: number, lat: number} | null>(null);
   const [drawingPath, setDrawingPath] = useState<{lng: number, lat: number}[]>([]);
   const [traceDraftFinalized, setTraceDraftFinalized] = useState(false);
+  const [areaDraftFinalized, setAreaDraftFinalized] = useState(false);
   
   const [editingTraceId, setEditingTraceId] = useState<string | null>(null);
   const [editingAreaId, setEditingAreaId] = useState<string | null>(null);
@@ -73,6 +78,8 @@ export default function HomePage() {
   const [editingTraceCollectionId, setEditingTraceCollectionId] = useState<string | null>(null);
   const [editingAreaCollectionId, setEditingAreaCollectionId] = useState<string | null>(null);
   const [editingPinData, setEditingPinData] = useState<{ id: string, name?: string, note?: string, image_url?: string, collectionId?: string } | null>(null);
+  const [editingTraceData, setEditingTraceData] = useState<{ id: string, name?: string, collectionId?: string } | null>(null);
+  const [editingAreaData, setEditingAreaData] = useState<{ id: string, name?: string, collectionId?: string } | null>(null);
   const [isWidgetPanelOpen, setIsWidgetPanelOpen] = useState(false);
   
   const [curveMode, setCurveMode] = useState(false);
@@ -110,6 +117,37 @@ export default function HomePage() {
   );
   const [autoCreatedCollectionId, setAutoCreatedCollectionId] = useState<string | null>(null);
   const [autoOpenCollectionId, setAutoOpenCollectionId] = useState<string | null>(null);
+  const geometryPersistTimeoutRef = useRef<number | null>(null);
+
+  const registerCollectionEverywhere = useCallback((collection: Collection) => {
+    setCollections((currentCollections) => {
+      const withoutDuplicate = currentCollections.filter((current) => current.id !== collection.id);
+      return [collection, ...withoutDuplicate];
+    });
+    setAllCollections((currentCollections) => {
+      const withoutDuplicate = currentCollections.filter((current) => current.id !== collection.id);
+      const nextCollections = [collection, ...withoutDuplicate];
+      dispatchLayerVisibility({
+        type: "sync",
+        collectionIds: nextCollections.map((current) => current.id),
+      });
+      return nextCollections;
+    });
+  }, []);
+
+  const unregisterCollectionEverywhere = useCallback((collectionId: string) => {
+    setCollections((currentCollections) =>
+      currentCollections.filter((collection) => collection.id !== collectionId)
+    );
+    setAllCollections((currentCollections) => {
+      const nextCollections = currentCollections.filter((collection) => collection.id !== collectionId);
+      dispatchLayerVisibility({
+        type: "sync",
+        collectionIds: nextCollections.map((current) => current.id),
+      });
+      return nextCollections;
+    });
+  }, []);
 
   useEffect(() => {
     async function fetchCollections() {
@@ -147,7 +185,7 @@ export default function HomePage() {
     }
 
     fetchAllCollections();
-  }, []);
+  }, [dbRefreshTrigger]);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(max-width: 767px)");
@@ -357,8 +395,6 @@ export default function HomePage() {
     };
   }, [dbRefreshTrigger]);
 
-  const getActiveColor = () => collections.find(c => c.id === targetCollectionId)?.color || "#0000ff";
-
   const confirmCollectionSelection = async (collectionId: string) => {
     dispatchLayerVisibility({ type: "reveal", collectionId });
 
@@ -380,6 +416,19 @@ export default function HomePage() {
         await saveTrace(drawingPath.map((point) => [point.lng, point.lat]), selectedCollectionColor, collectionId);
         setDrawingPath([]);
         setTraceDraftFinalized(false);
+        setAutoOpenCollectionId(null);
+        if (isMobileViewport) {
+          setMobileSidebarOpen(false);
+        }
+        setDbRefreshTrigger((value) => value + 1);
+        return;
+      }
+
+      if (mode === "area" && areaDraftFinalized && drawingPath.length >= 3) {
+        const selectedCollectionColor = collections.find((collection) => collection.id === collectionId)?.color || "#10b981";
+        await saveArea(drawingPath.map((point) => [point.lng, point.lat]), selectedCollectionColor, collectionId);
+        setDrawingPath([]);
+        setAreaDraftFinalized(false);
         setAutoOpenCollectionId(null);
         if (isMobileViewport) {
           setMobileSidebarOpen(false);
@@ -412,7 +461,7 @@ export default function HomePage() {
       if (collections.length === 0 && !autoCreatedCollectionId) {
         try {
           const newCollection = await createCollection("undefined", "#0000ff", "!", "pin");
-          setCollections([newCollection]);
+          registerCollectionEverywhere(newCollection);
           setTargetCollectionId(newCollection.id);
           setAutoCreatedCollectionId(newCollection.id);
           setAutoOpenCollectionId(newCollection.id);
@@ -425,31 +474,13 @@ export default function HomePage() {
       const newPath = [...drawingPath, { lng, lat }];
       setDrawingPath(newPath);
     } else if (mode === 'editTrace') {
-      const newPath = [...drawingPath, { lng, lat }];
-      setDrawingPath(newPath);
-      if (editingTraceId) {
-        await updateTrace(editingTraceId, newPath.map(p => [p.lng, p.lat]));
-        setDbRefreshTrigger(p => p + 1);
-      }
+      return;
     } else if (mode === 'area') {
-      if (!targetCollectionId) return;
+      if (areaDraftFinalized) return;
       const newPath = [...drawingPath, { lng, lat }];
       setDrawingPath(newPath);
-      if (newPath.length === 3) {
-        try {
-          const res = await saveArea(newPath.map(p => [p.lng, p.lat]), getActiveColor(), targetCollectionId);
-          setEditingAreaId(res.id);
-          setMode('editArea');
-          setDbRefreshTrigger(p => p + 1);
-        } catch (e) { console.error(e); }
-      }
     } else if (mode === 'editArea') {
-      const newPath = [...drawingPath, { lng, lat }];
-      setDrawingPath(newPath);
-      if (editingAreaId) {
-        await updateArea(editingAreaId, newPath.map(p => [p.lng, p.lat]));
-        setDbRefreshTrigger(p => p + 1);
-      }
+      return;
     }
   };
 
@@ -461,9 +492,10 @@ export default function HomePage() {
     if (autoCreatedCollectionId) {
       try {
         await deleteCollection(autoCreatedCollectionId);
-        setCollections([]);
+        unregisterCollectionEverywhere(autoCreatedCollectionId);
         setTargetCollectionId("");
         setAutoCreatedCollectionId(null);
+        setDbRefreshTrigger((value) => value + 1);
       } catch (error) {
         console.error(error);
       }
@@ -472,22 +504,41 @@ export default function HomePage() {
 
   const handleTraceSelected = (id: string, coordinates: {lng: number, lat: number}[], properties?: FeatureProperties) => {
     setMobileSidebarOpen(false);
+    setIsWidgetPanelOpen(false);
     setMode('editTrace');
     setEditingTraceId(id);
+    setEditingTraceData({
+      id,
+      name: typeof properties?.name === "string" ? properties.name : undefined,
+      collectionId: typeof properties?.collection_id === "string" ? properties.collection_id : undefined,
+    });
     setEditingTraceCollectionId((properties?.collection_id as string | undefined) || null);
     setSelectedTraceNodeIndex(null);
     setDrawingPath(coordinates);
     setTraceDraftFinalized(false);
+    setEditingAreaId(null);
+    setEditingAreaData(null);
+    setEditingPinData(null);
     setSelectedPoint(null);
   };
 
   const handleAreaSelected = (id: string, coordinates: {lng: number, lat: number}[], properties?: FeatureProperties) => {
     setMobileSidebarOpen(false);
+    setIsWidgetPanelOpen(false);
     setMode('editArea');
     setEditingAreaId(id);
+    setEditingAreaData({
+      id,
+      name: typeof properties?.name === "string" ? properties.name : undefined,
+      collectionId: typeof properties?.collection_id === "string" ? properties.collection_id : undefined,
+    });
     setEditingAreaCollectionId((properties?.collection_id as string | undefined) || null);
     setSelectedTraceNodeIndex(null);
     setDrawingPath(coordinates);
+    setAreaDraftFinalized(false);
+    setEditingTraceId(null);
+    setEditingTraceData(null);
+    setEditingPinData(null);
     setSelectedPoint(null);
   };
 
@@ -498,6 +549,19 @@ export default function HomePage() {
     setEditingPinData({ id, note: properties.note, image_url: properties.image_url, name: properties.name, collectionId: properties.collection_id });
     setSelectedPoint(null);
   };
+
+  const handleOpenNearbyPin = useCallback((nearbyPin: EntityNearbyPinRecord) => {
+    setIsWidgetPanelOpen(false);
+    setMobileSidebarOpen(false);
+    setMode("editPin");
+    setEditingPinData({
+      id: nearbyPin.id,
+      name: nearbyPin.title,
+      image_url: nearbyPin.imageUrl ?? undefined,
+      collectionId: nearbyPin.collectionId ?? undefined,
+    });
+    setSelectedPoint(null);
+  }, []);
 
   const handleDeleteSavedPin = async (pinId: string) => {
     try {
@@ -519,10 +583,13 @@ export default function HomePage() {
     setSelectedTraceNodeIndex(null);
     setEditingTraceCollectionId(null);
     setEditingAreaCollectionId(null);
+    setEditingTraceData(null);
+    setEditingAreaData(null);
     setEditingPinData(null);
     setPendingPin(null);
     setAutoOpenCollectionId(null);
     setTraceDraftFinalized(false);
+    setAreaDraftFinalized(false);
     setMobileSidebarOpen(false);
     if (mode === 'editTrace') setMode('trace');
     if (mode === 'editArea') setMode('area');
@@ -533,7 +600,9 @@ export default function HomePage() {
   const handleCancel = () => {
     const shouldDeleteAutoCollection =
       !!autoCreatedCollectionId &&
-      ((mode === "pin" && !!pendingPin) || (mode === "trace" && traceDraftFinalized));
+      ((mode === "pin" && !!pendingPin) ||
+        (mode === "trace" && traceDraftFinalized) ||
+        (mode === "area" && areaDraftFinalized));
 
     setSelectedPoint(null);
     setDrawingPath([]);
@@ -542,10 +611,13 @@ export default function HomePage() {
     setSelectedTraceNodeIndex(null);
     setEditingTraceCollectionId(null);
     setEditingAreaCollectionId(null);
+    setEditingTraceData(null);
+    setEditingAreaData(null);
     setEditingPinData(null);
     setPendingPin(null);
     setAutoOpenCollectionId(null);
     setTraceDraftFinalized(false);
+    setAreaDraftFinalized(false);
     if (mode === 'editTrace') setMode('trace');
     if (mode === 'editArea') setMode('area');
     if (mode === 'editPin') setMode('pin');
@@ -554,9 +626,10 @@ export default function HomePage() {
       void (async () => {
         try {
           await deleteCollection(autoCreatedCollectionId);
-          setCollections([]);
+          unregisterCollectionEverywhere(autoCreatedCollectionId);
           setTargetCollectionId("");
           setAutoCreatedCollectionId(null);
+          setDbRefreshTrigger((value) => value + 1);
         } catch (error) {
           console.error(error);
         }
@@ -572,6 +645,20 @@ export default function HomePage() {
         setTraceDraftFinalized(false);
         return;
       }
+      setDrawingPath((currentPath) => currentPath.slice(0, -1));
+      setSelectedTraceNodeIndex((currentIndex) => {
+        if (currentIndex === null) return null;
+        return currentIndex >= drawingPath.length - 1 ? Math.max(drawingPath.length - 2, 0) : currentIndex;
+      });
+      return;
+    }
+
+    if (mode === 'area') {
+      if (areaDraftFinalized) {
+        setAreaDraftFinalized(false);
+        return;
+      }
+
       setDrawingPath((currentPath) => currentPath.slice(0, -1));
       setSelectedTraceNodeIndex((currentIndex) => {
         if (currentIndex === null) return null;
@@ -607,7 +694,7 @@ export default function HomePage() {
       }
       setDbRefreshTrigger(p => p+1);
     }
-  }, [drawingPath, mode, traceDraftFinalized, editingTraceId, editingAreaId]);
+  }, [areaDraftFinalized, drawingPath, mode, traceDraftFinalized, editingTraceId, editingAreaId]);
 
   useEffect(() => {
     if (mode !== 'pin' && pendingPin) {
@@ -636,6 +723,7 @@ export default function HomePage() {
 
     if (!isLayerVisible(layerVisibility, editingTraceCollectionId)) {
       setEditingTraceId(null);
+      setEditingTraceData(null);
       setEditingTraceCollectionId(null);
       setDrawingPath([]);
       if (mode === "editTrace") {
@@ -651,6 +739,7 @@ export default function HomePage() {
 
     if (!isLayerVisible(layerVisibility, editingAreaCollectionId)) {
       setEditingAreaId(null);
+      setEditingAreaData(null);
       setEditingAreaCollectionId(null);
       setDrawingPath([]);
       if (mode === "editArea") {
@@ -664,6 +753,12 @@ export default function HomePage() {
       setTraceDraftFinalized(false);
     }
   }, [mode, traceDraftFinalized]);
+
+  useEffect(() => {
+    if (mode !== "area" && areaDraftFinalized) {
+      setAreaDraftFinalized(false);
+    }
+  }, [mode, areaDraftFinalized]);
 
   useEffect(() => {
     if (selectedTraceNodeIndex === null) {
@@ -680,10 +775,10 @@ export default function HomePage() {
       return;
     }
 
-    if (shouldAutoOpenLayerDrawer(isMobileViewport, mode, !!pendingPin, traceDraftFinalized)) {
+    if (shouldAutoOpenLayerDrawer(isMobileViewport, mode, !!pendingPin, traceDraftFinalized, areaDraftFinalized)) {
       setMobileSidebarOpen(true);
     }
-  }, [isMobileViewport, mode, pendingPin, traceDraftFinalized]);
+  }, [areaDraftFinalized, isMobileViewport, mode, pendingPin, traceDraftFinalized]);
 
   const handleFinishTraceDraft = () => {
     if (drawingPath.length < 2) return;
@@ -694,7 +789,27 @@ export default function HomePage() {
       void (async () => {
         try {
           const newCollection = await createCollection("undefined", "#0000ff", "!", "trace");
-          setCollections([newCollection]);
+          registerCollectionEverywhere(newCollection);
+          setTargetCollectionId(newCollection.id);
+          setAutoCreatedCollectionId(newCollection.id);
+          setAutoOpenCollectionId(newCollection.id);
+        } catch (error) {
+          console.error(error);
+        }
+      })();
+    }
+  };
+
+  const handleFinishAreaDraft = () => {
+    if (drawingPath.length < 3) return;
+    setSelectedTraceNodeIndex(null);
+    setAreaDraftFinalized(true);
+
+    if (collections.length === 0 && !autoCreatedCollectionId) {
+      void (async () => {
+        try {
+          const newCollection = await createCollection("undefined", "#10b981", "!", "area");
+          registerCollectionEverywhere(newCollection);
           setTargetCollectionId(newCollection.id);
           setAutoCreatedCollectionId(newCollection.id);
           setAutoOpenCollectionId(newCollection.id);
@@ -706,7 +821,7 @@ export default function HomePage() {
   };
 
   const handleTraceNodeClick = (nodeIndex: number) => {
-    if (!mode.includes("trace") || traceDraftFinalized) {
+    if ((!mode.includes("trace") && !mode.includes("area")) || traceDraftFinalized || areaDraftFinalized) {
       return;
     }
 
@@ -721,7 +836,7 @@ export default function HomePage() {
     const nextPath = removePathPoint(drawingPath, selectedTraceNodeIndex);
     setSelectedTraceNodeIndex(null);
 
-    if (mode === "trace") {
+    if (mode === "trace" || mode === "area") {
       if (nextPath.length === 0) {
         handleCancel();
         return;
@@ -764,8 +879,56 @@ export default function HomePage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleUndo]);
 
+  useEffect(() => {
+    if (geometryPersistTimeoutRef.current !== null) {
+      window.clearTimeout(geometryPersistTimeoutRef.current);
+      geometryPersistTimeoutRef.current = null;
+    }
+
+    if (mode === "editTrace" && editingTraceId && drawingPath.length >= 2) {
+      geometryPersistTimeoutRef.current = window.setTimeout(() => {
+        void (async () => {
+          try {
+            await updateTrace(editingTraceId, drawingPath.map((point) => [point.lng, point.lat]));
+            setDbRefreshTrigger((value) => value + 1);
+          } catch (error) {
+            console.error(error);
+          }
+        })();
+      }, 180);
+    }
+
+    if (mode === "editArea" && editingAreaId && drawingPath.length >= 3) {
+      geometryPersistTimeoutRef.current = window.setTimeout(() => {
+        void (async () => {
+          try {
+            await updateArea(editingAreaId, drawingPath.map((point) => [point.lng, point.lat]));
+            setDbRefreshTrigger((value) => value + 1);
+          } catch (error) {
+            console.error(error);
+          }
+        })();
+      }, 180);
+    }
+
+    return () => {
+      if (geometryPersistTimeoutRef.current !== null) {
+        window.clearTimeout(geometryPersistTimeoutRef.current);
+        geometryPersistTimeoutRef.current = null;
+      }
+    };
+  }, [drawingPath, editingAreaId, editingTraceId, mode]);
+
+  const toggleDesktopSidebar = useCallback(() => {
+    const nextVisible = !desktopSidebarVisible;
+    setDesktopSidebarVisible(nextVisible);
+    void updateLeftSidebarShellState({ hidden: !nextVisible }).catch((error) => {
+      console.error("Failed to update left sidebar shell state", error);
+    });
+  }, [desktopSidebarVisible]);
+
   return (
-    <WidgetProvider>
+    <ActiveFeatureProvider>
       <div className="w-screen h-screen overflow-hidden relative bg-gray-100 text-gray-900 font-sans">
         {/* Invisible backdrop behind left sidebar — prevents map triggers */}
         <div
@@ -780,13 +943,7 @@ export default function HomePage() {
             desktopSidebarVisible={desktopSidebarVisible}
             mobileSidebarOpen={mobileSidebarOpen}
             shellWidth={leftSidebarShell?.config.width ?? 360}
-            onToggleDesktopSidebar={() => {
-              const nextVisible = !desktopSidebarVisible;
-              setDesktopSidebarVisible(nextVisible);
-              void updateLeftSidebarShellState({ hidden: !nextVisible }).catch((error) => {
-                console.error("Failed to update left sidebar shell state", error);
-              });
-            }}
+            onToggleDesktopSidebar={toggleDesktopSidebar}
             onToggleMobileSidebar={() => {
               setIsWidgetPanelOpen(false);
               setMobileSidebarOpen((value) => !value);
@@ -803,6 +960,7 @@ export default function HomePage() {
             editingTraceId={editingTraceId}
             editingAreaId={editingAreaId}
             traceDraftFinalized={traceDraftFinalized}
+            areaDraftFinalized={areaDraftFinalized}
             curveMode={curveMode}
             setCurveMode={setCurveMode}
             terrain3D={terrain3D}
@@ -817,6 +975,7 @@ export default function HomePage() {
             mobileSidebarOpen={mobileSidebarOpen}
             setMobileSidebarOpen={setMobileSidebarOpen}
             desktopSidebarVisible={desktopSidebarVisible}
+            onToggleDesktopSidebar={toggleDesktopSidebar}
             sidebarReady={sidebarReady}
             shellId={leftSidebarShell?.id ?? "left_sidebar"}
             shellConfig={leftSidebarShell?.config}
@@ -835,6 +994,7 @@ export default function HomePage() {
             onShowOnlyCollection={showOnlyCollection}
             autoOpenCollectionId={autoOpenCollectionId}
             onFinishTraceDraft={handleFinishTraceDraft}
+            onFinishAreaDraft={handleFinishAreaDraft}
             selectedTraceNodeIndex={selectedTraceNodeIndex}
             onRemoveSelectedTraceNode={handleRemoveSelectedTraceNode}
           />
@@ -857,6 +1017,7 @@ export default function HomePage() {
                   editingTraceId={editingTraceId}
                   editingAreaId={editingAreaId}
                   traceDraftFinalized={traceDraftFinalized}
+                  areaDraftFinalized={areaDraftFinalized}
                   curveMode={curveMode}
                   terrain3D={terrain3D}
                   isSatellite={isSatellite}
@@ -870,7 +1031,9 @@ export default function HomePage() {
             </MapErrorBoundary>
 
             {/* Invisible backdrop behind right WidgetOverlay — prevents map triggers */}
-            {mode === 'editPin' && !!editingPinData && (
+            {((mode === 'editPin' && !!editingPinData) ||
+              (mode === 'editTrace' && !!editingTraceId) ||
+              (mode === 'editArea' && !!editingAreaId)) && (
               <div className="fixed top-0 right-0 bottom-0 z-45 hidden w-[520px] md:block" />
             )}
             
@@ -882,6 +1045,7 @@ export default function HomePage() {
                   onDataSaved={handleDataSaved}
                   refreshTrigger={dbRefreshTrigger}
                   onDeletePin={handleDeleteSavedPin}
+                  onOpenNearbyPin={handleOpenNearbyPin}
                   entityType="pin"
                   entityId={editingPinData?.id}
                   data={editingPinData ? {
@@ -894,6 +1058,54 @@ export default function HomePage() {
                   } : undefined}
                 />
               </ShellErrorBoundary>
+            ) : mode === 'editTrace' && !!editingTraceId ? (
+              <ShellErrorBoundary title="Right Trace Shell Fault">
+                <WidgetOverlay
+                  isOpen
+                  onClose={() => {
+                    setEditingTraceId(null);
+                    setEditingTraceData(null);
+                    setEditingTraceCollectionId(null);
+                    setDrawingPath([]);
+                    setSelectedTraceNodeIndex(null);
+                    setMode('trace');
+                    setDbRefreshTrigger((value) => value + 1);
+                  }}
+                  refreshTrigger={dbRefreshTrigger}
+                  entityType="trace"
+                  entityId={editingTraceId}
+                  data={editingTraceData ? {
+                    id: editingTraceData.id,
+                    title: editingTraceData.name || "Untitled Path",
+                    collectionId: editingTraceData.collectionId,
+                    tags: ["Curated Map", "Path"],
+                  } : undefined}
+                />
+              </ShellErrorBoundary>
+            ) : mode === 'editArea' && !!editingAreaId ? (
+              <ShellErrorBoundary title="Right Area Shell Fault">
+                <WidgetOverlay
+                  isOpen
+                  onClose={() => {
+                    setEditingAreaId(null);
+                    setEditingAreaData(null);
+                    setEditingAreaCollectionId(null);
+                    setDrawingPath([]);
+                    setSelectedTraceNodeIndex(null);
+                    setMode('area');
+                    setDbRefreshTrigger((value) => value + 1);
+                  }}
+                  refreshTrigger={dbRefreshTrigger}
+                  entityType="area"
+                  entityId={editingAreaId}
+                  data={editingAreaData ? {
+                    id: editingAreaData.id,
+                    title: editingAreaData.name || "Untitled Zone",
+                    collectionId: editingAreaData.collectionId,
+                    tags: ["Curated Map", "Zone"],
+                  } : undefined}
+                />
+              </ShellErrorBoundary>
             ) : null}
 
             {isWidgetPanelOpen ? (
@@ -901,8 +1113,25 @@ export default function HomePage() {
               <WidgetPanel
                 isOpen={isWidgetPanelOpen}
                 onClose={() => setIsWidgetPanelOpen(false)}
-                entityType={mode === "editPin" ? "pin" : undefined}
-                entityId={mode === "editPin" ? editingPinData?.id : undefined}
+                onLibraryMutation={() => setDbRefreshTrigger((value) => value + 1)}
+                entityType={
+                  mode === "editPin"
+                    ? "pin"
+                    : mode === "editTrace"
+                      ? "trace"
+                      : mode === "editArea"
+                        ? "area"
+                        : undefined
+                }
+                entityId={
+                  mode === "editPin"
+                    ? editingPinData?.id
+                    : mode === "editTrace"
+                      ? editingTraceId ?? undefined
+                      : mode === "editArea"
+                        ? editingAreaId ?? undefined
+                        : undefined
+                }
               />
               </ShellErrorBoundary>
             ) : null}
@@ -925,6 +1154,28 @@ export default function HomePage() {
                   onChangePassword={handleChangePassword}
                 />
               </ShellErrorBoundary>
+            ) : null}
+
+            {IS_E2E_TEST_MODE ? (
+              <button
+                type="button"
+                data-testid="e2e-open-shell-pin"
+                onClick={async () => {
+                  await addWidgetFromLibrary("entity_rating", "pin", E2E_SHELL_PIN_ID).catch(() => {
+                    return null;
+                  });
+                  setEditingTraceId(null);
+                  setEditingAreaId(null);
+                  setEditingPinData({
+                    id: E2E_SHELL_PIN_ID,
+                    name: "E2E Shell Pin",
+                    note: "Playwright shell contract pin",
+                  });
+                  setMode("editPin");
+                }}
+                className="fixed bottom-2 left-2 z-[120] h-2 w-2 opacity-0"
+                aria-hidden="true"
+              />
             ) : null}
             
             {/* SPATIAL FLOATING CORNER WIDGETS */}
@@ -951,6 +1202,7 @@ export default function HomePage() {
                <button
                  type="button"
                  onClick={() => setIsUserShellOpen((value) => !value)}
+                 data-testid="open-user-shell"
                  className="hidden bg-white/20 backdrop-blur-xl border border-white/20 rounded-full md:flex items-center shadow-sm p-1 pr-4 pointer-events-auto hover:bg-white/40 transition-colors cursor-pointer gap-3"
                >
                  <UserAvatarBadge styleId={userProfile?.avatarStyle} size="sm" />
@@ -966,6 +1218,6 @@ export default function HomePage() {
             </div>
 
       </div>
-    </WidgetProvider>
+    </ActiveFeatureProvider>
   );
 }

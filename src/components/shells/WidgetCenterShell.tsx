@@ -1,80 +1,77 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, type ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
+import { Blocks, X } from "lucide-react";
 
-import {
-  ShellRuntimeProvider,
-  useShellRuntimeActions,
-  type ShellRuntimeState,
-} from "@/components/shells/ShellRuntimeProvider";
-import { ShellStack } from "@/components/shells/ShellStack";
-import { ShellSurface } from "@/components/shells/ShellSurface";
-import { WidgetChromeProvider } from "@/components/widgets/WidgetChromeContext";
-import { getWidgetHostOptions } from "@/lib/widget-hosts";
-
-interface WidgetCenterShellRuntimeBridgeProps {
-  runtimeState: ShellRuntimeState;
-}
-
-const WidgetCenterShellRuntimeBridge = ({
-  runtimeState,
-}: WidgetCenterShellRuntimeBridgeProps) => {
-  const { patchState } = useShellRuntimeActions();
-
-  useEffect(() => {
-    patchState(runtimeState);
-  }, [patchState, runtimeState]);
-
-  return null;
-};
+import { ShellHeroCard } from "@/components/shells/ShellHeroCard";
+import { type ShellRuntimeState } from "@synarava/shell-kit";
+import { SideDockShell } from "@/components/shells/SideDockShell";
+import { Tooltip } from "@/components/ui/Tooltip";
 
 interface WidgetCenterShellInnerProps {
+  shellId: string;
   isOpen: boolean;
   onClose: () => void;
   title: string;
   subtitle: string;
+  runtimeState?: ShellRuntimeState;
   children: ReactNode;
 }
 
 const WidgetCenterShellInner = ({
+  shellId,
   isOpen,
   onClose,
   title,
   subtitle,
+  runtimeState,
   children,
 }: WidgetCenterShellInnerProps) => {
-  const { registerScrollContainer } = useShellRuntimeActions();
-
-  const handleScrollContainerRef = useCallback(
-    (element: HTMLDivElement | null) => {
-      registerScrollContainer(element);
-    },
-    [registerScrollContainer]
-  );
-
   return (
-    <>
-      <WidgetCenterShellRuntimeBridge runtimeState={{ title, subtitle }} />
-      <ShellSurface
-        isOpen={isOpen}
-        onClose={onClose}
-        title={title}
-        subtitle={subtitle}
-        closeLabel="Close widgets"
-        closeTooltip="Close Widgets"
-        shellClassName="fixed inset-x-3 bottom-3 top-auto z-[90] h-[min(78vh,720px)] pointer-events-none md:inset-x-auto md:right-8 md:top-28 md:bottom-6 md:h-auto md:w-[376px]"
-        scrollContainerRef={handleScrollContainerRef}
-        bodyClassName="flex-1 overflow-y-auto no-scrollbar px-1 pt-5"
-      >
-        <WidgetChromeProvider
-          currentHost="widget_center"
-          hostOptions={getWidgetHostOptions(["widget_center"])}
-          hostSelectionDisabled
-        >
-          <ShellStack>{children}</ShellStack>
-        </WidgetChromeProvider>
-      </ShellSurface>
-    </>
+    <SideDockShell
+      shellId={shellId}
+      initialState={runtimeState ?? { title, subtitle }}
+      runtimeState={{ title, subtitle, ...(runtimeState ?? {}) }}
+      isOpen={isOpen}
+      onClose={onClose}
+      side="right"
+      width={376}
+      title={title}
+      subtitle={subtitle}
+      closeLabel="Close widgets"
+      closeTooltip="Close Widgets"
+      currentHost="widget_center"
+      zIndexClassName="z-[90]"
+      showHeader={false}
+      backdropMode="always"
+      pinnedChildren={
+        <ShellHeroCard
+          dataTestId="widget-center-hero"
+          eyebrow="Widgets"
+          title={title}
+          subtitle={subtitle}
+          accent={
+            <div className="flex h-14 w-14 items-center justify-center rounded-[20px] bg-[#00327d] text-white">
+              <Blocks className="h-6 w-6" />
+            </div>
+          }
+          trailing={
+            <Tooltip label="Close Widgets">
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex h-12 w-12 items-center justify-center rounded-full border border-black/10 bg-white/60 text-neutral-600 transition-colors hover:bg-white"
+                aria-label="Close widgets"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </Tooltip>
+          }
+        />
+      }
+    >
+      {children}
+    </SideDockShell>
   );
 };
 
@@ -100,15 +97,15 @@ export const WidgetCenterShell = ({
   const initialState = useMemo(() => runtimeState ?? {}, [runtimeState]);
 
   return (
-    <ShellRuntimeProvider shellId={shellId} initialState={initialState}>
       <WidgetCenterShellInner
+        shellId={shellId}
         isOpen={isOpen}
         onClose={onClose}
         title={title}
         subtitle={subtitle}
+        runtimeState={initialState}
       >
         {children}
       </WidgetCenterShellInner>
-    </ShellRuntimeProvider>
   );
 };

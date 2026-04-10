@@ -3,17 +3,36 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent, type DragEvent } from "react";
 
 import {
-  deletePin,
+  type EntityMediaItemRecord,
+  type EntityNearbyPinRecord,
+  type EntityResourceLinkRecord,
+  type EntityStoryEntryRecord,
+  addEntityResourceLink,
+  addEntityStoryEntry,
+  deleteEntity,
+  getNearbyPinsForEntity,
+  getEntityMediaItems,
   getEntityRating,
+  getEntityResourceLinks,
+  getEntityStoryEntries,
   getEntityWidgetPayload,
   getEntityWidgets,
+  removeEntityWidget,
+  removeEntityMediaItem,
+  removeEntityResourceLink,
+  removeEntityStoryEntry,
   reorderEntityWidgets,
+  updateEntityInfo,
+  updateEntityTitle,
+  updateEntityResourceLink,
   updateEntityRating,
-  updatePinDetails,
+  updateEntityStoryEntry,
+  updateWidgetChromeBackground,
+  uploadEntityMediaItem,
 } from "@/app/actions";
 import { useDebouncedCallback } from "@/hooks/useDebounce";
 import type { WidgetEntityPayload, WidgetEntityType, WidgetInstanceRecord } from "@/lib/widgets";
-import { useShellWidgetReorder } from "@/components/shells/useShellWidgetReorder";
+import { useShellWidgetReorder } from "@synarava/shell-kit";
 
 interface EntityOverlayData {
   id: string;
@@ -37,6 +56,7 @@ interface UseEntityWidgetBindingsProps {
   onDataSaved?: () => void;
   onClose: () => void;
   onDeletePin?: (pinId: string, collectionId?: string) => Promise<void>;
+  onOpenNearbyPin?: (nearbyPin: EntityNearbyPinRecord) => void;
 }
 
 export interface EntityWidgetBindingsResult {
@@ -44,13 +64,22 @@ export interface EntityWidgetBindingsResult {
   entityTitle: string;
   pinNote: string;
   pinImage: string | null;
+  mediaItems: EntityMediaItemRecord[];
+  nearbyPins: EntityNearbyPinRecord[];
+  resourceLinks: EntityResourceLinkRecord[];
+  storyEntries: EntityStoryEntryRecord[];
   imageFile: File | null;
   saving: boolean;
+  storySaving: boolean;
+  mediaSaving: boolean;
   deleteWarningOpen: boolean;
   entityRating: number | null;
   entityPayload: WidgetEntityPayload | null;
   entityWidgets: WidgetInstanceRecord[];
+  pinnedEntityWidgets: WidgetInstanceRecord[];
+  mainEntityWidgets: WidgetInstanceRecord[];
   loading: boolean;
+  removingWidgetId: string | null;
   draggedWidgetId: string | null;
   dropTarget: { widgetId: string; edge: "before" | "after" } | null;
   activeData: EntityOverlayData;
@@ -61,10 +90,24 @@ export interface EntityWidgetBindingsResult {
   handleDragOver: (event: DragEvent<HTMLDivElement>, widgetId: string) => void;
   handleDrop: (event: DragEvent<HTMLDivElement>, widgetId: string) => void;
   handleNoteChange: (event: ChangeEvent<HTMLTextAreaElement>) => void;
+  handleTitleChange: (value: string) => void;
+  handleTitleCommit: () => Promise<void>;
   handleImageUpload: (file: File) => Promise<void>;
   handleImageDelete: () => Promise<void>;
+  handleMediaItemDelete: (mediaItemId: string) => Promise<void>;
+  handleAddResourceLink: () => Promise<void>;
+  handleRemoveResourceLink: (resourceId: string) => Promise<void>;
+  handleCommitResourceLink: (
+    resourceId: string,
+    params: { label?: string | null; url: string }
+  ) => Promise<void>;
+  handleSaveStoryEntry: (params: { storyEntryId?: string | null; title?: string | null; bodyMarkdown: string }) => Promise<void>;
+  handleRemoveStoryEntry: (storyEntryId: string) => Promise<void>;
   handleDelete: () => Promise<void>;
+  handleRemoveWidget: (widgetId: string) => Promise<void>;
   handleRateEntity: (value: number) => Promise<void>;
+  handleOpenNearbyPin: (nearbyPin: EntityNearbyPinRecord) => void;
+  handleUpdateWidgetBackground: (widgetId: string, backgroundStyle: string) => Promise<void>;
   handleClose: () => Promise<void>;
   setDeleteWarningOpen: (open: boolean) => void;
 }
@@ -78,20 +121,33 @@ export const useEntityWidgetBindings = ({
   onDataSaved,
   onClose,
   onDeletePin,
+  onOpenNearbyPin,
 }: UseEntityWidgetBindingsProps): EntityWidgetBindingsResult => {
   const widgetInteractionsDeferred = true;
   const [entityTitle, setEntityTitle] = useState("");
   const [pinNote, setPinNote] = useState("");
   const [pinImage, setPinImage] = useState<string | null>(null);
+  const [mediaItems, setMediaItems] = useState<EntityMediaItemRecord[]>([]);
+  const [nearbyPins, setNearbyPins] = useState<EntityNearbyPinRecord[]>([]);
+  const [resourceLinks, setResourceLinks] = useState<EntityResourceLinkRecord[]>([]);
+  const [storyEntries, setStoryEntries] = useState<EntityStoryEntryRecord[]>([]);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
+  const [storySaving, setStorySaving] = useState(false);
+  const [ratingSaving, setRatingSaving] = useState(false);
+  const [resourceSaving, setResourceSaving] = useState(false);
+  const [mediaSaving, setMediaSaving] = useState(false);
   const [deleteWarningOpen, setDeleteWarningOpen] = useState(false);
   const [entityRating, setEntityRating] = useState<number | null>(null);
   const [entityPayload, setEntityPayload] = useState<WidgetEntityPayload | null>(null);
   const [entityWidgets, setEntityWidgets] = useState<WidgetInstanceRecord[]>([]);
   const [loading, setLoading] = useState(false);
+  const [removingWidgetId, setRemovingWidgetId] = useState<string | null>(null);
   const latestDraftRef = useRef({ title: "", note: "", imageUrl: null as string | null });
   const lastPersistedRef = useRef({ title: "", note: "", imageUrl: null as string | null });
+
+  const pinnedEntityWidgets = entityWidgets.filter((widget) => widget.slot === "pinned");
+  const mainEntityWidgets = entityWidgets.filter((widget) => widget.slot !== "pinned");
 
   const {
     draggedWidgetId,
@@ -101,9 +157,10 @@ export const useEntityWidgetBindings = ({
     handleDragOver,
     handleDrop,
   } = useShellWidgetReorder({
-    widgets: entityWidgets,
+    shellId: "right_entity_shell",
+    widgets: mainEntityWidgets,
     onReorder: (nextWidgets) => {
-      setEntityWidgets(nextWidgets);
+      setEntityWidgets([...pinnedEntityWidgets, ...nextWidgets]);
 
       if (!entityType || !entityId) {
         return;
@@ -141,7 +198,7 @@ export const useEntityWidgetBindings = ({
 
       setSaving(true);
       try {
-        await updatePinDetails(data.id, nextDraft.title, nextDraft.note, nextDraft.imageUrl);
+        await updateEntityInfo("pin", data.id, nextDraft.title, nextDraft.note, nextDraft.imageUrl);
         lastPersistedRef.current = nextDraft;
         latestDraftRef.current = nextDraft;
       } catch (error) {
@@ -173,6 +230,10 @@ export const useEntityWidgetBindings = ({
       setEntityPayload(null);
       setEntityWidgets([]);
       setEntityRating(null);
+      setMediaItems([]);
+      setNearbyPins([]);
+      setResourceLinks([]);
+      setStoryEntries([]);
       return;
     }
 
@@ -181,17 +242,25 @@ export const useEntityWidgetBindings = ({
     void (async () => {
       setLoading(true);
       try {
-        const [payload, widgets] = await Promise.all([
+        const [payload, widgets, nextMediaItems, nextNearbyPins, nextResourceLinks, nextStoryEntries] = await Promise.all([
           getEntityWidgetPayload(entityType, entityId),
           getEntityWidgets(entityType, entityId),
+          getEntityMediaItems(entityType, entityId),
+          entityType === "pin" ? getNearbyPinsForEntity(entityId) : Promise.resolve([]),
+          getEntityResourceLinks(entityType, entityId),
+          getEntityStoryEntries(entityType, entityId),
         ]);
 
         if (!cancelled) {
           setEntityPayload(payload);
           setEntityWidgets(widgets);
+          setMediaItems(nextMediaItems);
+          setNearbyPins(nextNearbyPins);
+          setResourceLinks(nextResourceLinks);
+          setStoryEntries(nextStoryEntries);
           const payloadTitle = payload.title || "";
           const payloadNote = payload.description || "";
-          const payloadImage = payload.imageUrl || null;
+          const payloadImage = nextMediaItems[0]?.publicUrl || payload.imageUrl || null;
 
           setEntityTitle(payloadTitle);
           setPinNote(payloadNote);
@@ -227,6 +296,37 @@ export const useEntityWidgetBindings = ({
     void persistPinDetails();
   }, 600);
 
+  const persistTitle = useCallback(
+    async (nextTitle: string) => {
+      if (!entityType || !entityId) {
+        return;
+      }
+
+      const normalizedInput = nextTitle;
+      const nextNormalizedTitle =
+        normalizedInput.trim() ||
+        `Untitled ${entityType === "pin" ? "Marker" : entityType === "trace" ? "Path" : "Area"}`;
+
+      if (nextNormalizedTitle === lastPersistedRef.current.title) {
+        return;
+      }
+
+      setSaving(true);
+      try {
+        const updated = await updateEntityTitle(entityType, entityId, normalizedInput);
+        setEntityTitle(updated.title);
+        setEntityPayload((current) => (current ? { ...current, title: updated.title } : current));
+        latestDraftRef.current = { ...latestDraftRef.current, title: updated.title };
+        lastPersistedRef.current = { ...lastPersistedRef.current, title: updated.title };
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setSaving(false);
+      }
+    },
+    [entityId, entityType]
+  );
+
   const handleNoteChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
     if (widgetInteractionsDeferred) {
       return;
@@ -238,69 +338,231 @@ export const useEntityWidgetBindings = ({
     debouncedPersist();
   };
 
+  const handleTitleChange = (value: string) => {
+    const nextTitle = value;
+    setEntityTitle(nextTitle);
+    latestDraftRef.current = { ...latestDraftRef.current, title: nextTitle };
+    setEntityPayload((current) => (current ? { ...current, title: nextTitle } : current));
+  };
+
+  const handleOpenNearbyPin = useCallback(
+    (nearbyPin: EntityNearbyPinRecord) => {
+      onOpenNearbyPin?.(nearbyPin);
+    },
+    [onOpenNearbyPin]
+  );
+
+  const handleTitleCommit = async () => {
+    await persistTitle(latestDraftRef.current.title);
+  };
+
   const handleImageUpload = async (file: File) => {
-    if (widgetInteractionsDeferred || !data?.id) {
+    if (!entityType || !entityId || mediaSaving) {
       return;
     }
 
-    setSaving(true);
+    setMediaSaving(true);
     try {
       const formData = new FormData();
       formData.append("file", file);
 
-      const response = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
-
-      const payload = (await response.json()) as { url?: string; error?: string };
-
-      if (!response.ok || !payload.url) {
-        throw new Error(payload.error || "Upload failed");
-      }
-
-      const url = payload.url;
-      setPinImage(url);
-      latestDraftRef.current = { ...latestDraftRef.current, imageUrl: url };
-      await persistPinDetails({ imageUrl: url });
-      onDataSaved?.();
+      const mediaItem = await uploadEntityMediaItem(entityType, entityId, formData);
+      const nextMediaItems = [...mediaItems, mediaItem].sort((a, b) => a.position - b.position);
+      setMediaItems(nextMediaItems);
+      setPinImage(nextMediaItems[0]?.publicUrl ?? mediaItem.publicUrl);
+      latestDraftRef.current = {
+        ...latestDraftRef.current,
+        imageUrl: nextMediaItems[0]?.publicUrl ?? mediaItem.publicUrl,
+      };
     } catch (error) {
       console.error(error);
     } finally {
-      setSaving(false);
+      setMediaSaving(false);
     }
   };
 
   const handleImageDelete = async () => {
-    if (widgetInteractionsDeferred || !data?.id) {
+    if (!entityType || !entityId || mediaSaving) {
       return;
     }
 
-    setSaving(true);
-    setPinImage(null);
+    setMediaSaving(true);
     try {
-      latestDraftRef.current = { ...latestDraftRef.current, imageUrl: null };
-      await persistPinDetails({ imageUrl: null });
-      onDataSaved?.();
+      const primaryMediaItem = mediaItems[0] ?? null;
+
+      if (primaryMediaItem) {
+        await removeEntityMediaItem(entityType, entityId, primaryMediaItem.id);
+        const nextMediaItems = mediaItems.filter((item) => item.id !== primaryMediaItem.id);
+        const nextImageUrl = nextMediaItems[0]?.publicUrl ?? null;
+        setMediaItems(nextMediaItems);
+        setPinImage(nextImageUrl);
+        latestDraftRef.current = { ...latestDraftRef.current, imageUrl: nextImageUrl };
+      } else {
+        setPinImage(null);
+        latestDraftRef.current = { ...latestDraftRef.current, imageUrl: null };
+        await persistPinDetails({ imageUrl: null });
+      }
     } catch (error) {
       console.error(error);
     } finally {
-      setSaving(false);
+      setMediaSaving(false);
+    }
+  };
+
+  const handleMediaItemDelete = async (mediaItemId: string) => {
+    if (!entityType || !entityId || mediaSaving) {
+      return;
+    }
+
+    setMediaSaving(true);
+    try {
+      await removeEntityMediaItem(entityType, entityId, mediaItemId);
+      const nextMediaItems = mediaItems.filter((item) => item.id !== mediaItemId);
+      const nextImageUrl = nextMediaItems[0]?.publicUrl ?? null;
+      setMediaItems(nextMediaItems);
+      setPinImage(nextImageUrl);
+      latestDraftRef.current = { ...latestDraftRef.current, imageUrl: nextImageUrl };
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setMediaSaving(false);
+    }
+  };
+
+  const handleAddResourceLink = async () => {
+    if (!entityType || !entityId || resourceSaving) {
+      return;
+    }
+
+    setResourceSaving(true);
+    try {
+      const nextResource = await addEntityResourceLink(entityType, entityId, {
+        label: "",
+        url: "",
+      });
+      setResourceLinks((current) => [...current, nextResource].sort((a, b) => a.position - b.position));
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setResourceSaving(false);
+    }
+  };
+
+  const handleRemoveResourceLink = async (resourceId: string) => {
+    if (!entityType || !entityId || resourceSaving) {
+      return;
+    }
+
+    setResourceSaving(true);
+    try {
+      await removeEntityResourceLink(entityType, entityId, resourceId);
+      setResourceLinks((current) => current.filter((resource) => resource.id !== resourceId));
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setResourceSaving(false);
+    }
+  };
+
+  const handleCommitResourceLink = async (
+    resourceId: string,
+    params: { label?: string | null; url: string }
+  ) => {
+    if (!entityType || !entityId || resourceSaving) {
+      return;
+    }
+
+    setResourceSaving(true);
+    try {
+      const updated = await updateEntityResourceLink(entityType, entityId, resourceId, params);
+      setResourceLinks((current) =>
+        current.map((resource) => (resource.id === resourceId ? updated : resource))
+      );
+    } catch (error) {
+      console.error(error);
+      throw error;
+    } finally {
+      setResourceSaving(false);
+    }
+  };
+
+  const handleSaveStoryEntry = async ({
+    storyEntryId,
+    title,
+    bodyMarkdown,
+  }: {
+    storyEntryId?: string | null;
+    title?: string | null;
+    bodyMarkdown: string;
+  }) => {
+    if (!entityType || !entityId) {
+      return;
+    }
+
+    setStorySaving(true);
+    try {
+      const trimmedTitle = title?.trim() || null;
+      const nextBodyMarkdown = bodyMarkdown;
+
+      const nextEntry = storyEntryId
+        ? await updateEntityStoryEntry(entityType, entityId, storyEntryId, {
+            title: trimmedTitle,
+            bodyMarkdown: nextBodyMarkdown,
+          })
+        : await addEntityStoryEntry(entityType, entityId, {
+            title: trimmedTitle,
+            bodyMarkdown: nextBodyMarkdown,
+          });
+
+      setStoryEntries((current) => {
+        const exists = current.some((entry) => entry.id === nextEntry.id);
+        const next = exists
+          ? current.map((entry) => (entry.id === nextEntry.id ? nextEntry : entry))
+          : [...current, nextEntry];
+
+        return [...next].sort((a, b) => a.position - b.position);
+      });
+    } catch (error) {
+      console.error(error);
+      throw error;
+    } finally {
+      setStorySaving(false);
+    }
+  };
+
+  const handleRemoveStoryEntry = async (storyEntryId: string) => {
+    if (!entityType || !entityId) {
+      return;
+    }
+
+    setStorySaving(true);
+    try {
+      await removeEntityStoryEntry(entityType, entityId, storyEntryId);
+      setStoryEntries((current) => current.filter((entry) => entry.id !== storyEntryId));
+    } catch (error) {
+      console.error(error);
+      throw error;
+    } finally {
+      setStorySaving(false);
     }
   };
 
   const handleDelete = async () => {
-    if (widgetInteractionsDeferred || !data?.id) {
+    const targetEntityId = entityId ?? data?.id;
+
+    if (!targetEntityId || !entityType) {
       return;
     }
 
     setSaving(true);
     try {
-      if (onDeletePin) {
-        await onDeletePin(data.id, data.collectionId);
+      if (entityType === "pin" && onDeletePin) {
+        await onDeletePin(targetEntityId, data?.collectionId);
       } else {
-        await deletePin(data.id);
+        await deleteEntity(entityType, targetEntityId);
+        setDeleteWarningOpen(false);
         onDataSaved?.();
+        onClose();
       }
       setDeleteWarningOpen(false);
     } finally {
@@ -311,19 +573,58 @@ export const useEntityWidgetBindings = ({
   const handleRateEntity = async (value: number) => {
     const containerId = entityPayload?.metadata?.containerId;
 
-    if (typeof containerId !== "string" || widgetInteractionsDeferred) {
+    if (typeof containerId !== "string" || ratingSaving) {
       return;
     }
 
     setEntityRating(value);
-    setSaving(true);
+    setRatingSaving(true);
     try {
       const nextValue = await updateEntityRating(containerId, value);
-      setEntityRating(nextValue);
+      setEntityRating((current) => (current === nextValue ? current : nextValue));
     } catch (error) {
       console.error(error);
     } finally {
-      setSaving(false);
+      setRatingSaving(false);
+    }
+  };
+
+  const handleUpdateWidgetBackground = async (widgetId: string, backgroundStyle: string) => {
+    setEntityWidgets((current) =>
+      current.map((widget) =>
+        widget.id === widgetId
+          ? {
+              ...widget,
+              config: {
+                ...widget.config,
+                chromeBackgroundStyle: backgroundStyle,
+              },
+            }
+          : widget
+      )
+    );
+
+    try {
+      await updateWidgetChromeBackground(widgetId, backgroundStyle);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const handleRemoveWidget = async (widgetId: string) => {
+    if (!entityType || !entityId) {
+      return;
+    }
+
+    setRemovingWidgetId(widgetId);
+
+    try {
+      await removeEntityWidget(entityType, entityId, widgetId);
+      setEntityWidgets((current) => current.filter((widget) => widget.id !== widgetId));
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setRemovingWidgetId(null);
     }
   };
 
@@ -369,13 +670,22 @@ export const useEntityWidgetBindings = ({
     entityTitle,
     pinNote,
     pinImage,
+    mediaItems,
+    nearbyPins,
+    resourceLinks,
+    storyEntries,
     imageFile,
     saving,
+    storySaving,
+    mediaSaving,
     deleteWarningOpen,
     entityRating,
     entityPayload,
     entityWidgets,
+    pinnedEntityWidgets,
+    mainEntityWidgets,
     loading,
+    removingWidgetId,
     draggedWidgetId,
     dropTarget,
     activeData,
@@ -386,10 +696,21 @@ export const useEntityWidgetBindings = ({
     handleDragOver,
     handleDrop,
     handleNoteChange,
+    handleTitleChange,
+    handleTitleCommit,
     handleImageUpload,
     handleImageDelete,
+    handleMediaItemDelete,
+    handleAddResourceLink,
+    handleRemoveResourceLink,
+    handleCommitResourceLink,
+    handleSaveStoryEntry,
+    handleRemoveStoryEntry,
     handleDelete,
+    handleRemoveWidget,
     handleRateEntity,
+    handleOpenNearbyPin,
+    handleUpdateWidgetBackground,
     handleClose,
     setDeleteWarningOpen,
   };

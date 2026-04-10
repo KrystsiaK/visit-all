@@ -132,11 +132,11 @@ export const useShellCollectionsBinding = ({
   };
 
   const handleCollectionCardClick = async (collection: Collection) => {
-    if (editingCollection?.id === collection.id) {
-      return;
-    }
-
     if (!awaitingCollectionSelection) {
+      if (editingCollection?.id === collection.id) {
+        return;
+      }
+
       openCollectionEditor(collection);
       return;
     }

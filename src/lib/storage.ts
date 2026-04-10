@@ -19,6 +19,11 @@ type StorageConfig = {
   secretAccessKey?: string;
 };
 
+export interface StoredUpload {
+  storageKey: string;
+  publicUrl: string;
+}
+
 function getStorageConfig(): StorageConfig {
   const provider = (process.env.STORAGE_PROVIDER?.trim().toLowerCase() || "local") as StorageProvider;
 
@@ -60,7 +65,7 @@ function createObjectKey(filename: string) {
   return `uploads/${year}/${month}/${Date.now()}-${sanitizeUploadFilename(filename)}`;
 }
 
-async function writeLocalUpload(file: File) {
+async function writeLocalUpload(file: File): Promise<StoredUpload> {
   const bytes = await file.arrayBuffer();
   const buffer = Buffer.from(bytes);
 
@@ -68,9 +73,13 @@ async function writeLocalUpload(file: File) {
 
   const filename = `${Date.now()}-${sanitizeUploadFilename(file.name)}`;
   const filepath = join(LOCAL_UPLOAD_DIR, filename);
+  const publicUrl = `${LOCAL_UPLOAD_PREFIX}${filename}`;
 
   await writeFile(filepath, buffer);
-  return `${LOCAL_UPLOAD_PREFIX}${filename}`;
+  return {
+    storageKey: `local:${filename}`,
+    publicUrl,
+  };
 }
 
 async function deleteLocalUploadFromUrl(imageUrl: string | null | undefined) {
@@ -114,7 +123,7 @@ function getObjectKeyFromUrl(imageUrl: string, config: StorageConfig) {
   return imageUrl.slice(baseUrl.length + 1);
 }
 
-async function writeS3Upload(file: File, config: StorageConfig) {
+async function writeS3Upload(file: File, config: StorageConfig): Promise<StoredUpload> {
   const client = getS3Client(config);
   const objectKey = createObjectKey(file.name);
   const bytes = await file.arrayBuffer();
@@ -129,7 +138,10 @@ async function writeS3Upload(file: File, config: StorageConfig) {
     })
   );
 
-  return buildPublicUrl(config, objectKey);
+  return {
+    storageKey: objectKey,
+    publicUrl: buildPublicUrl(config, objectKey),
+  };
 }
 
 async function deleteS3UploadFromUrl(imageUrl: string | null | undefined, config: StorageConfig) {
@@ -190,6 +202,11 @@ export function getStorageReadiness() {
 }
 
 export async function writeUpload(file: File) {
+  const upload = await writeUploadAsset(file);
+  return upload.publicUrl;
+}
+
+export async function writeUploadAsset(file: File): Promise<StoredUpload> {
   const config = getStorageConfig();
 
   if (config.provider === "s3") {

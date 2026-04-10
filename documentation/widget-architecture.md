@@ -25,6 +25,8 @@ The shell/container side of this system is now further described in:
 
 `documentation/strict-lego-architecture.md`
 
+`documentation/widget-placement-policy.md`
+
 `documentation/framework-architecture.md`
 
 ## Library rule
@@ -162,8 +164,18 @@ Each definition describes:
 4. supported entity types
 5. component key
 6. default config payload
+7. placement policy
 
 Definitions are reusable templates, not actual placements.
+
+Placement policy is now a separate rule layer. It defines whether a widget is:
+
+1. fixed and system-managed
+2. fixed to one host but optional
+3. selectable between multiple hosts
+4. placeable into multiple hosts
+
+That policy is enforced in the widget pool, not by ad-hoc controls in widget settings.
 
 ### 2. Widget instances
 

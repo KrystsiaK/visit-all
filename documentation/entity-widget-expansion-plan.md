@@ -153,8 +153,13 @@ Read model:
 
 1. input entity must have point geometry
 2. query nearest other pins
-3. bias or filter by rating
-4. return links to the related pins
+3. order by:
+   - rated pins before unrated pins
+   - higher ratings before lower ratings
+   - shorter distance as the secondary tie-break
+4. optional filter by `minRating`
+5. optional radius clamp
+6. return related pin cards with title, collection, distance, rating, and cover image
 
 Persistence direction:
 
@@ -248,4 +253,16 @@ Recommended order:
 
 1. the current right shell still contains transitional save logic for `entity_info` and `entity_delete`
 2. current pin image support is still legacy and should later fold into `entity_gallery`
-3. markdown rendering strategy for stories is not selected yet
+3. right-shell notes now use multiple `entity_story_entries`, but richer note metadata can still be added later if needed
+
+## Current implementation note: notes
+
+`entity_stories` now uses:
+
+1. `entity_story_entries` as the canonical enrichment table
+2. stacked note cards with add, edit, and delete flows
+3. raw `.md` editing in `edit` mode
+4. rendered markdown in `view` mode
+5. `react-markdown` + `remark-gfm` for the rendering layer
+
+This keeps the storage model extensible while the widget behaves like a real notes manager instead of a single-story editor.

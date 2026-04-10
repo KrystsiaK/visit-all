@@ -1,6 +1,6 @@
 import { RotateCcw } from "lucide-react";
 import { WidgetActionBody } from "@/components/widgets/WidgetActionBody";
-import { WidgetChrome } from "@/components/widgets/WidgetChrome";
+import { BaseWidget } from "@synarava/shell-kit";
 
 interface ShellResetViewWidgetProps {
   onResetView: () => void;
@@ -11,7 +11,7 @@ export const ShellResetViewWidget = ({
   onResetView,
   disabled = false,
 }: ShellResetViewWidgetProps) => (
-  <WidgetChrome
+  <BaseWidget
     eyebrow="Camera"
     title="Reset View"
     identityVisibility="settings-only"
@@ -32,5 +32,5 @@ export const ShellResetViewWidget = ({
       disabled={disabled}
       onClick={onResetView}
     />
-  </WidgetChrome>
+  </BaseWidget>
 );

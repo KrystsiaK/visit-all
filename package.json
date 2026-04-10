@@ -2,6 +2,7 @@
   "name": "visit-all",
   "version": "0.1.0",
   "private": true,
+  "workspaces": ["packages/*"],
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -11,13 +12,17 @@
     "db:migrate:status": "node --env-file-if-exists=.env.local scripts/db-migrate-status.mjs",
     "typecheck": "tsc --noEmit",
     "security:audit": "npm audit --omit=dev",
-    "test": "npm run test:unit && npm run test:e2e",
+    "test": "npm run test:unit && npm run test:ui && npm run test:e2e",
     "test:unit": "vitest run",
     "test:unit:coverage": "vitest run --coverage",
+    "test:ui": "vitest run --config vitest.ui.config.ts",
+    "test:db": "node --env-file-if-exists=.env.local ./node_modules/vitest/vitest.mjs run --config vitest.db.config.ts",
     "test:e2e": "playwright test",
-    "ci:quality": "npm run lint && npm run typecheck && npm run build && npm run test:unit:coverage && npm run security:audit",
+    "ci:quality": "npm run lint && npm run typecheck && npm run build && npm run test:unit:coverage && npm run test:ui && npm run security:audit",
     "ci:verify": "npm run ci:quality && npm run test:e2e",
-    "prepare": "husky"
+    "prepare": "husky",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1016.0",
@@ -34,11 +39,19 @@
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "react-map-gl": "^8.1.0",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
     "tailwind-merge": "^3.5.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.58.2",
+    "@storybook/addon-a11y": "^10.3.5",
+    "@storybook/addon-docs": "^10.3.5",
+    "@storybook/nextjs-vite": "^10.3.5",
     "@tailwindcss/postcss": "^4",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",
     "@types/pg": "^8.20.0",
@@ -47,9 +60,13 @@
     "@vitest/coverage-v8": "^4.1.1",
     "eslint": "^9",
     "eslint-config-next": "16.2.1",
+    "eslint-plugin-storybook": "^10.3.5",
     "husky": "^9.1.7",
+    "jsdom": "^29.0.2",
+    "storybook": "^10.3.5",
     "tailwindcss": "^4",
     "typescript": "^5",
+    "vite": "^8.0.8",
     "vitest": "^4.1.1"
   }
 }

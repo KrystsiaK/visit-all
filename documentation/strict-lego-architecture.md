@@ -184,6 +184,9 @@ A widget may only provide:
 
 Shell-owned host state must arrive through `WidgetChromeProvider`, not through repeated local props in each widget file.
 
+Widget settings must not become a cross-panel movement surface.
+Placement selection belongs to the pool and orchestration layer.
+
 ### Shell rule
 
 A shell must not invent its own:
@@ -241,3 +244,15 @@ The final shape should be:
 5. widget-specific content and bindings
 
 Everything else should be a specialization, never a separate architecture.
+
+## Placement Rule
+
+Placement is not part of widget business logic.
+
+The canonical order is:
+
+1. widget definition describes placement policy
+2. widget pool evaluates whether add is possible
+3. orchestration places the widget into the correct host shell
+4. widget settings may remove the widget when allowed
+5. widget settings do not move widgets across shells

@@ -86,11 +86,12 @@ export function shouldAutoOpenLayerDrawer(
   isMobileViewport: boolean,
   mode: InteractionMode,
   hasPendingPin: boolean,
-  traceDraftFinalized: boolean
+  traceDraftFinalized: boolean,
+  areaDraftFinalized: boolean
 ) {
   if (!isMobileViewport) {
     return false;
   }
 
-  return hasPendingPin || (mode === "trace" && traceDraftFinalized);
+  return hasPendingPin || (mode === "trace" && traceDraftFinalized) || (mode === "area" && areaDraftFinalized);
 }

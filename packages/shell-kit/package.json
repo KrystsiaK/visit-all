@@ -1,0 +1,23 @@
+{
+  "name": "@synarava/shell-kit",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Shell & Widget UI component library — product-agnostic layout primitives with signals, slots, and drag-reorder.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:ui": "vitest run --config vitest.ui.config.ts",
+    "lint": "eslint src/"
+  },
+  "peerDependencies": {
+    "react": ">=18",
+    "react-dom": ">=18",
+    "framer-motion": ">=11",
+    "lucide-react": ">=0.300",
+    "clsx": ">=2",
+    "tailwind-merge": ">=2"
+  }
+}
+

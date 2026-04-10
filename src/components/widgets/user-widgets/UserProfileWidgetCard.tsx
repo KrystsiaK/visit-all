@@ -4,7 +4,7 @@ import { Save } from "lucide-react";
 import { useState } from "react";
 
 import { UserAvatarBadge, avatarStyleOptions } from "@/components/user/avatar-styles";
-import { WidgetChrome } from "@/components/widgets/WidgetChrome";
+import { BaseWidget } from "@synarava/shell-kit";
 import type { WidgetInstanceRecord } from "@/lib/widgets";
 
 export interface UserProfileViewModel {
@@ -31,7 +31,7 @@ export function UserProfileWidgetCard({
   const [avatarStyle, setAvatarStyle] = useState(profile.avatarStyle ?? avatarStyleOptions[0].id);
 
   return (
-    <WidgetChrome
+    <BaseWidget
       eyebrow="Profile"
       title={widget.name}
       subtitle="Identity, avatar, and account presence."
@@ -120,6 +120,6 @@ export function UserProfileWidgetCard({
           {saving ? "Saving..." : "Save Profile"}
         </button>
       </div>
-    </WidgetChrome>
+    </BaseWidget>
   );
 }

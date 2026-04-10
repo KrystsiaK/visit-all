@@ -3,9 +3,13 @@
 import { motion } from "framer-motion";
 
 import { EntityDeleteWidgetCard } from "@/components/widgets/EntityDeleteWidgetCard";
+import { EntityGalleryWidgetCard } from "@/components/widgets/EntityGalleryWidgetCard";
 import { EntityInfoWidgetCard } from "@/components/widgets/EntityInfoWidgetCard";
+import { EntityNearbyPinsWidgetCard } from "@/components/widgets/EntityNearbyPinsWidgetCard";
 import { EntityPlaceholderWidgetCard } from "@/components/widgets/EntityPlaceholderWidgetCard";
 import { EntityRatingWidgetCard } from "@/components/widgets/EntityRatingWidgetCard";
+import { EntityResourcesWidgetCard } from "@/components/widgets/EntityResourcesWidgetCard";
+import { EntityStoriesWidgetCard } from "@/components/widgets/EntityStoriesWidgetCard";
 import type { WidgetEntityPayload, WidgetInstanceRecord } from "@/lib/widgets";
 import { overlayItemVariants } from "@/lib/motion";
 import type { EntityWidgetBindingsResult } from "@/components/widgets/entity-widgets/useEntityWidgetBindings";
@@ -13,19 +17,39 @@ import type { EntityWidgetBindingsResult } from "@/components/widgets/entity-wid
 interface RenderEntityWidgetProps {
   widget: WidgetInstanceRecord;
   entity: WidgetEntityPayload;
+  presentation?: "default" | "pinned";
   bindings: Pick<
     EntityWidgetBindingsResult,
     | "pinNote"
+    | "entityTitle"
     | "pinImage"
+    | "mediaItems"
+    | "nearbyPins"
+    | "handleOpenNearbyPin"
+    | "resourceLinks"
+    | "storyEntries"
     | "imageFile"
     | "saving"
+    | "storySaving"
+    | "mediaSaving"
     | "supportsDirectPinEditing"
     | "widgetInteractionsDeferred"
     | "entityRating"
+    | "handleTitleCommit"
+    | "handleTitleChange"
     | "handleNoteChange"
     | "handleImageUpload"
     | "handleImageDelete"
+    | "handleMediaItemDelete"
+    | "handleAddResourceLink"
+    | "handleRemoveResourceLink"
+    | "handleCommitResourceLink"
+    | "handleSaveStoryEntry"
+    | "handleRemoveStoryEntry"
     | "handleRateEntity"
+    | "handleRemoveWidget"
+    | "removingWidgetId"
+    | "handleUpdateWidgetBackground"
     | "setDeleteWarningOpen"
   >;
 }
@@ -33,37 +57,45 @@ interface RenderEntityWidgetProps {
 export const renderEntityWidget = ({
   widget,
   entity,
+  presentation = "default",
   bindings,
 }: RenderEntityWidgetProps) => {
+  const removable = widget.slug !== "entity_info";
+  const removing = bindings.removingWidgetId === widget.id;
+
   if (widget.componentKey === "entity_info") {
     return (
       <motion.div variants={overlayItemVariants} layout="position">
         <EntityInfoWidgetCard
           widget={widget}
           entity={entity}
-          pinNote={bindings.pinNote}
-          pinImage={bindings.pinImage}
-          imageFile={bindings.imageFile}
-          saving={bindings.saving}
+          entityTitle={bindings.entityTitle}
           editable={bindings.supportsDirectPinEditing}
-          interactionsDisabled={bindings.widgetInteractionsDeferred}
-          onNoteChange={bindings.handleNoteChange}
-          onImageUpload={bindings.handleImageUpload}
-          onImageDelete={bindings.handleImageDelete}
+          presentation={presentation}
+          onTitleChange={bindings.handleTitleChange}
+          onTitleCommit={bindings.handleTitleCommit}
+          onBackgroundStyleChange={bindings.handleUpdateWidgetBackground}
+          removing={removing}
+          canRemove={removable}
+          onRemove={() => void bindings.handleRemoveWidget(widget.id)}
         />
       </motion.div>
     );
   }
 
-  if (widget.componentKey === "entity_delete" && bindings.supportsDirectPinEditing) {
+  if (widget.componentKey === "entity_delete") {
     return (
       <motion.div variants={overlayItemVariants} layout="position">
         <EntityDeleteWidgetCard
           widget={widget}
           entity={entity}
           saving={bindings.saving}
-          disabled={bindings.widgetInteractionsDeferred}
+          disabled={false}
           onDelete={() => bindings.setDeleteWarningOpen(true)}
+          onBackgroundStyleChange={bindings.handleUpdateWidgetBackground}
+          removing={removing}
+          canRemove={removable}
+          onRemove={() => void bindings.handleRemoveWidget(widget.id)}
         />
       </motion.div>
     );
@@ -76,9 +108,12 @@ export const renderEntityWidget = ({
           widget={widget}
           entity={entity}
           value={bindings.entityRating}
-          saving={bindings.saving}
-          disabled={bindings.widgetInteractionsDeferred}
+          disabled={false}
           onRate={bindings.handleRateEntity}
+          onBackgroundStyleChange={bindings.handleUpdateWidgetBackground}
+          removing={removing}
+          canRemove={removable}
+          onRemove={() => void bindings.handleRemoveWidget(widget.id)}
         />
       </motion.div>
     );
@@ -87,11 +122,17 @@ export const renderEntityWidget = ({
   if (widget.componentKey === "entity_gallery") {
     return (
       <motion.div variants={overlayItemVariants} layout="position">
-        <EntityPlaceholderWidgetCard
+        <EntityGalleryWidgetCard
           widget={widget}
           entity={entity}
-          eyebrow="Gallery"
-          body="This widget will host a full multi-photo gallery for the entity container."
+          mediaItems={bindings.mediaItems}
+          saving={bindings.mediaSaving}
+          onUpload={bindings.handleImageUpload}
+          onDeleteMediaItem={bindings.handleMediaItemDelete}
+          onBackgroundStyleChange={bindings.handleUpdateWidgetBackground}
+          removing={removing}
+          canRemove={removable}
+          onRemove={() => void bindings.handleRemoveWidget(widget.id)}
         />
       </motion.div>
     );
@@ -100,11 +141,17 @@ export const renderEntityWidget = ({
   if (widget.componentKey === "entity_stories") {
     return (
       <motion.div variants={overlayItemVariants} layout="position">
-        <EntityPlaceholderWidgetCard
+        <EntityStoriesWidgetCard
           widget={widget}
           entity={entity}
-          eyebrow="Stories"
-          body="This widget will host markdown story entries and longer narrative notes."
+          storyEntries={bindings.storyEntries}
+          saving={bindings.storySaving}
+          onSaveStoryEntry={bindings.handleSaveStoryEntry}
+          onRemoveStoryEntry={bindings.handleRemoveStoryEntry}
+          onBackgroundStyleChange={bindings.handleUpdateWidgetBackground}
+          removing={removing}
+          canRemove={removable}
+          onRemove={() => void bindings.handleRemoveWidget(widget.id)}
         />
       </motion.div>
     );
@@ -113,11 +160,17 @@ export const renderEntityWidget = ({
   if (widget.componentKey === "entity_resources") {
     return (
       <motion.div variants={overlayItemVariants} layout="position">
-        <EntityPlaceholderWidgetCard
+        <EntityResourcesWidgetCard
           widget={widget}
           entity={entity}
-          eyebrow="Resources"
-          body="This widget will collect many external references and source links for the entity."
+          resources={bindings.resourceLinks}
+          onAddResource={bindings.handleAddResourceLink}
+          onRemoveResource={bindings.handleRemoveResourceLink}
+          onCommitResource={bindings.handleCommitResourceLink}
+          onBackgroundStyleChange={bindings.handleUpdateWidgetBackground}
+          removing={removing}
+          canRemove={removable}
+          onRemove={() => void bindings.handleRemoveWidget(widget.id)}
         />
       </motion.div>
     );
@@ -126,11 +179,15 @@ export const renderEntityWidget = ({
   if (widget.componentKey === "entity_nearby_pins" && entity.type === "pin") {
     return (
       <motion.div variants={overlayItemVariants} layout="position">
-        <EntityPlaceholderWidgetCard
+        <EntityNearbyPinsWidgetCard
           widget={widget}
           entity={entity}
-          eyebrow="Nearby Pins"
-          body="This widget will surface nearby highly-rated pins as linked related places."
+          nearbyPins={bindings.nearbyPins}
+          onOpenNearbyPin={bindings.handleOpenNearbyPin}
+          onBackgroundStyleChange={bindings.handleUpdateWidgetBackground}
+          removing={removing}
+          canRemove={removable}
+          onRemove={() => void bindings.handleRemoveWidget(widget.id)}
         />
       </motion.div>
     );
@@ -144,6 +201,10 @@ export const renderEntityWidget = ({
           entity={entity}
           eyebrow="Transport"
           body="This widget will capture how the route was traveled: walk, car, bus, tram, train, or ferry."
+          onBackgroundStyleChange={bindings.handleUpdateWidgetBackground}
+          removing={removing}
+          canRemove={removable}
+          onRemove={() => void bindings.handleRemoveWidget(widget.id)}
         />
       </motion.div>
     );

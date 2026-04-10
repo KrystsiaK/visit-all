@@ -2,7 +2,7 @@
 
 import type { WidgetInstanceRecord, WidgetPlacementRecord } from "@/lib/widgets";
 import type { TopChromeShellInstance } from "@/lib/shells";
-import { ShellSurface } from "@/components/shells/ShellSurface";
+import { BaseShell } from "@synarava/shell-kit";
 import { ShellChromePrimaryWidget } from "@/components/widgets/shell-widgets/ShellChromePrimaryWidget";
 
 interface TopChromeShellProps {
@@ -35,18 +35,18 @@ export function TopChromeShell({
   }
 
   return (
-    <ShellSurface
+    <BaseShell
       isOpen
       onClose={onToggleMobileSidebar}
       title=""
       closeLabel="Close top chrome"
-      closeTooltip="Close top chrome"
       showBackdrop={false}
       showHeader={false}
       showCloseButton={false}
       mobileHandle={false}
-      shellClassName="fixed left-4 top-4 z-[60] md:left-6 md:top-6"
+      shellClassName="fixed left-4 top-4 z-[60] md:hidden"
       surfaceClassName="pointer-events-auto"
+      contentContainerClassName="overflow-visible"
       bodyClassName="overflow-visible"
       shellVariants={{
         hidden: { opacity: 0, y: -12, scale: 0.98 },
@@ -61,6 +61,6 @@ export function TopChromeShell({
         onToggleDesktopSidebar={onToggleDesktopSidebar}
         onToggleMobileSidebar={onToggleMobileSidebar}
       />
-    </ShellSurface>
+    </BaseShell>
   );
 }

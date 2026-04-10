@@ -11,7 +11,7 @@ export default defineConfig({
   },
   webServer: {
     command:
-      "APP_URL=http://localhost:3100 NEXTAUTH_URL=http://localhost:3100 AUTH_TRUST_HOST=true E2E_TEST_MODE=1 npm run start -- --port 3100",
+      "APP_URL=http://localhost:3100 NEXTAUTH_URL=http://localhost:3100 AUTH_TRUST_HOST=true E2E_TEST_MODE=1 NEXT_PUBLIC_E2E_TEST_MODE=1 npm run build && APP_URL=http://localhost:3100 NEXTAUTH_URL=http://localhost:3100 AUTH_TRUST_HOST=true E2E_TEST_MODE=1 NEXT_PUBLIC_E2E_TEST_MODE=1 npm run start -- --port 3100",
     url: "http://localhost:3100/login",
     reuseExistingServer: false,
     timeout: 120_000,

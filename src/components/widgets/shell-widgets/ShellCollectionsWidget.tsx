@@ -1,7 +1,6 @@
 import { useCallback, useMemo } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { useShellRuntimeActions, useShellRuntimeValue } from "@/components/shells/ShellRuntimeProvider";
-import { WidgetFrame } from "@/components/widgets/WidgetFrame";
+import { BaseWidget, useShellRuntimeActions, useShellRuntimeValue } from "@synarava/shell-kit";
 import { CollectionCard } from "@/components/widgets/shell-widgets/collections/CollectionCard";
 import { SelectionAura } from "@/components/widgets/shell-widgets/collections/SelectionAura";
 import { EmptyCollectionsState, EmptySearchState, LoadingRows } from "@/components/widgets/shell-widgets/collections/CollectionStates";
@@ -47,7 +46,7 @@ export const ShellCollectionsWidget = ({
   }, [collectionQuery, collections]);
 
   return (
-    <WidgetFrame
+    <BaseWidget
       title="Collections"
       identityVisibility="settings-only"
       className="pointer-events-auto relative mb-2 flex h-[396px] shrink-0 flex-col overflow-hidden rounded-2xl bg-white/70 shadow-[0px_10px_36px_rgba(0,0,0,0.08)] backdrop-blur-2xl"
@@ -105,6 +104,6 @@ export const ShellCollectionsWidget = ({
           </motion.div>
         </AnimatePresence>
       </div>
-    </WidgetFrame>
+    </BaseWidget>
   );
 };

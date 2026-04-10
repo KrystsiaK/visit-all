@@ -1,5 +1,5 @@
 import { Plus } from "lucide-react";
-import { WidgetChrome } from "@/components/widgets/WidgetChrome";
+import { BaseWidget } from "@synarava/shell-kit";
 import { WidgetActionBody } from "@/components/widgets/WidgetActionBody";
 
 interface ShellCreateCollectionWidgetProps {
@@ -11,7 +11,7 @@ export const ShellCreateCollectionWidget = ({
   onCreateCollection,
   saving,
 }: ShellCreateCollectionWidgetProps) => (
-  <WidgetChrome
+  <BaseWidget
     eyebrow="Create"
     title="New Layer"
     identityVisibility="settings-only"
@@ -32,5 +32,5 @@ export const ShellCreateCollectionWidget = ({
       disabled={saving}
       onClick={onCreateCollection}
     />
-  </WidgetChrome>
+  </BaseWidget>
 );

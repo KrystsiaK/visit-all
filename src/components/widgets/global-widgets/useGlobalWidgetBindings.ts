@@ -8,7 +8,7 @@ import {
   getWidgetLibraryCatalog,
   reorderGlobalWidgets,
 } from "@/app/actions";
-import { useShellWidgetReorder } from "@/components/shells/useShellWidgetReorder";
+import { useShellWidgetReorder } from "@synarava/shell-kit";
 import type { WidgetLibraryCatalogRecord } from "@/app/actions";
 import type { WidgetEntityType, WidgetInstanceRecord } from "@/lib/widgets";
 
@@ -37,6 +37,7 @@ export const useGlobalWidgetBindings = ({
     handleDragOver,
     handleDrop,
   } = useShellWidgetReorder({
+    shellId: "widget_center_shell",
     widgets,
     onReorder: (nextWidgets) => {
       setWidgets(nextWidgets);
@@ -107,11 +108,15 @@ export const useGlobalWidgetBindings = ({
     };
   }, [entityId, entityType, libraryOpen]);
 
-  const handleAddWidgetFromLibrary = async (slug: string) => {
+  const handleAddWidgetFromLibrary = async (
+    slug: string,
+    onLibraryMutation?: () => void
+  ) => {
     setAddingSlug(slug);
 
     try {
       await addWidgetFromLibrary(slug, entityType, entityId);
+      onLibraryMutation?.();
       const nextWidgets = await getGlobalWidgets();
       setWidgets(nextWidgets);
       const nextDefinitions = await getWidgetLibraryCatalog(entityType, entityId);

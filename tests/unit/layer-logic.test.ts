@@ -28,9 +28,10 @@ describe("layer logic spec", () => {
   });
 
   it("auto-opens the mobile drawer only when layer confirmation is needed", () => {
-    expect(shouldAutoOpenLayerDrawer(true, "pin", true, false)).toBe(true);
-    expect(shouldAutoOpenLayerDrawer(true, "trace", false, true)).toBe(true);
-    expect(shouldAutoOpenLayerDrawer(true, "trace", false, false)).toBe(false);
-    expect(shouldAutoOpenLayerDrawer(false, "pin", true, false)).toBe(false);
+    expect(shouldAutoOpenLayerDrawer(true, "pin", true, false, false)).toBe(true);
+    expect(shouldAutoOpenLayerDrawer(true, "trace", false, true, false)).toBe(true);
+    expect(shouldAutoOpenLayerDrawer(true, "area", false, false, true)).toBe(true);
+    expect(shouldAutoOpenLayerDrawer(true, "trace", false, false, false)).toBe(false);
+    expect(shouldAutoOpenLayerDrawer(false, "pin", true, false, false)).toBe(false);
   });
 });

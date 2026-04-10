@@ -1,6 +1,5 @@
 import { Search, X } from "lucide-react";
-import { WidgetFrame } from "@/components/widgets/WidgetFrame";
-import { useShellRuntimeActions, useShellRuntimeValue } from "@/components/shells/ShellRuntimeProvider";
+import { BaseWidget, useShellRuntimeActions, useShellRuntimeValue } from "@synarava/shell-kit";
 
 export const ShellSearchWidget = () => {
   const collectionQuery = useShellRuntimeValue("collectionQuery", "");
@@ -8,7 +7,8 @@ export const ShellSearchWidget = () => {
   const hasQuery = collectionQuery.trim().length > 0;
 
   return (
-    <WidgetFrame
+    <BaseWidget
+      dataTestId="shell-search-widget"
       className="pointer-events-auto border-black/10 bg-[#f8f6f1]/80"
       bodyClassName="relative flex items-center gap-3"
       title="Search Collections"
@@ -34,6 +34,6 @@ export const ShellSearchWidget = () => {
           </button>
         ) : null}
       </div>
-    </WidgetFrame>
+    </BaseWidget>
   );
 };

@@ -1,0 +1,20 @@
+wing: visit_all
+rooms:
+- name: documentation
+  description: Files from documentation/
+- name: testing
+  description: Files from tests/
+- name: public
+  description: Files from public/
+- name: scripts
+  description: Files from scripts/
+- name: backend
+  description: Files from db/
+- name: test_results
+  description: Files from test-results/
+- name: src
+  description: Files from src/
+- name: frontend
+  description: Files from components/
+- name: general
+  description: Files that don't fit other rooms

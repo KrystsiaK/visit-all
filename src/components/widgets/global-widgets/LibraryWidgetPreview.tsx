@@ -2,11 +2,15 @@
 
 import { type ReactNode } from "react";
 
-import { ShellRuntimeProvider } from "@/components/shells/ShellRuntimeProvider";
+import { ShellRuntimeProvider } from "@synarava/shell-kit";
 import { EntityDeleteWidgetCard } from "@/components/widgets/EntityDeleteWidgetCard";
+import { EntityGalleryWidgetCard } from "@/components/widgets/EntityGalleryWidgetCard";
 import { EntityInfoWidgetCard } from "@/components/widgets/EntityInfoWidgetCard";
+import { EntityNearbyPinsWidgetCard } from "@/components/widgets/EntityNearbyPinsWidgetCard";
 import { EntityPlaceholderWidgetCard } from "@/components/widgets/EntityPlaceholderWidgetCard";
 import { EntityRatingWidgetCard } from "@/components/widgets/EntityRatingWidgetCard";
+import { EntityResourcesWidgetCard } from "@/components/widgets/EntityResourcesWidgetCard";
+import { EntityStoriesWidgetCard } from "@/components/widgets/EntityStoriesWidgetCard";
 import { GlobalOverviewWidgetCard } from "@/components/widgets/global-widgets/GlobalOverviewWidgetCard";
 import { UserAccountActionsWidgetCard } from "@/components/widgets/user-widgets/UserAccountActionsWidgetCard";
 import { UserProfileWidgetCard } from "@/components/widgets/user-widgets/UserProfileWidgetCard";
@@ -161,14 +165,10 @@ export const LibraryWidgetPreview = ({
         <EntityInfoWidgetCard
           widget={widget}
           entity={pinEntity}
-          pinNote="Preview note"
-          pinImage={null}
-          imageFile={null}
-          saving={false}
+          entityTitle={pinEntity.title}
           editable={false}
-          onNoteChange={noop as never}
-          onImageUpload={async () => {}}
-          onImageDelete={async () => {}}
+          onTitleChange={noop}
+          onTitleCommit={async () => {}}
         />
       );
     case "entity_delete":
@@ -187,45 +187,112 @@ export const LibraryWidgetPreview = ({
           widget={widget}
           entity={pinEntity}
           value={4}
-          saving={false}
           disabled
           onRate={noop}
         />
       );
     case "entity_gallery":
       return (
-        <EntityPlaceholderWidgetCard
+        <EntityGalleryWidgetCard
           widget={widget}
           entity={pinEntity}
-          eyebrow="Gallery"
-          body="This widget hosts a multi-photo gallery."
+          mediaItems={[
+            {
+              id: "preview-media-1",
+              storageKey: "preview/1",
+              publicUrl: "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=600&q=80",
+              caption: "Preview asset",
+              position: 0,
+            },
+          ]}
+          saving={false}
+          disabled
+          onUpload={asyncNoop}
+          onDeleteMediaItem={asyncNoop}
         />
       );
     case "entity_stories":
       return (
-        <EntityPlaceholderWidgetCard
+        <EntityStoriesWidgetCard
           widget={widget}
           entity={pinEntity}
-          eyebrow="Stories"
-          body="This widget stores markdown stories and notes."
+          storyEntries={[
+            {
+              id: "preview-story-1",
+              title: "Arrival notes",
+              bodyMarkdown:
+                "# Palacio do Marquez\n\nA quiet palace compound with strong morning light.\n\n- Best before noon\n- Good for a slow walk\n- Bring a camera",
+              position: 0,
+              publishedAt: null,
+            },
+          ]}
+          saving={false}
+          onSaveStoryEntry={asyncNoop}
+          onRemoveStoryEntry={asyncNoop}
         />
       );
     case "entity_resources":
       return (
-        <EntityPlaceholderWidgetCard
+        <EntityResourcesWidgetCard
           widget={widget}
           entity={pinEntity}
-          eyebrow="Resources"
-          body="This widget collects external resource links."
+          resources={[
+            {
+              id: "preview-resource-1",
+              label: "Official site",
+              url: "https://example.com",
+              position: 0,
+              preview: {
+                resolvedUrl: "https://example.com",
+                hostname: "example.com",
+                siteName: "Example",
+                title: "Example Domain",
+                description: "This preview demonstrates how external metadata appears once the server caches it.",
+                imageUrl: null,
+                faviconUrl: "https://example.com/favicon.ico",
+                status: "ready",
+                errorMessage: null,
+                fetchedAt: "2026-04-09T10:00:00.000Z",
+              },
+            },
+          ]}
+          onAddResource={asyncNoop}
+          onRemoveResource={asyncNoop}
+          onCommitResource={async () => {}}
         />
       );
     case "entity_nearby_pins":
       return (
-        <EntityPlaceholderWidgetCard
+        <EntityNearbyPinsWidgetCard
           widget={widget}
           entity={pinEntity}
-          eyebrow="Nearby Pins"
-          body="This widget surfaces nearby highly-rated pins."
+          nearbyPins={[
+            {
+              id: "nearby-1",
+              containerId: "container-nearby-1",
+              title: "Factory Courtyard",
+              collectionId: "collection-1",
+              collectionName: "Industrial Heritage",
+              collectionColor: "#ff0000",
+              imageUrl:
+                "https://images.unsplash.com/photo-1520637836862-4d197d17c38a?auto=format&fit=crop&w=600&q=80",
+              rating: 4,
+              distanceMeters: 420,
+              coordinates: { lng: -9.1592, lat: 38.7081 },
+            },
+            {
+              id: "nearby-2",
+              containerId: "container-nearby-2",
+              title: "Bell Gate",
+              collectionId: "collection-1",
+              collectionName: "Industrial Heritage",
+              collectionColor: "#ffff00",
+              imageUrl: null,
+              rating: 5,
+              distanceMeters: 760,
+              coordinates: { lng: -9.1609, lat: 38.7091 },
+            },
+          ]}
         />
       );
     case "entity_transport_mode":

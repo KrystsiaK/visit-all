@@ -1,5 +1,5 @@
 import { Trash2 } from "lucide-react";
-import { WidgetChrome } from "@/components/widgets/WidgetChrome";
+import { BaseWidget } from "@synarava/shell-kit";
 import type { WidgetEntityPayload, WidgetInstanceRecord } from "@/lib/widgets";
 
 interface EntityDeleteWidgetCardProps {
@@ -7,7 +7,11 @@ interface EntityDeleteWidgetCardProps {
   entity: WidgetEntityPayload;
   saving: boolean;
   disabled?: boolean;
+  canRemove?: boolean;
+  removing?: boolean;
   onDelete: () => void;
+  onBackgroundStyleChange?: (widgetId: string, backgroundStyle: string) => void;
+  onRemove?: () => void;
 }
 
 export function EntityDeleteWidgetCard({
@@ -15,12 +19,38 @@ export function EntityDeleteWidgetCard({
   entity,
   saving,
   disabled = false,
+  canRemove = false,
+  removing = false,
   onDelete,
+  onBackgroundStyleChange,
+  onRemove,
 }: EntityDeleteWidgetCardProps) {
   return (
-    <WidgetChrome
+    <BaseWidget
       title={widget.name}
       subtitle={`Delete the ${entity.type} and all widget-linked data attached to it.`}
+      backgroundStyle={
+        typeof widget.config.chromeBackgroundStyle === "string"
+          ? widget.config.chromeBackgroundStyle
+          : "default"
+      }
+      onBackgroundStyleChange={
+        onBackgroundStyleChange
+          ? (backgroundStyle) => onBackgroundStyleChange(widget.id, backgroundStyle)
+          : undefined
+      }
+      settingsContent={
+        canRemove && onRemove ? (
+          <button
+            type="button"
+            onClick={onRemove}
+            disabled={removing}
+            className="flex min-h-11 w-full items-center justify-center rounded-2xl border border-[#c61f1f]/15 bg-[#fff6f6] px-4 text-sm font-medium text-[#a11a1a] transition-colors hover:bg-[#ffefef] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {removing ? "Removing..." : "Remove Widget"}
+          </button>
+        ) : null
+      }
       className="border-[rgba(214,0,0,0.12)]"
       accent={
         <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#ff1b0a] text-white">
@@ -57,6 +87,6 @@ export function EntityDeleteWidgetCard({
           {disabled ? "Deferred" : "Delete"}
         </button>
       </div>
-    </WidgetChrome>
+    </BaseWidget>
   );
 }

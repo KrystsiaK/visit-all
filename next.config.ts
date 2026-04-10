@@ -20,6 +20,7 @@ const cspDirectives = [
 ].join("; ");
 
 const nextConfig: NextConfig = {
+  transpilePackages: ["@synarava/shell-kit"],
   experimental: {
     serverActions: {
       bodySizeLimit: serverActionBodyLimit,

@@ -1,17 +1,23 @@
 import { Trash2 } from "lucide-react";
 import { WidgetActionBody } from "@/components/widgets/WidgetActionBody";
-import { WidgetChrome } from "@/components/widgets/WidgetChrome";
+import { BaseWidget } from "@synarava/shell-kit";
 
 interface ShellRemoveTracePointWidgetProps {
   visible: boolean;
   selectedTraceNodeIndex: number | null;
   onRemoveSelectedTraceNode?: () => void;
+  title?: string;
+  readyEyebrow?: (index: number) => string;
+  idleEyebrow?: string;
 }
 
 export const ShellRemoveTracePointWidget = ({
   visible,
   selectedTraceNodeIndex,
   onRemoveSelectedTraceNode,
+  title = "Remove Point",
+  readyEyebrow = (index) => `Point ${index + 1} Ready`,
+  idleEyebrow = "Select Point",
 }: ShellRemoveTracePointWidgetProps) => {
   if (!visible) {
     return null;
@@ -20,9 +26,9 @@ export const ShellRemoveTracePointWidget = ({
   const disabled = selectedTraceNodeIndex === null;
 
   return (
-    <WidgetChrome
-      eyebrow={disabled ? "Select Point" : `Point ${selectedTraceNodeIndex + 1} Ready`}
-      title="Remove Point"
+    <BaseWidget
+      eyebrow={disabled ? idleEyebrow : readyEyebrow(selectedTraceNodeIndex)}
+      title={title}
       identityVisibility="settings-only"
       className={disabled
         ? "pointer-events-auto border-black/10 bg-[#ebe8df] shadow-[0px_10px_28px_rgba(0,0,0,0.14)]"
@@ -31,7 +37,7 @@ export const ShellRemoveTracePointWidget = ({
       contentPaddingClassName="p-0"
     >
       <WidgetActionBody
-        title="Remove Point"
+        title={title}
         icon={<Trash2 className={disabled ? "h-6 w-6 text-neutral-400" : "h-6 w-6 text-[#7d0f1f]"} />}
         colorBars={
           <div className="flex h-full flex-col">
@@ -44,6 +50,6 @@ export const ShellRemoveTracePointWidget = ({
         disabled={disabled}
         onClick={() => onRemoveSelectedTraceNode?.()}
       />
-    </WidgetChrome>
+    </BaseWidget>
   );
 };
