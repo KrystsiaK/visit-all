@@ -6,11 +6,11 @@ import { LoaderCircle, LocateFixed } from "lucide-react";
 import { getPins, getTraces, getAreas } from "@/app/actions";
 import type { FeatureCollection, Feature, Point, LineString, Polygon } from "geojson";
 import type { InteractionMode } from "@/app/page";
-import type { FeatureProperties } from "@/components/widgets/WidgetContext";
+import type { FeatureProperties } from "@/components/widgets/ActiveFeatureContext";
 import type { StyleSpecification } from "maplibre-gl";
 import { lineString } from "@turf/helpers";
 import bezierSpline from "@turf/bezier-spline";
-import { useWidgetContext } from "@/components/widgets/WidgetContext";
+import { useActiveFeature } from "@/components/widgets/ActiveFeatureContext";
 import { GlassPinIcon } from "@/components/icons/GlassPinIcon";
 import { DEFAULT_HOME_VIEW } from "@/components/map/geolocation";
 import { useUserGeolocation } from "@/components/map/useUserGeolocation";
@@ -66,6 +66,76 @@ interface AreaMapRecord {
   color?: string;
   name?: string;
   path?: PolygonGeometry;
+}
+
+function GeometryAnchorMarker({
+  color,
+  selected,
+  variant,
+  onClick,
+}: {
+  color: string;
+  selected: boolean;
+  variant: "trace-start" | "trace-end" | "area";
+  onClick: () => void;
+}) {
+  const ariaLabel =
+    variant === "trace-start"
+      ? "Open path from start anchor"
+      : variant === "trace-end"
+        ? "Open path from end anchor"
+        : "Open zone from closure anchor";
+
+  const innerGlyph =
+    variant === "trace-start" ? (
+      <span className="absolute left-1/2 top-1/2 h-[10px] w-[10px] -translate-x-1/2 -translate-y-1/2 rounded-[3px] border border-black/10 bg-white" />
+    ) : variant === "trace-end" ? (
+      <span className="absolute left-1/2 top-1/2 h-[10px] w-[10px] -translate-x-1/2 -translate-y-1/2 rounded-[3px] bg-[#111111]" />
+    ) : (
+      <>
+        <span className="absolute left-1/2 top-1/2 h-[12px] w-[12px] -translate-x-1/2 -translate-y-1/2 rounded-full border-[2px] border-[#111111] bg-white" />
+        <span className="absolute left-1/2 top-1/2 h-[3px] w-[3px] -translate-x-1/2 -translate-y-1/2 rounded-full" style={{ backgroundColor: color }} />
+      </>
+    );
+
+  return (
+    <button
+      type="button"
+      onClick={(event) => {
+        event.stopPropagation();
+        onClick();
+      }}
+      className="group relative flex h-[54px] w-[36px] items-center justify-center"
+      aria-label={ariaLabel}
+    >
+      <span
+        className={`absolute left-1/2 top-[2px] h-[34px] w-[34px] -translate-x-1/2 rounded-full transition-all ${
+          selected
+            ? "scale-105 bg-white/95 shadow-[0px_4px_10px_rgba(0,0,0,0.12)]"
+            : "bg-white/88 shadow-[0px_2px_6px_rgba(0,0,0,0.08)] group-hover:scale-[1.03]"
+        }`}
+        style={{ boxShadow: selected ? `0 0 0 3px ${color}, 0 4px 10px rgba(0,0,0,0.12)` : `0 0 0 2.5px ${color}, 0 2px 6px rgba(0,0,0,0.08)` }}
+      />
+      <span
+        className="absolute left-1/2 top-[6px] h-[22px] w-[22px] -translate-x-1/2 rounded-full border-[2px] border-[#111111] bg-white"
+      />
+      <span
+        className="absolute left-1/2 top-[6px] h-[5px] w-[22px] -translate-x-1/2 rounded-t-full"
+        style={{ backgroundColor: color }}
+      />
+      <span className="absolute left-1/2 top-[17px] h-[10px] w-px -translate-x-1/2 bg-[#111111]/14" />
+      <span className="absolute left-1/2 top-[22px] h-px w-[12px] -translate-x-1/2 bg-[#111111]/14" />
+      {innerGlyph}
+      <span
+        className="absolute left-1/2 top-[31px] h-[13px] w-[2px] -translate-x-1/2 rounded-full"
+        style={{ backgroundColor: color }}
+      />
+      <span
+        className="absolute left-1/2 top-[42px] h-[8px] w-[8px] -translate-x-1/2 rotate-45 border-r-[1.5px] border-b-[1.5px] border-[#111111]"
+        style={{ backgroundColor: color }}
+      />
+    </button>
+  );
 }
 
 function applySmoothingToLine(coords: [number, number][], curveMode?: boolean) {
@@ -125,6 +195,7 @@ interface MapCanvasProps {
   editingTraceId?: string | null;
   editingAreaId?: string | null;
   traceDraftFinalized?: boolean;
+  areaDraftFinalized?: boolean;
   curveMode?: boolean;
   terrain3D?: boolean;
   isSatellite?: boolean;
@@ -137,7 +208,7 @@ export default function MapCanvas({
   mode, onMapClick, onTraceSelected, onAreaSelected, onPinSelected,
   onPendingPinCancel, onTraceNodeClick, selectedTraceNodeIndex = null,
   selectedPoint, drawingPath, setDrawingPath, 
-  editingTraceId, editingAreaId, traceDraftFinalized = false, curveMode, terrain3D, isSatellite = false, resetViewTrigger = 0, refreshTrigger, hiddenCollectionIds = []
+  traceDraftFinalized = false, areaDraftFinalized = false, curveMode, terrain3D, isSatellite = false, resetViewTrigger = 0, refreshTrigger, hiddenCollectionIds = []
 }: MapCanvasProps) {
   const previousResetViewTrigger = useRef(resetViewTrigger);
   const mapRef = useRef<MapRef | null>(null);
@@ -148,7 +219,17 @@ export default function MapCanvas({
   const [areas, setAreas] = useState<AreaMapRecord[]>([]);
   const { isLocating, location, permissionState, requestLocation } = useUserGeolocation();
 
-  const { setActiveFeature, flyToMapCommand, clearFlyToMapCommand, highlightedFeatureId } = useWidgetContext();
+  const {
+    activeFeature,
+    setActiveFeature,
+    flyToMapCommand,
+    clearFlyToMapCommand,
+    highlightedFeatureId,
+    setHighlightedFeatureId,
+  } = useActiveFeature();
+  const geometryDraftFinalized =
+    mode.includes("trace") ? traceDraftFinalized : mode.includes("area") ? areaDraftFinalized : false;
+  const selectedFeatureId = highlightedFeatureId ?? activeFeature?.id ?? null;
 
   const flyToHomeView = useCallback((duration = 900) => {
     mapRef.current?.flyTo({
@@ -266,7 +347,6 @@ export default function MapCanvas({
 
   const tracesGeoJson: FeatureCollection = useMemo(() => {
     const features: Feature[] = visibleTraces
-      .filter(t => t.id !== editingTraceId)
       .map(trace => {
         let coords: [number, number][] = [];
         if (trace.path?.coordinates) coords = applySmoothingToLine(trace.path.coordinates, curveMode);
@@ -282,11 +362,41 @@ export default function MapCanvas({
         };
       }).filter(f => (f.geometry as LineString).coordinates.length >= 2);
     return { type: 'FeatureCollection', features };
-  }, [visibleTraces, editingTraceId, curveMode]);
+  }, [visibleTraces, curveMode]);
+
+  const selectedTraceGeoJson: FeatureCollection = useMemo(() => {
+    if (!selectedFeatureId) {
+      return { type: "FeatureCollection", features: [] };
+    }
+
+    const selectedTrace = visibleTraces.find(
+      (trace) => trace.id === selectedFeatureId
+    );
+
+    if (!selectedTrace?.path?.coordinates || selectedTrace.path.coordinates.length < 2) {
+      return { type: "FeatureCollection", features: [] };
+    }
+
+    return {
+      type: "FeatureCollection",
+      features: [
+        {
+          type: "Feature",
+          geometry: {
+            type: "LineString",
+            coordinates: applySmoothingToLine(selectedTrace.path.coordinates, curveMode),
+          } as LineString,
+          properties: {
+            id: selectedTrace.id,
+            color: selectedTrace.collectionColor || selectedTrace.color || "#0000ff",
+          },
+        },
+      ],
+    };
+  }, [curveMode, selectedFeatureId, visibleTraces]);
 
   const areasGeoJson: FeatureCollection = useMemo(() => {
     const features: Feature[] = visibleAreas
-      .filter(a => a.id !== editingAreaId)
       .map(area => {
         let coords: [number, number][][] = [];
         if (area.path?.coordinates && area.path.coordinates[0]) {
@@ -305,7 +415,38 @@ export default function MapCanvas({
         };
       }).filter(f => (f.geometry as Polygon).coordinates[0]?.length >= 3);
     return { type: 'FeatureCollection', features };
-  }, [visibleAreas, editingAreaId, curveMode]);
+  }, [visibleAreas, curveMode]);
+
+  const selectedAreaGeoJson: FeatureCollection = useMemo(() => {
+    if (!selectedFeatureId) {
+      return { type: "FeatureCollection", features: [] };
+    }
+
+    const selectedArea = visibleAreas.find(
+      (area) => area.id === selectedFeatureId
+    );
+
+    if (!selectedArea?.path?.coordinates?.[0] || selectedArea.path.coordinates[0].length < 3) {
+      return { type: "FeatureCollection", features: [] };
+    }
+
+    return {
+      type: "FeatureCollection",
+      features: [
+        {
+          type: "Feature",
+          geometry: {
+            type: "Polygon",
+            coordinates: [applySmoothingToPolygon(selectedArea.path.coordinates[0], curveMode)],
+          } as Polygon,
+          properties: {
+            id: selectedArea.id,
+            color: selectedArea.collectionColor || selectedArea.color || "#10b981",
+          },
+        },
+      ],
+    };
+  }, [curveMode, selectedFeatureId, visibleAreas]);
 
   const activeDrawingGeoJson: FeatureCollection = useMemo(() => {
     if (!drawingPath || drawingPath.length < 2) return { type: 'FeatureCollection', features: [] };
@@ -360,6 +501,7 @@ export default function MapCanvas({
       const pinFeat = evt.features?.find(f => f.layer.id === 'unclustered-point');
       if (pinFeat?.properties?.id) {
         onPinSelected(pinFeat.properties.id, pinFeat.properties);
+        setHighlightedFeatureId(pinFeat.properties.id);
         setActiveFeature({ 
            id: pinFeat.properties.id, 
            type: 'pin', 
@@ -370,35 +512,24 @@ export default function MapCanvas({
       }
     }
 
-    // Line / Area Selector Extractors
+    // Saved geometry surfaces should not open the entity shell directly.
     if (onTraceSelected && (!mode.includes('edit') || mode === 'editTrace')) {
       const traceFeat = evt.features?.find(f => f.layer.id === 'traces');
       if (traceFeat?.properties?.id) {
-        const geom = traceFeat.geometry as LineString;
-        if (geom.coordinates) {
-          const coords = geom.coordinates.map(c => ({ lng: c[0], lat: c[1] }));
-          onTraceSelected(traceFeat.properties.id as string, coords, traceFeat.properties as FeatureProperties);
-          setActiveFeature({ id: traceFeat.properties.id as string, type: 'trace', properties: traceFeat.properties });
-          return;
-        }
+        return;
       }
     }
     if (onAreaSelected && (!mode.includes('edit') || mode === 'editArea')) {
       const areaFeat = evt.features?.find(f => f.layer.id === 'areas-fill');
       if (areaFeat?.properties?.id) {
-        const geom = areaFeat.geometry as Polygon;
-        if (geom.coordinates && geom.coordinates[0]) {
-          const coords = geom.coordinates[0].slice(0, -1).map(c => ({ lng: c[0], lat: c[1] }));
-          onAreaSelected(areaFeat.properties.id as string, coords, areaFeat.properties as FeatureProperties);
-          setActiveFeature({ id: areaFeat.properties.id as string, type: 'area', properties: areaFeat.properties });
-          return;
-        }
+        return;
       }
     }
     
     // Deselect if clicking on empty spot
     if (!mode.includes('edit') && mode !== 'pin' && drawingPath && drawingPath.length === 0) {
        setActiveFeature(null);
+       setHighlightedFeatureId(null);
     }
     
     if (onMapClick) onMapClick(evt.lngLat.lng, evt.lngLat.lat);
@@ -429,13 +560,25 @@ export default function MapCanvas({
 
         {/* Saved Areas Layer */}
         <Source id="areas-source" type="geojson" data={areasGeoJson}>
-          <Layer id="areas-fill" type="fill" paint={{ 'fill-color': ['get', 'color'], 'fill-opacity': ['case', ['==', ['get', 'id'], highlightedFeatureId], 0.4, 0.2] }} />
-          <Layer id="areas-outline" type="line" paint={{ 'line-color': ['get', 'color'], 'line-width': ['case', ['==', ['get', 'id'], highlightedFeatureId], 5, 2] }} />
+          <Layer id="areas-fill" type="fill" paint={{ 'fill-color': ['get', 'color'], 'fill-opacity': 0.18 }} />
+          <Layer id="areas-outline" type="line" paint={{ 'line-color': ['get', 'color'], 'line-width': 2 }} />
+        </Source>
+
+        <Source id="areas-selected-source" type="geojson" data={selectedAreaGeoJson}>
+          <Layer id="areas-selected-fill" type="fill" paint={{ 'fill-color': ['get', 'color'], 'fill-opacity': 0.3 }} />
+          <Layer id="areas-selected-outline-underlay" type="line" paint={{ 'line-color': '#ffffff', 'line-width': 8, 'line-opacity': 0.9 }} />
+          <Layer id="areas-selected-outline" type="line" paint={{ 'line-color': '#111111', 'line-width': 5 }} />
         </Source>
 
         {/* Saved Traces Layer */}
         <Source id="traces-source" type="geojson" data={tracesGeoJson}>
-          <Layer id="traces" type="line" paint={{ 'line-color': ['case', ['==', ['get', 'id'], highlightedFeatureId], '#0000ff', ['get', 'color']], 'line-width': ['case', ['==', ['get', 'id'], highlightedFeatureId], 8, 5], 'line-opacity': 1 }} layout={{ 'line-join': 'round', 'line-cap': 'round' }} />
+          <Layer id="traces" type="line" paint={{ 'line-color': ['get', 'color'], 'line-width': 5, 'line-opacity': 1 }} layout={{ 'line-join': 'round', 'line-cap': 'round' }} />
+        </Source>
+
+        <Source id="traces-selected-source" type="geojson" data={selectedTraceGeoJson}>
+          <Layer id="traces-selected-underlay" type="line" paint={{ 'line-color': '#ffffff', 'line-width': 11, 'line-opacity': 0.9 }} layout={{ 'line-join': 'round', 'line-cap': 'round' }} />
+          <Layer id="traces-selected-outline" type="line" paint={{ 'line-color': '#111111', 'line-width': 8, 'line-opacity': 1 }} layout={{ 'line-join': 'round', 'line-cap': 'round' }} />
+          <Layer id="traces-selected" type="line" paint={{ 'line-color': ['get', 'color'], 'line-width': 5, 'line-opacity': 1 }} layout={{ 'line-join': 'round', 'line-cap': 'round' }} />
         </Source>
 
         {/* Active Drawing/Editing GeoJSON Preview */}
@@ -448,7 +591,7 @@ export default function MapCanvas({
         )}
 
         {/* Active Drawing Vertices */}
-        {(mode.includes('trace') || mode.includes('area')) && drawingPath && !traceDraftFinalized && drawingPath.map((p, index) => {
+        {(mode.includes('trace') || mode.includes('area')) && drawingPath && !geometryDraftFinalized && drawingPath.map((p, index) => {
           const isEditableNode = true;
           const isSelectedNode = selectedTraceNodeIndex === index;
 
@@ -475,17 +618,17 @@ export default function MapCanvas({
                 onTraceNodeClick?.(index);
               }}
               className="group relative flex h-5 w-5 items-center justify-center rounded-full cursor-pointer"
-              title={mode === "trace" ? "Click to select. Drag to adjust." : undefined}
+              title={mode.includes("trace") || mode.includes("area") ? "Click to select. Drag to adjust." : undefined}
             >
                 <span className={`absolute inset-0 rounded-full shadow-[0px_3px_10px_rgba(0,0,0,0.22)] ring-1 transition-all ${isSelectedNode ? "bg-[#111111] ring-black/40 scale-110" : "bg-white/95 ring-black/10"}`} />
                 <span className={`absolute inset-[3px] rounded-full border transition-all ${mode.startsWith('edit') ? 'border-[#5b4300] bg-[#ffdf9b]' : 'border-[#00327d] bg-[#f8f6f1]'} ${isSelectedNode ? "scale-95" : ""}`} />
-                <span className={`absolute inset-[6px] rounded-full transition-transform duration-200 ${index === drawingPath.length - 1 && mode === "trace" ? "bg-[#ff0000] group-hover:scale-125" : "bg-[#0000ff]"} ${isSelectedNode ? "scale-125" : ""}`} />
+                <span className={`absolute inset-[6px] rounded-full transition-transform duration-200 ${index === drawingPath.length - 1 && mode === "trace" ? "bg-[#ff0000] group-hover:scale-125" : mode === "area" ? "bg-[#ffff00]" : "bg-[#0000ff]"} ${isSelectedNode ? "scale-125" : ""}`} />
               </button>
           </Marker>
         )})}
 
         {/* Ghost Midpoints */}
-        {(mode.includes('trace') || mode.includes('area')) && drawingPath && !traceDraftFinalized && drawingPath.map((p, index) => {
+        {(mode.includes('trace') || mode.includes('area')) && drawingPath && !geometryDraftFinalized && drawingPath.map((p, index) => {
           let nextP;
           if (index === drawingPath.length - 1) {
             if (mode.includes('area') && drawingPath.length >= 3) nextP = drawingPath[0]; // Area closes back to start forming inner ghost midpoint
@@ -501,14 +644,80 @@ export default function MapCanvas({
           );
         })}
 
+        {/* Saved Trace Anchor Points */}
+        {visibleTraces
+          .flatMap((trace) => {
+            const coords = trace.path?.coordinates ?? [];
+            if (coords.length < 2) {
+              return [];
+            }
+
+            const color = trace.collectionColor || trace.color || "#0000ff";
+            const isSelected = selectedFeatureId === trace.id;
+            const properties: FeatureProperties = {
+              id: trace.id,
+              name: trace.name,
+              collection_id: trace.collection_id,
+            };
+            const lineCoords = coords.map((point) => ({ lng: point[0], lat: point[1] }));
+            const openTrace = () => {
+              onTraceSelected?.(trace.id, lineCoords, properties);
+              setHighlightedFeatureId(trace.id);
+              setActiveFeature({ id: trace.id, type: 'trace', properties });
+            };
+            const [startLng, startLat] = coords[0];
+            const [endLng, endLat] = coords[coords.length - 1];
+
+            return [
+              <Marker key={`trace-start-${trace.id}`} longitude={startLng} latitude={startLat} anchor="bottom">
+                <GeometryAnchorMarker color={color} selected={isSelected} variant="trace-start" onClick={openTrace} />
+              </Marker>,
+              <Marker key={`trace-end-${trace.id}`} longitude={endLng} latitude={endLat} anchor="bottom">
+                <GeometryAnchorMarker color={color} selected={isSelected} variant="trace-end" onClick={openTrace} />
+              </Marker>,
+            ];
+          })}
+
+        {/* Saved Area Closure Points */}
+        {visibleAreas
+          .flatMap((area) => {
+            const ring = area.path?.coordinates?.[0] ?? [];
+            if (ring.length < 3) {
+              return [];
+            }
+
+            const color = area.collectionColor || area.color || "#10b981";
+            const isSelected = selectedFeatureId === area.id;
+            const properties: FeatureProperties = {
+              id: area.id,
+              name: area.name,
+              collection_id: area.collection_id,
+            };
+            const polygonCoords = ring
+              .slice(0, ring.length > 1 ? -1 : ring.length)
+              .map((point) => ({ lng: point[0], lat: point[1] }));
+            const openArea = () => {
+              onAreaSelected?.(area.id, polygonCoords, properties);
+              setHighlightedFeatureId(area.id);
+              setActiveFeature({ id: area.id, type: 'area', properties });
+            };
+            const [startLng, startLat] = ring[0];
+
+            return [
+              <Marker key={`area-anchor-${area.id}`} longitude={startLng} latitude={startLat} anchor="bottom">
+                <GeometryAnchorMarker color={color} selected={isSelected} variant="area" onClick={openArea} />
+              </Marker>,
+            ];
+          })}
+
         {/* Figma Liquid Glass React Pins */}
         {visiblePins.map(pin => {
           const coords = pin.location?.coordinates;
           if (!coords || !coords[0]) return null;
-          const isHighlighted = highlightedFeatureId === pin.id;
+          const isHighlighted = selectedFeatureId === pin.id;
           return (
-            <Marker key={pin.id} longitude={coords[0]} latitude={coords[1]} anchor="bottom" onClick={(e) => { e.originalEvent.stopPropagation(); onPinSelected?.(pin.id, pin); setActiveFeature({ id: pin.id, type: 'pin', properties: pin, coordinates: { lng: coords[0], lat: coords[1] } }); }}>
-              <div className="flex flex-col items-center gap-1 group cursor-pointer hover:-translate-y-2 transition-transform duration-300">
+            <Marker key={pin.id} longitude={coords[0]} latitude={coords[1]} anchor="bottom" onClick={(e) => { e.originalEvent.stopPropagation(); onPinSelected?.(pin.id, pin); setHighlightedFeatureId(pin.id); setActiveFeature({ id: pin.id, type: 'pin', properties: pin, coordinates: { lng: coords[0], lat: coords[1] } }); }}>
+              <div data-testid={`pin-marker-${pin.id}`} className="flex flex-col items-center gap-1 group cursor-pointer hover:-translate-y-2 transition-transform duration-300">
                 <div className={`relative transition-transform duration-300 ${isHighlighted ? 'scale-125 z-50' : 'hover:scale-110'}`}>
                   <GlassPinIcon className="w-[48px] h-[60px] drop-shadow-xl" accentColor={pin.collectionColor || "#1A1A1A"} />
                   {isHighlighted && <div className="absolute inset-0 rounded-full border border-white/60 animate-pulse pointer-events-none" style={{ borderRadius: '50%', transform: 'scale(0.8) translateY(-10%)' }} />}

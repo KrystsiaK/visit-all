@@ -1,29 +1,27 @@
 "use client";
 
 import * as React from "react";
-import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import { createCollection } from "@/app/actions";
 import type { InteractionMode, Collection } from "@/app/page";
-import { ShellWidgetSlot } from "@/components/shells/ShellWidgetSlot";
+import { ShellSlot } from "@synarava/shell-kit";
 import type { LeftSidebarShellConfig } from "@/lib/shells";
 import type { WidgetInstanceRecord, WidgetPlacementRecord } from "@/lib/widgets";
-import { isLeftShellWidgetEnabled, shellEntranceTimeoutMs } from "@/lib/shell-runtime";
 import { LeftSidebarShell } from "@/components/shells/LeftSidebarShell";
 import { ShellCollectionsWidget } from "@/components/widgets/shell-widgets/ShellCollectionsWidget";
 import { ShellControlsWidget } from "@/components/widgets/shell-widgets/ShellControlsWidget";
 import { ShellCreateCollectionWidget } from "@/components/widgets/shell-widgets/ShellCreateCollectionWidget";
 import { ShellFinishTraceWidget } from "@/components/widgets/shell-widgets/ShellFinishTraceWidget";
-import { ShellHeaderWidget } from "@/components/widgets/shell-widgets/ShellHeaderWidget";
 import { ShellModeSwitchWidget } from "@/components/widgets/shell-widgets/ShellModeSwitchWidget";
 import { ShellRemoveTracePointWidget } from "@/components/widgets/shell-widgets/ShellRemoveTracePointWidget";
 import { ShellResetViewWidget } from "@/components/widgets/shell-widgets/ShellResetViewWidget";
 import { ShellSearchWidget } from "@/components/widgets/shell-widgets/ShellSearchWidget";
+import { ShellChromePrimaryWidget } from "@/components/widgets/shell-widgets/ShellChromePrimaryWidget";
 import { useShellCollectionsBinding } from "@/components/widgets/shell-widgets/collections/useShellCollectionsBinding";
-import { ShellWidgetBoundary } from "@/components/shells/ShellWidgetBoundary";
-import { useShellRuntimeActions, useShellRuntimeValue } from "@/components/shells/ShellRuntimeProvider";
+import { useShellRuntimeActions, useShellRuntimeValue } from "@synarava/shell-kit";
 import { type LayerVisibilityState } from "@/lib/layer-visibility";
 import { WidgetErrorBoundary } from "@/components/errors/WidgetErrorBoundary";
-import { useShellWidgetReorder } from "@/components/shells/useShellWidgetReorder";
+import { useShellWidgetReorder } from "@synarava/shell-kit";
 
 interface SidebarProps {
   mode: InteractionMode;
@@ -33,6 +31,7 @@ interface SidebarProps {
   editingTraceId: string | null;
   editingAreaId: string | null;
   traceDraftFinalized: boolean;
+  areaDraftFinalized: boolean;
   curveMode: boolean;
   setCurveMode: (val: boolean) => void;
   terrain3D: boolean;
@@ -47,6 +46,7 @@ interface SidebarProps {
   mobileSidebarOpen?: boolean;
   setMobileSidebarOpen?: (val: boolean) => void;
   desktopSidebarVisible?: boolean;
+  onToggleDesktopSidebar?: () => void;
   sidebarReady?: boolean;
   shellConfig?: LeftSidebarShellConfig;
   shellId?: string;
@@ -65,6 +65,7 @@ interface SidebarProps {
   onShowOnlyCollection: (collectionId: string) => void;
   autoOpenCollectionId: string | null;
   onFinishTraceDraft: () => void;
+  onFinishAreaDraft: () => void;
   selectedTraceNodeIndex?: number | null;
   onRemoveSelectedTraceNode?: () => void;
 }
@@ -72,25 +73,28 @@ interface SidebarProps {
 export default function Sidebar({ 
   mode, setMode, drawingPath, 
   traceDraftFinalized,
+  areaDraftFinalized,
   curveMode, setCurveMode, terrain3D, setTerrain3D, isSatellite, setIsSatellite, onResetView,
   onClearSelection, onDataSaved,
   isMobileViewport = false,
   mobileSidebarOpen, setMobileSidebarOpen,
-  desktopSidebarVisible = true, sidebarReady = false, shellConfig, shellId = "left_sidebar", shellWidgets = [], shellWidgetsLoaded = false, collectionsLoaded = false,
+  desktopSidebarVisible = true, onToggleDesktopSidebar, sidebarReady = false, shellConfig, shellId = "left_sidebar", shellWidgets = [], collectionsLoaded = false,
   onShellWidgetsReorder,
   collections, layerVisibility, setCollections, targetCollectionId, setTargetCollectionId
-  , pendingPin, onCollectionConfirm, onToggleCollectionVisibility, onShowOnlyCollection, autoOpenCollectionId, onFinishTraceDraft, selectedTraceNodeIndex = null, onRemoveSelectedTraceNode
+  , pendingPin, onCollectionConfirm, onToggleCollectionVisibility, onShowOnlyCollection, autoOpenCollectionId, onFinishTraceDraft, onFinishAreaDraft, selectedTraceNodeIndex = null, onRemoveSelectedTraceNode
 }: SidebarProps) {
   
   const awaitingLayerSelection =
     (mode === "pin" && !!pendingPin) ||
-    (mode === "trace" && traceDraftFinalized);
+    (mode === "trace" && traceDraftFinalized) ||
+    (mode === "area" && areaDraftFinalized);
 
   const shellInteractionLocked =
     Boolean(pendingPin) ||
     (((mode === "trace" || mode === "editTrace" || mode === "area" || mode === "editArea") &&
       drawingPath.length > 0) ||
-      (mode === "trace" && traceDraftFinalized));
+      (mode === "trace" && traceDraftFinalized) ||
+      (mode === "area" && areaDraftFinalized));
 
   const itemLabel =
     mode === "trace" || mode === "editTrace"
@@ -99,89 +103,34 @@ export default function Sidebar({
         ? "zone"
         : "pin";
 
-const shellSections = useMemo(
-    () =>
-      shellConfig?.sections ?? {
-        search: true,
-        modeSwitch: true,
-        collections: true,
-        controls: true,
-        actions: true,
-      },
-    [shellConfig?.sections]
-  );
   const desktopWidth = shellConfig?.width ?? 360;
   const orderedShellWidgets = useMemo(
     () => [...shellWidgets].sort((left, right) => left.position - right.position),
     [shellWidgets]
   );
-  const [readyWidgetIds, setReadyWidgetIds] = useState<string[]>([]);
-  const [shellEntranceTimedOut, setShellEntranceTimedOut] = useState(false);
-  const [shellHasEntered, setShellHasEntered] = useState(false);
-  const [creatingCollection, setCreatingCollection] = useState(false);
-
-  const visibleShellWidgets = useMemo(
-    () => orderedShellWidgets.filter((widget) => isLeftShellWidgetEnabled(widget.componentKey, shellSections)),
-    [orderedShellWidgets, shellSections]
-  );
-
-  const requiredShellWidgetIds = useMemo(
-    () => visibleShellWidgets.map((widget) => widget.id),
-    [visibleShellWidgets]
-  );
-
-  const allRequiredWidgetsReady = requiredShellWidgetIds.every((widgetId) =>
-    readyWidgetIds.includes(widgetId)
-  );
-
-  const shellCanEnter =
-    shellHasEntered ||
-    (sidebarReady && shellWidgetsLoaded && (allRequiredWidgetsReady || shellEntranceTimedOut));
-  useEffect(() => {
-    setReadyWidgetIds((currentIds) =>
-      currentIds.filter((widgetId) => requiredShellWidgetIds.includes(widgetId))
-    );
-  }, [requiredShellWidgetIds]);
-
-  useEffect(() => {
-    if (shellHasEntered || !sidebarReady || !shellWidgetsLoaded || requiredShellWidgetIds.length === 0 || allRequiredWidgetsReady) {
-      setShellEntranceTimedOut(false);
-      return;
-    }
-
-    const timeout = window.setTimeout(() => {
-      setShellEntranceTimedOut(true);
-    }, shellEntranceTimeoutMs);
-
-    return () => window.clearTimeout(timeout);
-  }, [allRequiredWidgetsReady, requiredShellWidgetIds.length, shellHasEntered, shellWidgetsLoaded, sidebarReady]);
-
-  useEffect(() => {
-    if (shellCanEnter && !shellHasEntered) {
-      setShellHasEntered(true);
-    }
-  }, [shellCanEnter, shellHasEntered]);
-
-  const handleWidgetLayoutReady = useCallback((widgetId: string) => {
-    setReadyWidgetIds((currentIds) =>
-      currentIds.includes(widgetId) ? currentIds : [...currentIds, widgetId]
-    );
-  }, []);
-
-  const isWidgetLayoutReady = useCallback(
-    (widget: Pick<WidgetInstanceRecord, "id" | "slug" | "componentKey">) => {
-      if (!isLeftShellWidgetEnabled(widget.componentKey, shellSections)) {
-        return false;
+  const pinnedShellWidgets = useMemo(
+    () => {
+      const explicitPinned = orderedShellWidgets.filter(
+        (widget) => widget.slot === "pinned" && widget.componentKey !== "shell_header"
+      );
+      if (explicitPinned.length > 0) {
+        return explicitPinned;
       }
 
-      if (widget.componentKey === "shell_collections") {
-        return collectionsLoaded;
-      }
-
-      return true;
+      return [];
     },
-    [collectionsLoaded, shellSections]
+    [orderedShellWidgets]
   );
+  const mainShellWidgets = useMemo(
+    () =>
+      orderedShellWidgets.filter(
+        (widget) =>
+          widget.componentKey !== "shell_header" &&
+          !pinnedShellWidgets.some((pinnedWidget) => pinnedWidget.id === widget.id)
+      ),
+    [orderedShellWidgets, pinnedShellWidgets]
+  );
+  const [creatingCollection, setCreatingCollection] = useState(false);
 
   const {
     saving: collectionBindingSaving,
@@ -212,6 +161,18 @@ const shellSections = useMemo(
     setMobileSidebarOpen,
   });
 
+  const leftSidebarInitialState = useMemo(
+    () => ({
+      collectionQuery: "",
+      interactionMode: mode,
+      areasDisabled: false,
+      interactionLocked: shellInteractionLocked,
+      highlightedCollectionId,
+      editingCollectionId,
+    }),
+    [mode, shellInteractionLocked, highlightedCollectionId, editingCollectionId]
+  );
+
   const saving = collectionBindingSaving || creatingCollection;
 
   const handleCreateCollection = async () => {
@@ -237,7 +198,8 @@ const shellSections = useMemo(
     handleDragOver,
     handleDrop,
   } = useShellWidgetReorder({
-    widgets: orderedShellWidgets,
+    shellId: shellId ?? "left_sidebar",
+    widgets: mainShellWidgets,
     onReorder: onShellWidgetsReorder,
   });
 
@@ -246,16 +208,7 @@ const shellSections = useMemo(
     let shouldRender = true;
 
     if (widget.componentKey === "shell_header") {
-      return (
-        <ShellWidgetBoundary
-          key={widget.id}
-          widgetId={widget.id}
-          layoutReady
-          onLayoutReady={handleWidgetLayoutReady}
-        >
-          <ShellHeaderWidget />
-        </ShellWidgetBoundary>
-      );
+      return null;
     } else if (widget.componentKey === "shell_search") {
       content = <ShellSearchWidget />;
     } else if (widget.componentKey === "shell_mode_switch") {
@@ -314,24 +267,35 @@ const shellSections = useMemo(
     } else if (widget.componentKey === "shell_reset_view") {
       content = <ShellResetViewWidget onResetView={onResetView} disabled={shellInteractionLocked} />;
     } else if (widget.componentKey === "shell_finish_trace") {
-      shouldRender = mode === "trace" && drawingPath.length >= 2 && !traceDraftFinalized;
+      shouldRender =
+        (mode === "trace" && drawingPath.length >= 2 && !traceDraftFinalized) ||
+        (mode === "area" && drawingPath.length >= 3 && !areaDraftFinalized);
 
       if (shouldRender) {
         content = (
           <ShellFinishTraceWidget
             visible={true}
-            onFinishTraceDraft={onFinishTraceDraft}
+            title={mode === "area" ? "Finish Zone" : "Finish Path"}
+            eyebrow={mode === "area" ? "Zone Ready" : "Path Ready"}
+            onFinishTraceDraft={mode === "area" ? onFinishAreaDraft : onFinishTraceDraft}
           />
         );
       }
     } else if (widget.componentKey === "shell_remove_trace_point") {
-      shouldRender = mode === "trace" && drawingPath.length >= 2 && !traceDraftFinalized;
+      shouldRender =
+        (mode === "trace" && drawingPath.length >= 2 && !traceDraftFinalized) ||
+        (mode === "area" && drawingPath.length >= 3 && !areaDraftFinalized);
 
       if (shouldRender) {
         content = (
           <ShellRemoveTracePointWidget
             visible={true}
             selectedTraceNodeIndex={selectedTraceNodeIndex}
+            title={mode === "area" ? "Remove Vertex" : "Remove Point"}
+            idleEyebrow={mode === "area" ? "Select Vertex" : "Select Point"}
+            readyEyebrow={(index) =>
+              mode === "area" ? `Vertex ${index + 1} Ready` : `Point ${index + 1} Ready`
+            }
             onRemoveSelectedTraceNode={onRemoveSelectedTraceNode}
           />
         );
@@ -343,7 +307,7 @@ const shellSections = useMemo(
     }
 
     return (
-      <ShellWidgetSlot
+      <ShellSlot
         key={widget.id}
         isDragging={draggedWidgetId === widget.id}
         isDropTarget={dropTarget?.widgetId === widget.id}
@@ -353,14 +317,8 @@ const shellSections = useMemo(
         onDragOver={(event) => handleDragOver(event, widget.id)}
         onDrop={(event) => handleDrop(event, widget.id)}
       >
-        <ShellWidgetBoundary
-          widgetId={widget.id}
-          layoutReady={isWidgetLayoutReady(widget)}
-          onLayoutReady={handleWidgetLayoutReady}
-        >
-          <WidgetErrorBoundary>{content}</WidgetErrorBoundary>
-        </ShellWidgetBoundary>
-      </ShellWidgetSlot>
+        <WidgetErrorBoundary>{content}</WidgetErrorBoundary>
+      </ShellSlot>
     );
   };
 
@@ -407,29 +365,38 @@ const shellSections = useMemo(
         </div>
       )}
       
-      <LeftSidebarShell
-        key={shellId}
-        shellId={shellId}
-        isOpen={isMobileViewport ? Boolean(mobileSidebarOpen) : desktopSidebarVisible && shellCanEnter}
-        shellWidth={desktopWidth}
-        initialState={{
-          collectionQuery: "",
-          interactionMode: mode,
-          areasDisabled: true,
-          interactionLocked: shellInteractionLocked,
-          highlightedCollectionId,
-          editingCollectionId,
-        }}
-        onCloseMobile={() => setMobileSidebarOpen?.(false)}
-      >
-        <ShellRuntimeModeSync mode={mode} />
-        <ShellRuntimeInteractionLockSync interactionLocked={shellInteractionLocked} />
-        <ShellRuntimeCollectionSelectionSync
-          highlightedCollectionId={highlightedCollectionId}
-          editingCollectionId={editingCollectionId}
-        />
-        {orderedShellWidgets.map((widget) => renderShellWidget(widget))}
-      </LeftSidebarShell>
+      {(isMobileViewport || sidebarReady) && (
+        <LeftSidebarShell
+          key={`${shellId}:${isMobileViewport ? "mobile" : desktopSidebarVisible ? "open" : "collapsed"}`}
+          shellId={shellId}
+          isOpen={isMobileViewport ? Boolean(mobileSidebarOpen) : true}
+          collapsed={!isMobileViewport && !desktopSidebarVisible}
+          shellWidth={desktopWidth}
+          initialState={leftSidebarInitialState}
+          onCloseMobile={() => setMobileSidebarOpen?.(false)}
+          pinnedChildren={
+            isMobileViewport ? (
+              pinnedShellWidgets.map((widget) => renderShellWidget(widget))
+            ) : (
+              <ShellChromePrimaryWidget
+                desktopSidebarVisible={desktopSidebarVisible}
+                mobileSidebarOpen={Boolean(mobileSidebarOpen)}
+                shellWidth={desktopWidth}
+                onToggleDesktopSidebar={() => onToggleDesktopSidebar?.()}
+                onToggleMobileSidebar={() => setMobileSidebarOpen?.(!Boolean(mobileSidebarOpen))}
+              />
+            )
+          }
+        >
+          <ShellRuntimeModeSync mode={mode} />
+          <ShellRuntimeInteractionLockSync interactionLocked={shellInteractionLocked} />
+          <ShellRuntimeCollectionSelectionSync
+            highlightedCollectionId={highlightedCollectionId}
+            editingCollectionId={editingCollectionId}
+          />
+          {mainShellWidgets.map((widget) => renderShellWidget(widget))}
+        </LeftSidebarShell>
+      )}
     </>
   );
 }

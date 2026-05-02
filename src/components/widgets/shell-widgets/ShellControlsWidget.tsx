@@ -1,5 +1,5 @@
 import { Globe2, Mountain, Waves } from "lucide-react";
-import { WidgetFrame } from "@/components/widgets/WidgetFrame";
+import { BaseWidget } from "@synarava/shell-kit";
 
 interface ShellControlsWidgetProps {
   isSatellite: boolean;
@@ -20,7 +20,7 @@ export const ShellControlsWidget = ({
   setCurveMode,
   disabled = false,
 }: ShellControlsWidgetProps) => (
-  <WidgetFrame
+  <BaseWidget
     className="pointer-events-auto"
     bodyClassName="space-y-3"
     title="Map Controls"
@@ -55,5 +55,5 @@ export const ShellControlsWidget = ({
         </div>
       );
     })}
-  </WidgetFrame>
+  </BaseWidget>
 );

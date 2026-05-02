@@ -1,21 +1,21 @@
-import type { ChangeEvent } from "react";
-import { Calendar, Image as ImageIcon, MapPin } from "lucide-react";
+import { MapPin, PencilLine } from "lucide-react";
+import { InlineEditableText } from "@/components/inputs/InlineEditableText";
 import type { WidgetEntityPayload, WidgetInstanceRecord } from "@/lib/widgets";
-import { Tooltip } from "@/components/ui/Tooltip";
-import { WidgetChrome } from "@/components/widgets/WidgetChrome";
+import { ShellHeroCard } from "@/components/shells/ShellHeroCard";
+import { BaseWidget } from "@synarava/shell-kit";
 
 interface EntityInfoWidgetCardProps {
   widget: WidgetInstanceRecord;
   entity: WidgetEntityPayload;
-  pinNote: string;
-  pinImage: string | null;
-  imageFile: File | null;
-  saving: boolean;
+  entityTitle: string;
   editable: boolean;
-  interactionsDisabled?: boolean;
-  onNoteChange: (e: ChangeEvent<HTMLTextAreaElement>) => void;
-  onImageUpload: (file: File) => Promise<void>;
-  onImageDelete: () => Promise<void>;
+  presentation?: "default" | "pinned";
+  canRemove?: boolean;
+  removing?: boolean;
+  onTitleChange: (value: string) => void;
+  onTitleCommit: () => Promise<void>;
+  onBackgroundStyleChange?: (widgetId: string, backgroundStyle: string) => void;
+  onRemove?: () => void;
 }
 
 function getAccentClasses(type: WidgetEntityPayload["type"]) {
@@ -33,15 +33,15 @@ function getAccentClasses(type: WidgetEntityPayload["type"]) {
 export function EntityInfoWidgetCard({
   widget,
   entity,
-  pinNote,
-  pinImage,
-  imageFile,
-  saving,
+  entityTitle,
   editable,
-  interactionsDisabled = false,
-  onNoteChange,
-  onImageUpload,
-  onImageDelete,
+  presentation = "default",
+  canRemove = false,
+  removing = false,
+  onTitleChange,
+  onTitleCommit,
+  onBackgroundStyleChange,
+  onRemove,
 }: EntityInfoWidgetCardProps) {
   const subtitleLabel =
     entity.type === "trace"
@@ -50,112 +50,93 @@ export function EntityInfoWidgetCard({
         ? "Zone Layer"
         : "Location";
 
+  if (presentation === "pinned") {
+    return (
+      <ShellHeroCard
+        dataTestId="entity-pinned-hero"
+        eyebrow={subtitleLabel}
+        title={entityTitle || entity.title}
+        titleContent={
+          <InlineEditableText
+            value={entityTitle}
+            placeholder={entity.title}
+            disabled={false}
+            editable={editable}
+            onChange={onTitleChange}
+            onCommit={onTitleCommit}
+            readOnlyClassName="truncate text-[16px] font-black tracking-tight text-neutral-950"
+            inputClassName="w-full border-none bg-transparent p-0 text-[16px] font-black tracking-tight text-neutral-950 outline-none placeholder:text-neutral-300"
+          />
+        }
+        subtitle={entity.subtitle || `${entity.type} entity`}
+        accent={
+          <div
+            className={`flex h-12 w-12 items-center justify-center rounded-[18px] ${getAccentClasses(entity.type)}`}
+          >
+            <MapPin className="h-5 w-5" />
+          </div>
+        }
+      />
+    );
+  }
+
   return (
-    <WidgetChrome
-      title={entity.title}
+    <BaseWidget
+      title={entityTitle || entity.title}
       subtitle={entity.subtitle || `${entity.type} entity`}
+      backgroundStyle={
+        typeof widget.config.chromeBackgroundStyle === "string"
+          ? widget.config.chromeBackgroundStyle
+          : "default"
+      }
+      onBackgroundStyleChange={
+        onBackgroundStyleChange
+          ? (backgroundStyle) => onBackgroundStyleChange(widget.id, backgroundStyle)
+          : undefined
+      }
+      settingsContent={
+        canRemove && onRemove ? (
+          <button
+            type="button"
+            onClick={onRemove}
+            disabled={removing}
+            className="flex min-h-11 w-full items-center justify-center rounded-2xl border border-[#c61f1f]/15 bg-[#fff6f6] px-4 text-sm font-medium text-[#a11a1a] transition-colors hover:bg-[#ffefef] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {removing ? "Removing..." : "Remove Widget"}
+          </button>
+        ) : null
+      }
       accent={
         <div className={`flex h-8 w-8 items-center justify-center rounded-xl ${getAccentClasses(entity.type)}`}>
           <MapPin className="h-4 w-4" />
         </div>
       }
     >
-
-      {editable && interactionsDisabled && (
-        <div className="mb-4 rounded-xl border border-dashed border-black/10 bg-white/35 px-4 py-3">
-          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-neutral-500">
-            Deferred
-          </p>
-          <p className="mt-2 text-sm leading-5 text-neutral-600">
-            Widget editing is temporarily disabled for this iteration.
-          </p>
-        </div>
-      )}
-
-      {(pinImage || imageFile) ? (
-        <div className="mb-4 relative overflow-hidden rounded-xl">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={pinImage || URL.createObjectURL(imageFile!)}
-            alt={entity.title}
-            className="h-32 w-full object-cover"
-          />
-          {editable && !interactionsDisabled && (
-            <Tooltip label="Remove Photo">
-              <button
-                onClick={onImageDelete}
-                disabled={saving}
-                className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-lg bg-white/85 text-xs font-black text-black transition-colors hover:bg-black hover:text-white"
-              >
-                X
-              </button>
-            </Tooltip>
-          )}
-        </div>
-      ) : editable ? (
-        <label className="mb-4 flex h-32 w-full cursor-pointer flex-col items-center justify-center rounded-xl bg-white/35 text-neutral-500 transition-colors hover:bg-white/55">
-          <div className="flex items-center gap-2">
-            <ImageIcon className="h-5 w-5" />
-            <p className="text-xs font-bold uppercase tracking-[0.2em]">Add Photo</p>
+      <div className="rounded-[24px] bg-white/55 p-5">
+        <div className="flex items-start gap-3">
+          <div className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-[16px] ${getAccentClasses(entity.type)}`}>
+            <PencilLine className="h-4 w-4" />
           </div>
-          <input
-            type="file"
-            className="hidden"
-            accept="image/*"
-            onChange={(e) => {
-              if (!interactionsDisabled && e.target.files?.[0]) {
-                void onImageUpload(e.target.files[0]);
-              }
-            }}
-            disabled={saving || interactionsDisabled}
-          />
-        </label>
-      ) : null}
-
-      <div className="mt-4 grid grid-cols-2 gap-2">
-        <div className="rounded-xl bg-white/40 px-3 py-3">
-          <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-xl bg-[#1122ff] text-white">
-            <MapPin className="h-4 w-4" />
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-neutral-500">
+              Inline title
+            </p>
+            <InlineEditableText
+              value={entityTitle}
+              placeholder={entity.title}
+              disabled={false}
+              editable={editable}
+              onChange={onTitleChange}
+              onCommit={onTitleCommit}
+              className="mt-2"
+              readOnlyClassName="text-[28px] font-black tracking-tight text-neutral-950"
+              inputClassName="w-full border-none bg-transparent p-0 text-[28px] font-black tracking-tight text-neutral-950 outline-none placeholder:text-neutral-300"
+            />
+            <p className="mt-2 text-sm leading-5 text-neutral-500">
+              Name lives in the independent entity enrichment layer and this widget only reads or triggers its persistence.
+            </p>
           </div>
-          <p className="text-[11px] uppercase tracking-[0.16em] text-[#737373]">
-            {subtitleLabel}
-          </p>
-          <p className="mt-1 text-sm font-medium text-[#171717]">
-            {entity.subtitle || "Unassigned"}
-          </p>
         </div>
-
-        <div className="rounded-xl bg-white/40 px-3 py-3">
-          <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-xl bg-[#ffe94d] text-black">
-            <Calendar className="h-4 w-4" />
-          </div>
-          <p className="text-[11px] uppercase tracking-[0.16em] text-[#737373]">
-            Geometry
-          </p>
-          <p className="mt-1 text-sm font-medium capitalize text-[#171717]">
-            {entity.geometryKind}
-          </p>
-        </div>
-      </div>
-
-      <div className="mt-4 rounded-xl bg-white/40 px-4 py-4">
-        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#737373]">
-          {editable ? "Curator Note" : widget.name}
-        </p>
-        {editable ? (
-          <textarea
-            value={pinNote}
-            onChange={onNoteChange}
-            rows={5}
-            placeholder="Enter contextual data..."
-            className="mt-3 h-32 w-full resize-none border-none bg-transparent p-0 text-sm leading-relaxed text-[#171717] placeholder:text-neutral-400 focus:outline-none"
-            disabled={interactionsDisabled}
-          />
-        ) : (
-          <p className="mt-3 text-sm leading-relaxed text-[#525252]">
-            {entity.description || "This entity is connected through the shared widget API."}
-          </p>
-        )}
       </div>
 
       <div className="mt-4 flex items-center justify-between rounded-xl bg-white/40 px-3 py-3">
@@ -168,6 +149,6 @@ export function EntityInfoWidgetCard({
           </span>
         </div>
       </div>
-    </WidgetChrome>
+    </BaseWidget>
   );
 }

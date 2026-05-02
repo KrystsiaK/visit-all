@@ -19,6 +19,38 @@ type StorageConfig = {
   secretAccessKey?: string;
 };
 
+export interface StoredUpload {
+  storageKey: string;
+  publicUrl: string;
+}
+
+function parseBooleanEnv(value: string | undefined) {
+  if (value == null) {
+    return null;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (["1", "true", "yes", "on"].includes(normalized)) {
+    return true;
+  }
+
+  if (["0", "false", "no", "off"].includes(normalized)) {
+    return false;
+  }
+
+  return null;
+}
+
+export function areMediaUploadsEnabled() {
+  const explicit = parseBooleanEnv(process.env.MEDIA_UPLOADS_ENABLED);
+
+  if (explicit !== null) {
+    return explicit;
+  }
+
+  return process.env.NODE_ENV !== "production";
+}
+
 function getStorageConfig(): StorageConfig {
   const provider = (process.env.STORAGE_PROVIDER?.trim().toLowerCase() || "local") as StorageProvider;
 
@@ -60,7 +92,7 @@ function createObjectKey(filename: string) {
   return `uploads/${year}/${month}/${Date.now()}-${sanitizeUploadFilename(filename)}`;
 }
 
-async function writeLocalUpload(file: File) {
+async function writeLocalUpload(file: File): Promise<StoredUpload> {
   const bytes = await file.arrayBuffer();
   const buffer = Buffer.from(bytes);
 
@@ -68,9 +100,13 @@ async function writeLocalUpload(file: File) {
 
   const filename = `${Date.now()}-${sanitizeUploadFilename(file.name)}`;
   const filepath = join(LOCAL_UPLOAD_DIR, filename);
+  const publicUrl = `${LOCAL_UPLOAD_PREFIX}${filename}`;
 
   await writeFile(filepath, buffer);
-  return `${LOCAL_UPLOAD_PREFIX}${filename}`;
+  return {
+    storageKey: `local:${filename}`,
+    publicUrl,
+  };
 }
 
 async function deleteLocalUploadFromUrl(imageUrl: string | null | undefined) {
@@ -114,7 +150,7 @@ function getObjectKeyFromUrl(imageUrl: string, config: StorageConfig) {
   return imageUrl.slice(baseUrl.length + 1);
 }
 
-async function writeS3Upload(file: File, config: StorageConfig) {
+async function writeS3Upload(file: File, config: StorageConfig): Promise<StoredUpload> {
   const client = getS3Client(config);
   const objectKey = createObjectKey(file.name);
   const bytes = await file.arrayBuffer();
@@ -129,7 +165,10 @@ async function writeS3Upload(file: File, config: StorageConfig) {
     })
   );
 
-  return buildPublicUrl(config, objectKey);
+  return {
+    storageKey: objectKey,
+    publicUrl: buildPublicUrl(config, objectKey),
+  };
 }
 
 async function deleteS3UploadFromUrl(imageUrl: string | null | undefined, config: StorageConfig) {
@@ -161,6 +200,17 @@ export function getActiveStorageProvider() {
 
 export function getStorageReadiness() {
   const config = getStorageConfig();
+  const uploadsEnabled = areMediaUploadsEnabled();
+
+  if (!uploadsEnabled) {
+    return {
+      ok: true as const,
+      provider: config.provider,
+      configured: true,
+      missing: [] as string[],
+      uploadsEnabled: false,
+    };
+  }
 
   if (config.provider === "local") {
     return {
@@ -168,6 +218,7 @@ export function getStorageReadiness() {
       provider: "local" as const,
       configured: true,
       missing: [] as string[],
+      uploadsEnabled: true,
     };
   }
 
@@ -186,10 +237,20 @@ export function getStorageReadiness() {
     provider: "s3" as const,
     configured: missing.length === 0,
     missing,
+    uploadsEnabled: true,
   };
 }
 
 export async function writeUpload(file: File) {
+  const upload = await writeUploadAsset(file);
+  return upload.publicUrl;
+}
+
+export async function writeUploadAsset(file: File): Promise<StoredUpload> {
+  if (!areMediaUploadsEnabled()) {
+    throw new Error("Image uploads are temporarily disabled.");
+  }
+
   const config = getStorageConfig();
 
   if (config.provider === "s3") {
@@ -201,6 +262,10 @@ export async function writeUpload(file: File) {
 }
 
 export async function deleteUploadFromUrl(imageUrl: string | null | undefined) {
+  if (!areMediaUploadsEnabled()) {
+    return;
+  }
+
   const config = getStorageConfig();
 
   if (config.provider === "s3") {

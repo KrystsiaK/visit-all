@@ -3,7 +3,7 @@ import { useEffect, useRef } from "react";
 import { Eye, EyeOff, Focus } from "lucide-react";
 import { getLayerVisibilityFlags, hasAnySolo } from "@/lib/layer-visibility";
 import { Tooltip } from "@/components/ui/Tooltip";
-import { useShellRuntimeActions, useShellRuntimeValue } from "@/components/shells/ShellRuntimeProvider";
+import { useShellRuntimeActions, useShellRuntimeValue } from "@synarava/shell-kit";
 import { AnimatedCount } from "@/components/widgets/shell-widgets/AnimatedCount";
 import { CollectionEditSection } from "@/components/widgets/shell-widgets/collections/CollectionEditSection";
 import type { CollectionCardProps } from "@/components/widgets/shell-widgets/collections/types";

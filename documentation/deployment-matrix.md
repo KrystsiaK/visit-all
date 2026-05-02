@@ -51,14 +51,15 @@ Use this when:
 1. `DATABASE_URL`
 2. `AUTH_SECRET`
 3. `NODE_ENV=production`
-4. `STORAGE_PROVIDER=s3`
-5. `S3_BUCKET`
-6. `S3_REGION`
-7. `S3_ENDPOINT`
-8. `S3_ACCESS_KEY_ID`
-9. `S3_SECRET_ACCESS_KEY`
-10. `S3_PUBLIC_BASE_URL`
-11. optional future envs for observability / rate-limit provider if moved off Postgres
+4. `MEDIA_UPLOADS_ENABLED=false` for the initial launch if media should stay disabled
+5. `STORAGE_PROVIDER=s3` only when media uploads are intentionally enabled
+6. `S3_BUCKET`
+7. `S3_REGION`
+8. `S3_ENDPOINT`
+9. `S3_ACCESS_KEY_ID`
+10. `S3_SECRET_ACCESS_KEY`
+11. `S3_PUBLIC_BASE_URL`
+12. optional future envs for observability / rate-limit provider if moved off Postgres
 
 ## Health checks
 
@@ -81,7 +82,7 @@ This route should answer:
 4. health endpoint is reachable after deploy
 5. readiness endpoint is reachable after deploy
 6. auth login works
-7. object storage upload works
+7. object storage upload works, or `MEDIA_UPLOADS_ENABLED=false` is explicitly set for a media-disabled launch
 8. rollback plan is available before release
 
 ## TEMP / Tech Debt

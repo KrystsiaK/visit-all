@@ -1,4 +1,4 @@
-import { WidgetChrome } from "@/components/widgets/WidgetChrome";
+import { BaseWidget } from "@synarava/shell-kit";
 import type { WidgetEntityPayload, WidgetInstanceRecord } from "@/lib/widgets";
 
 interface EntityPlaceholderWidgetCardProps {
@@ -6,6 +6,10 @@ interface EntityPlaceholderWidgetCardProps {
   entity: WidgetEntityPayload;
   eyebrow: string;
   body: string;
+  canRemove?: boolean;
+  removing?: boolean;
+  onBackgroundStyleChange?: (widgetId: string, backgroundStyle: string) => void;
+  onRemove?: () => void;
 }
 
 export const EntityPlaceholderWidgetCard = ({
@@ -13,10 +17,36 @@ export const EntityPlaceholderWidgetCard = ({
   entity,
   eyebrow,
   body,
+  canRemove = false,
+  removing = false,
+  onBackgroundStyleChange,
+  onRemove,
 }: EntityPlaceholderWidgetCardProps) => (
-  <WidgetChrome
+  <BaseWidget
     eyebrow={eyebrow}
     title={widget.name}
+    backgroundStyle={
+      typeof widget.config.chromeBackgroundStyle === "string"
+        ? widget.config.chromeBackgroundStyle
+        : "default"
+    }
+    onBackgroundStyleChange={
+      onBackgroundStyleChange
+        ? (backgroundStyle) => onBackgroundStyleChange(widget.id, backgroundStyle)
+        : undefined
+    }
+    settingsContent={
+      canRemove && onRemove ? (
+        <button
+          type="button"
+          onClick={onRemove}
+          disabled={removing}
+          className="flex min-h-11 w-full items-center justify-center rounded-2xl border border-[#c61f1f]/15 bg-[#fff6f6] px-4 text-sm font-medium text-[#a11a1a] transition-colors hover:bg-[#ffefef] disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {removing ? "Removing..." : "Remove Widget"}
+        </button>
+      ) : null
+    }
   >
     <p className="text-sm leading-6 text-[#5a5a5a]">{body}</p>
 
@@ -33,5 +63,5 @@ export const EntityPlaceholderWidgetCard = ({
         Planned
       </span>
     </div>
-  </WidgetChrome>
+  </BaseWidget>
 );

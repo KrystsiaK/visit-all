@@ -56,6 +56,33 @@ Use an explicit `Finish Path` action instead of hidden gesture logic.
    - finish path
    - confirm layer
 
+## Zone parity
+
+`Zone` should follow the same draft-first contract as `Path`, but with polygon rules.
+
+### Drafting
+
+1. First click creates the first polygon vertex.
+2. Each next click adds another vertex.
+3. The zone preview stays a draft until the user explicitly finishes it.
+4. Draft vertices stay draggable and midpoint handles can still insert new vertices.
+
+### Finishing the zone
+
+1. Use an explicit `Finish Zone` action instead of auto-saving on the third click.
+2. `Finish Zone` does not persist the area immediately.
+3. After finishing:
+   - vertex controls disappear
+   - the polygon remains visible as a clean preview
+   - layer selection opens the same way as pin/path confirmation
+4. The area is saved only after the target layer is confirmed.
+
+### Why parity matters
+
+1. `Path` and `Zone` should feel like the same authoring family.
+2. Users should not have to learn one save model for lines and a different one for polygons.
+3. Draft-first avoids accidental persistence and makes later editing more deliberate.
+
 ## First implementation slice
 
 1. Stop saving traces on the second click.

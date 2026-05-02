@@ -11,6 +11,12 @@ const E2E_USER = {
   collectionName: "E2E Places",
 } as const;
 
+const E2E_COLLECTION_COLOR = "#2563eb";
+const E2E_COLLECTION_ICON = "!";
+const E2E_PIN_ID = "11111111-1111-4111-8111-111111111111";
+const E2E_CONTAINER_ID = "22222222-2222-4222-8222-222222222222";
+const E2E_PIN_TITLE = "E2E Shell Pin";
+
 export default async function globalSetup() {
   const envFilePath = join(process.cwd(), ".env.local");
   if (existsSync(envFilePath)) {
@@ -111,15 +117,109 @@ export default async function globalSetup() {
       [userId, E2E_USER.collectionName]
     );
 
-    if (!existingCollection.rows[0]) {
-      await client.query(
+    let collectionId = existingCollection.rows[0]?.id ?? null;
+
+    if (!collectionId) {
+      const createdCollection = await client.query<{ id: string }>(
         `
           INSERT INTO collections (name, color, icon, type, user_id)
-          VALUES ($1, '#2563eb', '!', 'pin', $2)
+          VALUES ($1, $2, $3, 'pin', $4)
+          RETURNING id
         `,
-        [E2E_USER.collectionName, userId]
+        [E2E_USER.collectionName, E2E_COLLECTION_COLOR, E2E_COLLECTION_ICON, userId]
       );
+
+      collectionId = createdCollection.rows[0].id;
     }
+
+    await client.query(
+      `
+        INSERT INTO entity_containers (
+          id,
+          entity_type,
+          geometry_kind,
+          collection_id,
+          status,
+          source_payload,
+          user_id,
+          created_at,
+          updated_at
+        )
+        VALUES (
+          $1,
+          'pin',
+          'point',
+          $2,
+          'active',
+          jsonb_build_object('source', 'playwright', 'seed', 'shell-visual-contract'),
+          $3,
+          NOW(),
+          NOW()
+        )
+        ON CONFLICT (id) DO UPDATE
+        SET collection_id = EXCLUDED.collection_id,
+            status = 'active',
+            user_id = EXCLUDED.user_id,
+            updated_at = NOW()
+      `,
+      [E2E_CONTAINER_ID, collectionId, userId]
+    );
+
+    await client.query(
+      `
+        INSERT INTO pins (
+          id,
+          container_id,
+          collection_id,
+          name,
+          note,
+          image_url,
+          location,
+          user_id,
+          created_at
+        )
+        VALUES (
+          $1,
+          $2,
+          $3,
+          $4,
+          'Playwright shell contract pin',
+          NULL,
+          ST_SetSRID(ST_MakePoint(-9.2893, 38.6916), 4326),
+          $5,
+          NOW()
+        )
+        ON CONFLICT (id) DO UPDATE
+        SET container_id = EXCLUDED.container_id,
+            collection_id = EXCLUDED.collection_id,
+            name = EXCLUDED.name,
+            note = EXCLUDED.note,
+            image_url = EXCLUDED.image_url,
+            location = EXCLUDED.location,
+            user_id = EXCLUDED.user_id
+      `,
+      [E2E_PIN_ID, E2E_CONTAINER_ID, collectionId, E2E_PIN_TITLE, userId]
+    );
+
+    await client.query(
+      `
+        INSERT INTO entity_details (
+          entity_container_id,
+          user_id,
+          title,
+          description,
+          created_at,
+          updated_at
+        )
+        VALUES ($1, $2, $3, 'Playwright shell contract pin', NOW(), NOW())
+        ON CONFLICT (entity_container_id) DO UPDATE
+        SET user_id = EXCLUDED.user_id,
+            title = EXCLUDED.title,
+            description = EXCLUDED.description,
+            updated_at = NOW()
+      `,
+      [E2E_CONTAINER_ID, userId, E2E_PIN_TITLE]
+    );
   } finally {
     await client.end();
   }

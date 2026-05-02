@@ -1,21 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { moveShellWidget, type ShellWidgetRecord } from "@/lib/shell-widget-order";
+import { moveShellWidget, type ShellWidgetLike } from "@synarava/shell-kit";
 
-const createWidget = (id: string, position: number): ShellWidgetRecord => ({
+interface TestWidget extends ShellWidgetLike {
+  label: string;
+}
+
+const createWidget = (id: string, position: number): TestWidget => ({
   id,
-  shellInstanceId: "shell-1",
-  widgetInstanceId: `widget-${id}`,
-  slot: "main",
   position,
-  definitionId: `definition-${id}`,
-  slug: id,
-  name: id,
-  layer: "shell",
-  entityType: null,
-  entityId: null,
-  componentKey: "shell_search",
-  config: {},
-  state: {},
+  label: `Widget ${id}`,
 });
 
 describe("moveShellWidget", () => {

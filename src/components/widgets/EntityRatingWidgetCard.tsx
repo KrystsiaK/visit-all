@@ -1,29 +1,58 @@
 import { Star } from "lucide-react";
 
-import { WidgetChrome } from "@/components/widgets/WidgetChrome";
+import { StarRatingInput } from "@/components/inputs/StarRatingInput";
+import { BaseWidget } from "@synarava/shell-kit";
 import type { WidgetEntityPayload, WidgetInstanceRecord } from "@/lib/widgets";
-import { Tooltip } from "@/components/ui/Tooltip";
 
 interface EntityRatingWidgetCardProps {
   widget: WidgetInstanceRecord;
   entity: WidgetEntityPayload;
   value: number | null;
-  saving: boolean;
   disabled?: boolean;
+  canRemove?: boolean;
+  removing?: boolean;
   onRate: (value: number) => void;
+  onBackgroundStyleChange?: (widgetId: string, backgroundStyle: string) => void;
+  onRemove?: () => void;
 }
 
 export const EntityRatingWidgetCard = ({
   widget,
   entity,
   value,
-  saving,
   disabled = false,
+  canRemove = false,
+  removing = false,
   onRate,
+  onBackgroundStyleChange,
+  onRemove,
 }: EntityRatingWidgetCardProps) => (
-  <WidgetChrome
+  <BaseWidget
+    dataTestId="entity-rating-widget"
     title={widget.name}
     subtitle={`Score this ${entity.type} so nearby discovery and ranking widgets can use a clean signal.`}
+    backgroundStyle={
+      typeof widget.config.chromeBackgroundStyle === "string"
+        ? widget.config.chromeBackgroundStyle
+        : "default"
+    }
+    onBackgroundStyleChange={
+      onBackgroundStyleChange
+        ? (backgroundStyle) => onBackgroundStyleChange(widget.id, backgroundStyle)
+        : undefined
+    }
+    settingsContent={
+      canRemove && onRemove ? (
+        <button
+          type="button"
+          onClick={onRemove}
+          disabled={removing}
+          className="flex min-h-11 w-full items-center justify-center rounded-2xl border border-[#c61f1f]/15 bg-[#fff6f6] px-4 text-sm font-medium text-[#a11a1a] transition-colors hover:bg-[#ffefef] disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {removing ? "Removing..." : "Remove Widget"}
+        </button>
+      ) : null
+    }
     accent={
       <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#ffe94d] text-black">
         <Star className="h-4 w-4" />
@@ -31,31 +60,12 @@ export const EntityRatingWidgetCard = ({
     }
   >
 
-    <div className="mt-4 flex items-center gap-2">
-      {Array.from({ length: 5 }, (_, index) => {
-        const starValue = index + 1;
-        const filled = (value ?? 0) >= starValue;
-
-        return (
-          <Tooltip key={starValue} label={`${starValue} star${starValue === 1 ? "" : "s"}`}>
-            <button
-              type="button"
-              onClick={() => onRate(starValue)}
-              disabled={disabled || saving}
-              className={`flex h-10 w-10 items-center justify-center rounded-full border transition-colors ${
-                filled
-                  ? "border-[#e4be00] bg-[#fff4a8] text-[#7a5d00]"
-                  : "border-black/10 bg-white/75 text-neutral-400 hover:border-black/15 hover:text-neutral-700"
-              } disabled:cursor-not-allowed disabled:opacity-45`}
-              aria-label={`Rate ${starValue} star${starValue === 1 ? "" : "s"}`}
-              aria-pressed={filled}
-            >
-              <Star className={`h-4 w-4 ${filled ? "fill-current" : ""}`} />
-            </button>
-          </Tooltip>
-        );
-      })}
-    </div>
+    <StarRatingInput
+      value={value}
+      disabled={disabled}
+      className="mt-4"
+      onChange={onRate}
+    />
 
     <div className="mt-4 flex items-center justify-between rounded-xl bg-white/40 px-3 py-3">
       <div className="flex flex-wrap gap-2">
@@ -66,9 +76,6 @@ export const EntityRatingWidgetCard = ({
           {entity.type}
         </span>
       </div>
-      <span className="text-[10px] font-black uppercase tracking-[0.18em] text-neutral-500">
-        {saving ? "Saving" : "Live"}
-      </span>
     </div>
-  </WidgetChrome>
+  </BaseWidget>
 );

@@ -3,7 +3,7 @@ import { Layers3, MapPin, Pentagon, Route } from "lucide-react";
 import type { ButtonGroupWidgetButtonBinding } from "@/lib/widgets";
 import { isButtonGroupWidgetConfig } from "@/lib/widgets";
 import { GlassPanel } from "@/components/glass/GlassPanel";
-import { useShellRuntime, useShellRuntimeActions, useShellRuntimeValue } from "@/components/shells/ShellRuntimeProvider";
+import { useShellRuntime, useShellRuntimeActions, useShellRuntimeValue } from "@synarava/shell-kit";
 
 interface ShellModeSwitchWidgetProps {
   config?: Record<string, unknown>;

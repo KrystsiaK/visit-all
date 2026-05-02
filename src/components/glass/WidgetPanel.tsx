@@ -2,7 +2,7 @@
 
 import { WidgetCenterShell } from "@/components/shells/WidgetCenterShell";
 import { WidgetLibraryShell } from "@/components/shells/WidgetLibraryShell";
-import { ShellWidgetSlot } from "@/components/shells/ShellWidgetSlot";
+import { ShellSlot } from "@synarava/shell-kit";
 import { GlobalWidgetLibraryCard } from "@/components/widgets/global-widgets/GlobalWidgetLibraryCard";
 import {
   GlobalWidgetCenterAddCard,
@@ -15,6 +15,7 @@ import type { WidgetEntityType } from "@/lib/widgets";
 interface WidgetPanelProps {
   isOpen: boolean;
   onClose: () => void;
+  onLibraryMutation?: () => void;
   entityType?: WidgetEntityType;
   entityId?: string;
 }
@@ -22,6 +23,7 @@ interface WidgetPanelProps {
 export const WidgetPanel = ({
   isOpen,
   onClose,
+  onLibraryMutation,
   entityType,
   entityId,
 }: WidgetPanelProps) => {
@@ -68,7 +70,7 @@ export const WidgetPanel = ({
           }
 
           return (
-            <ShellWidgetSlot
+            <ShellSlot
               key={widget.id}
               isDragging={draggedWidgetId === widget.id}
               isDropTarget={dropTarget?.widgetId === widget.id}
@@ -79,7 +81,7 @@ export const WidgetPanel = ({
               onDrop={(event) => handleDrop(event, widget.id)}
             >
               {content}
-            </ShellWidgetSlot>
+            </ShellSlot>
           );
         })}
       </WidgetCenterShell>
@@ -93,7 +95,7 @@ export const WidgetPanel = ({
             <GlobalWidgetLibraryCard
               key={definition.id}
               definition={definition}
-              onAdd={handleAddWidgetFromLibrary}
+              onAdd={(slug) => void handleAddWidgetFromLibrary(slug, onLibraryMutation)}
               adding={addingSlug === definition.slug}
             />
           ))}

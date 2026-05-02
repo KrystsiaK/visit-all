@@ -6,7 +6,7 @@ import { signOut } from "next-auth/react";
 import { useMemo, useState } from "react";
 
 import { PasswordInput, INPUT_PLACEHOLDERS } from "@/components/inputs/FieldChrome";
-import { WidgetChrome } from "@/components/widgets/WidgetChrome";
+import { BaseWidget } from "@synarava/shell-kit";
 import {
   getConfirmPasswordErrors,
   getPasswordFieldErrors,
@@ -70,7 +70,7 @@ export function UserAccountActionsWidgetCard({
     : [];
 
   return (
-    <WidgetChrome
+    <BaseWidget
       eyebrow="Account"
       title={widget.name}
       subtitle="Session actions and verification status."
@@ -243,6 +243,6 @@ export function UserAccountActionsWidgetCard({
           Open reset page
         </Link>
       </div>
-    </WidgetChrome>
+    </BaseWidget>
   );
 }

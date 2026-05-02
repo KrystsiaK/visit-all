@@ -2,7 +2,7 @@
 
 import { MapPin, Sparkles } from "lucide-react";
 
-import { WidgetChrome } from "@/components/widgets/WidgetChrome";
+import { BaseWidget } from "@synarava/shell-kit";
 import type { WidgetInstanceRecord } from "@/lib/widgets";
 
 interface GlobalOverviewWidgetCardProps {
@@ -12,7 +12,7 @@ interface GlobalOverviewWidgetCardProps {
 export const GlobalOverviewWidgetCard = ({
   widget,
 }: GlobalOverviewWidgetCardProps) => (
-  <WidgetChrome
+  <BaseWidget
     title={widget.name}
     subtitle="Shared system overview for the active map workspace."
     accent={
@@ -42,5 +42,5 @@ export const GlobalOverviewWidgetCard = ({
         Live
       </span>
     </div>
-  </WidgetChrome>
+  </BaseWidget>
 );

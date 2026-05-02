@@ -1,9 +1,8 @@
 import { AnimatePresence, motion } from "framer-motion";
-import type { WidgetEntityType } from "@/lib/widgets";
+import type { WidgetEntityType, WidgetInstanceRecord } from "@/lib/widgets";
 import { WidgetErrorBoundary } from "@/components/errors/WidgetErrorBoundary";
 import { RightEntityShell } from "@/components/shells/RightEntityShell";
-import { ShellWidgetSlot } from "@/components/shells/ShellWidgetSlot";
-import { WidgetChromeProvider } from "@/components/widgets/WidgetChromeContext";
+import { ShellSlot } from "@synarava/shell-kit";
 import { EntityDeleteDialog } from "@/components/widgets/entity-widgets/EntityDeleteDialog";
 import { EntityOverlayEmptyState, EntityOverlaySkeletonCard } from "@/components/widgets/entity-widgets/EntityOverlayStates";
 import { renderEntityWidget } from "@/components/widgets/entity-widgets/renderEntityWidget";
@@ -15,6 +14,7 @@ interface WidgetOverlayProps {
   onDataSaved?: () => void;
   refreshTrigger?: number;
   onDeletePin?: (pinId: string, collectionId?: string) => Promise<void>;
+  onOpenNearbyPin?: (nearbyPin: import("@/app/actions").EntityNearbyPinRecord) => void;
   entityType?: WidgetEntityType;
   entityId?: string;
   data?: {
@@ -37,19 +37,29 @@ export function WidgetOverlay({
   onDataSaved,
   refreshTrigger,
   onDeletePin,
+  onOpenNearbyPin,
   entityType,
   entityId,
   data,
 }: WidgetOverlayProps) {
   const {
     widgetInteractionsDeferred,
+    entityTitle,
     pinNote,
     pinImage,
+    mediaItems,
+    nearbyPins,
+    resourceLinks,
+    storyEntries,
     imageFile,
     saving,
+    storySaving,
+    mediaSaving,
     deleteWarningOpen,
     entityRating,
-    entityWidgets,
+    removingWidgetId,
+    pinnedEntityWidgets,
+    mainEntityWidgets,
     loading,
     draggedWidgetId,
     dropTarget,
@@ -59,11 +69,22 @@ export function WidgetOverlay({
     handleDragEnd,
     handleDragOver,
     handleDrop,
+    handleTitleChange,
+    handleTitleCommit,
     handleNoteChange,
     handleImageUpload,
     handleImageDelete,
+    handleMediaItemDelete,
+    handleAddResourceLink,
+    handleRemoveResourceLink,
+    handleCommitResourceLink,
+    handleSaveStoryEntry,
+    handleRemoveStoryEntry,
     handleDelete,
+    handleRemoveWidget,
     handleRateEntity,
+    handleOpenNearbyPin,
+    handleUpdateWidgetBackground,
     handleClose,
     setDeleteWarningOpen,
   } = useEntityWidgetBindings({
@@ -75,9 +96,87 @@ export function WidgetOverlay({
     onDataSaved,
     onClose,
     onDeletePin,
+    onOpenNearbyPin,
   });
 
   if (!data && !normalizedEntity.id) return null;
+
+  const resolvedPinnedEntityWidgets =
+    pinnedEntityWidgets.length > 0
+      ? pinnedEntityWidgets
+      : mainEntityWidgets.filter((widget) => widget.componentKey === "entity_info");
+
+  const resolvedMainEntityWidgets = mainEntityWidgets.filter(
+    (widget) => !resolvedPinnedEntityWidgets.some((pinnedWidget) => pinnedWidget.id === widget.id)
+  );
+
+  const renderWidget = (
+    widget: WidgetInstanceRecord,
+    reorderable: boolean,
+    presentation: "default" | "pinned" = "default"
+  ) => {
+    const content = renderEntityWidget({
+      widget,
+      entity: normalizedEntity,
+      presentation,
+      bindings: {
+        entityTitle,
+        pinNote,
+        pinImage,
+        mediaItems,
+        nearbyPins,
+        resourceLinks,
+        storyEntries,
+        imageFile,
+        saving,
+        storySaving,
+        mediaSaving,
+        supportsDirectPinEditing: entityType === "pin" || !entityType,
+        widgetInteractionsDeferred,
+        entityRating,
+        removingWidgetId,
+        handleTitleChange,
+        handleTitleCommit,
+        handleNoteChange,
+        handleImageUpload,
+        handleImageDelete,
+        handleMediaItemDelete,
+        handleAddResourceLink,
+        handleRemoveResourceLink,
+        handleCommitResourceLink,
+        handleSaveStoryEntry,
+        handleRemoveStoryEntry,
+        handleRemoveWidget,
+        handleRateEntity,
+        handleOpenNearbyPin,
+        handleUpdateWidgetBackground,
+        setDeleteWarningOpen,
+      },
+    });
+
+    if (!content) {
+      return null;
+    }
+
+    if (!reorderable) {
+      return <WidgetErrorBoundary key={widget.id}>{content}</WidgetErrorBoundary>;
+    }
+
+    return (
+      <ShellSlot
+        key={widget.id}
+        isDragging={draggedWidgetId === widget.id}
+        isDropTarget={dropTarget?.widgetId === widget.id}
+        dropEdge={dropTarget?.widgetId === widget.id ? dropTarget.edge : null}
+        onDragStart={(event) => handleDragStart(event, widget.id)}
+        onDragEnd={handleDragEnd}
+        onDragOver={(event) => handleDragOver(event, widget.id)}
+        onDrop={(event) => handleDrop(event, widget.id)}
+      >
+        <WidgetErrorBoundary>{content}</WidgetErrorBoundary>
+      </ShellSlot>
+    );
+  };
 
   return (
     <AnimatePresence>
@@ -97,6 +196,7 @@ export function WidgetOverlay({
             open={deleteWarningOpen}
             saving={saving}
             title={activeData.title}
+            entityType={normalizedEntity.type}
             onCancel={() => setDeleteWarningOpen(false)}
             onConfirm={() => void handleDelete()}
           />
@@ -107,8 +207,16 @@ export function WidgetOverlay({
             onClose={() => void handleClose()}
             title={normalizedEntity.title}
             subtitle={activeData.subtitle || (entityType ? `${entityType} widget` : "Entity widget")}
-            loading={loading}
             entityType={normalizedEntity.type}
+            pinnedChildren={
+              resolvedPinnedEntityWidgets.length > 0 ? (
+                <>
+                  {resolvedPinnedEntityWidgets.map((widget) =>
+                    renderWidget(widget, false, "pinned")
+                  )}
+                </>
+              ) : undefined
+            }
             runtimeState={{
               entityId: activeData.id,
               entityType: entityType || "pin",
@@ -124,51 +232,15 @@ export function WidgetOverlay({
                 <EntityOverlaySkeletonCard emphasis="hero" />
                 <EntityOverlaySkeletonCard />
               </>
-            ) : entityWidgets.length === 0 ? (
+            ) : resolvedMainEntityWidgets.length === 0 && resolvedPinnedEntityWidgets.length === 0 ? (
               <EntityOverlayEmptyState />
-            ) : entityWidgets.map((widget) => {
-              const content = renderEntityWidget({
-                widget,
-                entity: normalizedEntity,
-                bindings: {
-                  pinNote,
-                  pinImage,
-                  imageFile,
-                  saving,
-                  supportsDirectPinEditing: entityType === "pin" || !entityType,
-                  widgetInteractionsDeferred,
-                  entityRating,
-                  handleNoteChange,
-                  handleImageUpload,
-                  handleImageDelete,
-                  handleRateEntity,
-                  setDeleteWarningOpen,
-                },
-              });
-
-              if (!content) {
-                return null;
-              }
-
-              return (
-                <ShellWidgetSlot
-                  key={widget.id}
-                  isDragging={draggedWidgetId === widget.id}
-                  isDropTarget={dropTarget?.widgetId === widget.id}
-                  dropEdge={dropTarget?.widgetId === widget.id ? dropTarget.edge : null}
-                  onDragStart={(event) => handleDragStart(event, widget.id)}
-                  onDragEnd={handleDragEnd}
-                  onDragOver={(event) => handleDragOver(event, widget.id)}
-                  onDrop={(event) => handleDrop(event, widget.id)}
-                >
-                  <WidgetChromeProvider
-                    currentHost="pin_entity_shell"
-                  >
-                    <WidgetErrorBoundary>{content}</WidgetErrorBoundary>
-                  </WidgetChromeProvider>
-                </ShellWidgetSlot>
-              );
-            })}
+            ) : (
+              resolvedMainEntityWidgets.map((widget, index) => (
+                <div key={widget.id} data-testid={`entity-main-widget-${index}`}>
+                  {renderWidget(widget, true)}
+                </div>
+              ))
+            )}
           </RightEntityShell>
         </>
       )}

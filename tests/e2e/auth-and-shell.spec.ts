@@ -1,6 +1,17 @@
 import { expect, test } from "@playwright/test";
 import { login } from "./helpers/auth";
 
+async function ensureLayersPanelOpen(page: import("@playwright/test").Page) {
+  const collectionCard = page.getByTestId("collection-card").first();
+
+  if (!(await collectionCard.isVisible().catch(() => false))) {
+    await page.getByRole("button", { name: /open layers panel/i }).click();
+  }
+
+  await expect(collectionCard).toBeVisible();
+  return collectionCard;
+}
+
 test("e2e login reaches the main app shell", async ({ page, isMobile }) => {
   await login(page);
   await expect(page.getByRole("button", { name: /widgets/i })).toBeVisible();
@@ -15,9 +26,44 @@ test("widget center opens and closes on desktop", async ({ page, isMobile }) => 
   test.skip(isMobile, "Desktop-only assertion");
   await login(page);
   await page.getByRole("button", { name: /widgets/i }).click();
-  await expect(page.getByText("Widget Center")).toBeVisible();
-  await page.getByRole("button", { name: /close widgets/i }).click();
-  await expect(page.getByText("Widget Center")).not.toBeVisible();
+  const widgetCenterHero = page.getByTestId("widget-center-hero");
+  await expect(widgetCenterHero).toBeVisible();
+  await widgetCenterHero.getByRole("button", { name: /close widgets/i }).click();
+  await expect(widgetCenterHero).not.toBeVisible();
+});
+
+test("right entity shell closes when clicking outside the panel on desktop", async ({ page, isMobile }) => {
+  test.skip(isMobile, "Desktop-only assertion");
+  await login(page);
+
+  const openShellPin = page.getByTestId("e2e-open-shell-pin");
+  await openShellPin.evaluate((element) => {
+    (element as HTMLButtonElement).click();
+  });
+
+  const pinnedHero = page.getByTestId("entity-pinned-hero");
+  await expect(pinnedHero).toBeVisible();
+
+  await page.getByRole("button", { name: /dismiss entity drawer overlay/i }).click();
+
+  await expect(pinnedHero).not.toBeVisible();
+});
+
+test("user shell uses the same top inset and closes on outside click on desktop", async ({ page, isMobile }) => {
+  test.skip(isMobile, "Desktop-only assertion");
+  await login(page);
+
+  await page.getByTestId("open-user-shell").click();
+
+  const userHero = page.getByTestId("user-shell-hero");
+  await expect(userHero).toBeVisible();
+
+  const heroBox = await userHero.boundingBox();
+  expect(heroBox).not.toBeNull();
+  expect(heroBox!.y).toBeGreaterThanOrEqual(24);
+
+  await page.getByRole("button", { name: /close account shell/i }).first().click();
+  await expect(userHero).not.toBeVisible();
 });
 
 test("map zoom controls render and can be clicked", async ({ page }) => {
@@ -37,7 +83,7 @@ test("show only activates from a visible layer without muting it", async ({ page
   test.skip(isMobile, "Desktop-only assertion");
   await login(page);
 
-  const collectionCard = page.getByTestId("collection-card").first();
+  const collectionCard = await ensureLayersPanelOpen(page);
   const eyeButton = collectionCard.getByTestId("collection-mute-button");
   const soloButton = collectionCard.getByTestId("collection-solo-button");
 
@@ -56,7 +102,7 @@ test("show only unmutes the same layer when activated after eye off", async ({ p
   test.skip(isMobile, "Desktop-only assertion");
   await login(page);
 
-  const collectionCard = page.getByTestId("collection-card").first();
+  const collectionCard = await ensureLayersPanelOpen(page);
   const eyeButton = collectionCard.getByTestId("collection-mute-button");
   const soloButton = collectionCard.getByTestId("collection-solo-button");
 

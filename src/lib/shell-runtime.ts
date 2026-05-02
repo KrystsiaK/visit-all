@@ -1,6 +1,5 @@
 import type { WidgetComponentKey, WidgetInstanceRecord, WidgetPlacementRecord } from "@/lib/widgets";
 
-export const shellEntranceTimeoutMs = 420;
 
 export function isLeftShellWidgetEnabled(
   componentKey: WidgetComponentKey,

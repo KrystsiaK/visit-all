@@ -1,28 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, type ReactNode } from "react";
+import { useEffect, useMemo, type ReactNode } from "react";
+import { UserRound, X } from "lucide-react";
 
-import {
-  ShellRuntimeProvider,
-  useShellRuntimeActions,
-  type ShellRuntimeState,
-} from "@/components/shells/ShellRuntimeProvider";
-import { ShellStack } from "@/components/shells/ShellStack";
-import { ShellSurface } from "@/components/shells/ShellSurface";
-import { WidgetChromeProvider } from "@/components/widgets/WidgetChromeContext";
+import { ShellRuntimeProvider, useShellRuntimeActions, type ShellRuntimeState, DockedShell, WidgetProvider } from "@synarava/shell-kit";
+import { ShellHeroCard } from "@/components/shells/ShellHeroCard";
+import { Tooltip } from "@/components/ui/Tooltip";
 import { getWidgetHostOptions } from "@/lib/widget-hosts";
 
-const UserShellRuntimeBridge = ({
-  runtimeState,
-}: {
-  runtimeState: ShellRuntimeState;
-}) => {
+const UserShellRuntimeBridge = ({ runtimeState }: { runtimeState: ShellRuntimeState }) => {
   const { patchState } = useShellRuntimeActions();
-
-  useEffect(() => {
-    patchState(runtimeState);
-  }, [patchState, runtimeState]);
-
+  useEffect(() => { patchState(runtimeState); }, [patchState, runtimeState]);
   return null;
 };
 
@@ -40,65 +28,57 @@ const UserShellInner = ({
   children: ReactNode;
 }) => {
   const { registerScrollContainer } = useShellRuntimeActions();
-
-  const handleScrollContainerRef = useCallback(
-    (element: HTMLDivElement | null) => {
-      registerScrollContainer(element);
-    },
-    [registerScrollContainer]
+  const hero = (
+    <ShellHeroCard
+      dataTestId="user-shell-hero"
+      eyebrow="Account"
+      title={title}
+      subtitle={subtitle}
+      accent={<div className="flex h-14 w-14 items-center justify-center rounded-[20px] bg-[#111111] text-white"><UserRound className="h-6 w-6" /></div>}
+      trailing={
+        <Tooltip label="Close Account">
+          <button type="button" onClick={onClose} className="flex h-12 w-12 items-center justify-center rounded-full border border-black/10 bg-white/60 text-neutral-600 transition-colors hover:bg-white" aria-label="Close account shell">
+            <X className="h-5 w-5" />
+          </button>
+        </Tooltip>
+      }
+    />
   );
 
   return (
     <>
       <UserShellRuntimeBridge runtimeState={{ title, subtitle }} />
-      <ShellSurface
+      <DockedShell
         isOpen={isOpen}
         onClose={onClose}
         title={title}
         subtitle={subtitle}
         closeLabel="Close account shell"
-        closeTooltip="Close Account"
-        shellClassName="fixed inset-x-3 bottom-3 top-auto z-[90] h-[min(78vh,720px)] pointer-events-none md:inset-x-auto md:right-8 md:top-28 md:bottom-6 md:h-auto md:w-[376px]"
-        scrollContainerRef={handleScrollContainerRef}
-        bodyClassName="flex-1 overflow-y-auto no-scrollbar px-1 pt-5"
+        showHeader={false}
+        mobileHandle={false}
+        placement="right"
+        width={376}
+        zIndexClassName="z-[90]"
+        scrollContainerRef={registerScrollContainer}
+        scrollContainerDataId="user_shell"
+        pinnedContent={hero}
+        backdropClassName="fixed inset-0 z-[88] bg-black/14 backdrop-blur-[1px]"
+        showBackdrop={true}
       >
-        <WidgetChromeProvider
-          currentHost="user_shell"
-          hostOptions={getWidgetHostOptions(["user_shell"])}
-          hostSelectionDisabled
-        >
-          <ShellStack>{children}</ShellStack>
-        </WidgetChromeProvider>
-      </ShellSurface>
+        <WidgetProvider currentHost="user_shell" hostOptions={getWidgetHostOptions(["user_shell"])} hostSelectionDisabled>
+          {children}
+        </WidgetProvider>
+      </DockedShell>
     </>
   );
 };
 
-export function UserShell({
-  isOpen,
-  onClose,
-  children,
-}: {
-  isOpen: boolean;
-  onClose: () => void;
-  children: ReactNode;
-}) {
-  const initialState = useMemo(
-    () => ({
-      title: "Account",
-      subtitle: "Your identity, verification, and session controls.",
-    }),
-    []
-  );
+export function UserShell({ isOpen, onClose, children }: { isOpen: boolean; onClose: () => void; children: ReactNode; }) {
+  const initialState = useMemo(() => ({ title: "Account", subtitle: "Your identity, verification, and session controls." }), []);
 
   return (
     <ShellRuntimeProvider shellId="user_shell" initialState={initialState}>
-      <UserShellInner
-        isOpen={isOpen}
-        onClose={onClose}
-        title="Account"
-        subtitle="Your identity, verification, and session controls."
-      >
+      <UserShellInner isOpen={isOpen} onClose={onClose} title={initialState.title} subtitle={initialState.subtitle}>
         {children}
       </UserShellInner>
     </ShellRuntimeProvider>

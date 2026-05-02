@@ -2,20 +2,23 @@
 
 import { useEffect, useMemo, type ReactNode } from "react";
 
-import { ShellRuntimeProvider, useShellRuntimeActions, type ShellRuntimeState } from "@/components/shells/ShellRuntimeProvider";
-import { ShellStack } from "@/components/shells/ShellStack";
-import { ShellSurface } from "@/components/shells/ShellSurface";
-import { WidgetChromeProvider } from "@/components/widgets/WidgetChromeContext";
+import { ShellRuntimeProvider, useShellRuntimeActions, type ShellRuntimeState, DockedShell, WidgetProvider } from "@synarava/shell-kit";
 import { getEntityWidgetHost, getWidgetHostOptions } from "@/lib/widget-hosts";
 import type { WidgetEntityType } from "@/lib/widgets";
 
-interface RightEntityShellRuntimeBridgeProps {
+interface RightEntityShellInnerProps {
+  shellId: string;
+  isOpen: boolean;
+  onClose: () => void;
+  title: string;
+  subtitle: string;
+  entityType: WidgetEntityType;
   runtimeState: ShellRuntimeState;
+  pinnedChildren?: ReactNode;
+  children: ReactNode;
 }
 
-const RightEntityShellRuntimeBridge = ({
-  runtimeState,
-}: RightEntityShellRuntimeBridgeProps) => {
+const RightEntityShellRuntimeBridge = ({ runtimeState }: { runtimeState: ShellRuntimeState }) => {
   const { patchState } = useShellRuntimeActions();
 
   useEffect(() => {
@@ -25,59 +28,49 @@ const RightEntityShellRuntimeBridge = ({
   return null;
 };
 
-interface RightEntityShellInnerProps {
-  isOpen: boolean;
-  onClose: () => void;
-  title: string;
-  subtitle: string;
-  loading: boolean;
-  entityType: WidgetEntityType;
-  runtimeState: ShellRuntimeState;
-  children: ReactNode;
-}
-
 const RightEntityShellInner = ({
+  shellId,
   isOpen,
   onClose,
   title,
   subtitle,
-  loading,
   entityType,
   runtimeState,
+  pinnedChildren,
   children,
 }: RightEntityShellInnerProps) => {
-  const { registerScrollContainer } = useShellRuntimeActions();
   const widgetHost = getEntityWidgetHost(entityType);
+  const { registerScrollContainer } = useShellRuntimeActions();
 
   return (
     <>
       <RightEntityShellRuntimeBridge runtimeState={runtimeState} />
-      <ShellSurface
+      <DockedShell
         isOpen={isOpen}
         onClose={onClose}
         title={title}
         subtitle={subtitle}
         closeLabel="Close entity widgets"
-        closeTooltip="Close Panel"
-        shellClassName="fixed inset-x-3 bottom-3 top-auto z-50 h-[min(78vh,720px)] pointer-events-none md:inset-x-auto md:right-8 md:top-28 md:bottom-6 md:h-auto md:w-[376px]"
+        backdropCloseLabel="Dismiss entity drawer overlay"
+        showHeader={false}
+        mobileHandle={false}
+        placement="right"
+        width={376}
+        zIndexClassName="z-50"
         scrollContainerRef={registerScrollContainer}
-        bodyClassName="flex-1 overflow-y-auto no-scrollbar px-1 pt-5"
-        headerMeta={
-          loading ? (
-            <p className="mt-2 text-[10px] font-black uppercase tracking-[0.2em] text-neutral-400">
-              Loading widgets...
-            </p>
-          ) : null
-        }
+        scrollContainerDataId={shellId}
+        pinnedContent={pinnedChildren}
+        backdropClassName="fixed inset-0 z-[48] bg-black/14 backdrop-blur-[1px]"
+        showBackdrop={true}
       >
-        <WidgetChromeProvider
+        <WidgetProvider
           currentHost={widgetHost}
           hostOptions={getWidgetHostOptions([widgetHost])}
           hostSelectionDisabled
         >
-          <ShellStack>{children}</ShellStack>
-        </WidgetChromeProvider>
-      </ShellSurface>
+          {children}
+        </WidgetProvider>
+      </DockedShell>
     </>
   );
 };
@@ -88,9 +81,9 @@ interface RightEntityShellProps {
   onClose: () => void;
   title: string;
   subtitle: string;
-  loading: boolean;
   entityType: WidgetEntityType;
   runtimeState?: ShellRuntimeState;
+  pinnedChildren?: ReactNode;
   children: ReactNode;
 }
 
@@ -100,9 +93,9 @@ export const RightEntityShell = ({
   onClose,
   title,
   subtitle,
-  loading,
   entityType,
   runtimeState,
+  pinnedChildren,
   children,
 }: RightEntityShellProps) => {
   const initialState = useMemo(() => runtimeState ?? {}, [runtimeState]);
@@ -110,13 +103,14 @@ export const RightEntityShell = ({
   return (
     <ShellRuntimeProvider shellId={shellId} initialState={initialState}>
       <RightEntityShellInner
+        shellId={shellId}
         isOpen={isOpen}
         onClose={onClose}
         title={title}
         subtitle={subtitle}
-        loading={loading}
         entityType={entityType}
-        runtimeState={runtimeState ?? {}}
+        runtimeState={initialState}
+        pinnedChildren={pinnedChildren}
       >
         {children}
       </RightEntityShellInner>

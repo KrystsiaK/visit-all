@@ -84,6 +84,7 @@ export interface WidgetInstanceRecord {
   settings?: Record<string, unknown>;
   runtimeOverrides?: Record<string, unknown>;
   placedInLeftSidebar?: boolean;
+  slot?: string;
 }
 
 export interface WidgetPlacementRecord {
