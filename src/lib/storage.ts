@@ -24,6 +24,33 @@ export interface StoredUpload {
   publicUrl: string;
 }
 
+function parseBooleanEnv(value: string | undefined) {
+  if (value == null) {
+    return null;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (["1", "true", "yes", "on"].includes(normalized)) {
+    return true;
+  }
+
+  if (["0", "false", "no", "off"].includes(normalized)) {
+    return false;
+  }
+
+  return null;
+}
+
+export function areMediaUploadsEnabled() {
+  const explicit = parseBooleanEnv(process.env.MEDIA_UPLOADS_ENABLED);
+
+  if (explicit !== null) {
+    return explicit;
+  }
+
+  return process.env.NODE_ENV !== "production";
+}
+
 function getStorageConfig(): StorageConfig {
   const provider = (process.env.STORAGE_PROVIDER?.trim().toLowerCase() || "local") as StorageProvider;
 
@@ -173,6 +200,17 @@ export function getActiveStorageProvider() {
 
 export function getStorageReadiness() {
   const config = getStorageConfig();
+  const uploadsEnabled = areMediaUploadsEnabled();
+
+  if (!uploadsEnabled) {
+    return {
+      ok: true as const,
+      provider: config.provider,
+      configured: true,
+      missing: [] as string[],
+      uploadsEnabled: false,
+    };
+  }
 
   if (config.provider === "local") {
     return {
@@ -180,6 +218,7 @@ export function getStorageReadiness() {
       provider: "local" as const,
       configured: true,
       missing: [] as string[],
+      uploadsEnabled: true,
     };
   }
 
@@ -198,6 +237,7 @@ export function getStorageReadiness() {
     provider: "s3" as const,
     configured: missing.length === 0,
     missing,
+    uploadsEnabled: true,
   };
 }
 
@@ -207,6 +247,10 @@ export async function writeUpload(file: File) {
 }
 
 export async function writeUploadAsset(file: File): Promise<StoredUpload> {
+  if (!areMediaUploadsEnabled()) {
+    throw new Error("Image uploads are temporarily disabled.");
+  }
+
   const config = getStorageConfig();
 
   if (config.provider === "s3") {
@@ -218,6 +262,10 @@ export async function writeUploadAsset(file: File): Promise<StoredUpload> {
 }
 
 export async function deleteUploadFromUrl(imageUrl: string | null | undefined) {
+  if (!areMediaUploadsEnabled()) {
+    return;
+  }
+
   const config = getStorageConfig();
 
   if (config.provider === "s3") {

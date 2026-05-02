@@ -1,211 +1,201 @@
 "use client";
 
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
+import { motion } from "framer-motion";
+import { GlassFilterDefs } from "@synarava/liquid-glass";
 
-import { TitlePill, CompactTitlePill } from "../src";
+import { CompactTitlePill, TitlePill } from "../src";
+
+// ---------------------------------------------------------------------------
+// Meta
+// ---------------------------------------------------------------------------
 
 const meta = {
   title: "Shell Kit/TitlePill",
-  component: TitlePill,
-  tags: ["autodocs"],
+  component: InteractiveDemo,
   parameters: {
-    layout: "centered",
-    docs: {
-      description: {
-        component:
-          "A floating glass pill that shows eyebrow, title, and subtitle. Used by BaseWidget but can be used standalone.",
-      },
-    },
+    layout: "fullscreen",
+    backgrounds: { disable: true },
+    docs: { disable: true },
   },
-  argTypes: {
-    eyebrow: { control: "text" },
-    title: { control: "text" },
-    subtitle: { control: "text" },
-  },
-} satisfies Meta<typeof TitlePill>;
+} satisfies Meta<typeof InteractiveDemo>;
 
 export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-export const Default: Story = {
-  args: {
-    eyebrow: "Widget",
-    title: "Weather",
-    subtitle: "Current conditions",
-  },
-};
+// ---------------------------------------------------------------------------
+// Interactive Story — Dark Background with Typography
+// ---------------------------------------------------------------------------
 
-export const TitleOnly: Story = {
-  name: "Title Only",
-  args: {
-    title: "My Dashboard",
-  },
-};
+interface PlaygroundArgs {
+  eyebrow: string;
+  title: string;
+  subtitle: string;
+  label: string;
+  width: number;
+  expandedMaxWidth: number;
+  compact: boolean;
+}
 
-export const EyebrowOnly: Story = {
-  name: "Eyebrow Only",
-  args: {
-    eyebrow: "Section",
-  },
-};
+function InteractiveDemo(args: PlaygroundArgs) {
+  return (
+    <div className="relative w-screen h-screen overflow-hidden select-none">
+      <GlassFilterDefs />
 
-export const LongText: Story = {
-  name: "Long Text (truncation)",
-  decorators: [
-    (Story) => (
-      <div className="w-[200px]">
-        <Story />
+      {/* Dark gradient background */}
+      <div className="absolute inset-0" style={{
+        background: "linear-gradient(135deg, #0f172a 0%, #1e1b4b 35%, #0c1a2e 70%, #18181b 100%)",
+      }} />
+
+      {/* Grid overlay */}
+      <div className="absolute inset-0 opacity-12" style={{
+        backgroundImage: "linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)",
+        backgroundSize: "40px 40px",
+      }} />
+
+      {/* Animated blobs */}
+      <motion.div
+        className="absolute rounded-full pointer-events-none"
+        style={{ width: 400, height: 400, background: "radial-gradient(circle, rgba(99,102,241,0.18) 0%, transparent 70%)", top: "-8%", left: "-6%" }}
+        animate={{ x: [0, 30, 0], y: [0, -25, 0] }}
+        transition={{ duration: 14, repeat: Infinity, ease: "easeInOut" }}
+      />
+      <motion.div
+        className="absolute rounded-full pointer-events-none"
+        style={{ width: 350, height: 350, background: "radial-gradient(circle, rgba(6,182,212,0.15) 0%, transparent 70%)", bottom: "-5%", right: "-4%" }}
+        animate={{ x: [0, -25, 0], y: [0, 20, 0] }}
+        transition={{ duration: 16, repeat: Infinity, ease: "easeInOut", delay: 1.5 }}
+      />
+      <motion.div
+        className="absolute rounded-full pointer-events-none"
+        style={{ width: 280, height: 280, background: "radial-gradient(circle, rgba(168,85,247,0.12) 0%, transparent 70%)", top: "40%", right: "12%" }}
+        animate={{ x: [0, 18, 0], y: [0, -15, 0] }}
+        transition={{ duration: 12, repeat: Infinity, ease: "easeInOut", delay: 0.8 }}
+      />
+
+      {/* Stars */}
+      {Array.from({ length: 50 }).map((_, i) => (
+        <div
+          key={i}
+          className="absolute rounded-full bg-white/50"
+          style={{
+            width: 2,
+            height: 2,
+            left: `${(i * 17 + 13) % 100}%`,
+            top: `${(i * 29 + 7) % 100}%`,
+            opacity: 0.15 + (i % 6) * 0.08,
+          }}
+        />
+      ))}
+
+      {/* Typography background */}
+      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none gap-6 opacity-[0.06]">
+        <p className="text-white font-black text-[120px] leading-none tracking-tighter">TITLE PILL</p>
+        <p className="text-white text-sm font-semibold tracking-[0.4em] uppercase">hover · expand · glass material</p>
       </div>
-    ),
-  ],
+
+      {/* Floating text elements */}
+      <div className="absolute top-16 left-16 text-white/25 text-xs font-mono uppercase tracking-wider">
+        shell-kit component
+      </div>
+      <div className="absolute top-16 right-16 text-white/25 text-xs font-mono uppercase tracking-wider text-right">
+        liquid glass surface
+      </div>
+      <div className="absolute bottom-16 left-16 text-white/20 text-[10px] font-bold uppercase tracking-[0.3em]">
+        truncation · auto-scroll
+      </div>
+      <div className="absolute bottom-16 right-16 text-white/20 text-[10px] font-bold uppercase tracking-[0.3em] text-right">
+        backdrop-filter blur
+      </div>
+
+      {/* Center stage — the pill */}
+      <div className="absolute inset-0 flex flex-col items-center justify-center gap-8 z-10">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="text-white/35 text-xs tracking-[0.25em] uppercase font-bold"
+        >
+          hover to expand
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, scale: 0.94 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.5, type: "spring", stiffness: 200, damping: 20 }}
+          style={{ width: args.width }}
+        >
+          {args.compact ? (
+            <CompactTitlePill
+              label={args.label}
+              expandedMaxWidth={args.expandedMaxWidth}
+            />
+          ) : (
+            <TitlePill
+              eyebrow={args.eyebrow}
+              title={args.title}
+              subtitle={args.subtitle}
+              expandedMaxWidth={args.expandedMaxWidth}
+            />
+          )}
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 1.2 }}
+          className="flex gap-6 text-white/25 text-[10px] uppercase tracking-widest"
+        >
+          <span>width: {args.width}px</span>
+          <span>·</span>
+          <span>max: {args.expandedMaxWidth}px</span>
+        </motion.div>
+      </div>
+    </div>
+  );
+}
+
+export const Interactive: Story = {
+  name: "Interactive Playground",
   args: {
     eyebrow: "Analytics",
     title: "Very Long Widget Title That Should Truncate",
     subtitle: "With an equally verbose subtitle text",
+    label: "Infrastructure Monitoring Dashboard Overview",
+    width: 200,
+    expandedMaxWidth: 480,
+    compact: false,
   },
-};
-
-export const EllipsisTitleOnly: Story = {
-  name: "Ellipsis · title overflow",
-  decorators: [
-    (Story) => (
-      <div className="w-[120px]">
-        <Story />
-      </div>
-    ),
-  ],
-  args: {
-    title: "Extremely Long Dashboard Widget Title",
+  argTypes: {
+    eyebrow: {
+      control: "text",
+      description: "Eyebrow text (only for non-compact mode)",
+    },
+    title: {
+      control: "text",
+      description: "Main title text (only for non-compact mode)",
+    },
+    subtitle: {
+      control: "text",
+      description: "Subtitle text (only for non-compact mode)",
+    },
+    label: {
+      control: "text",
+      description: "Label text (only for compact mode)",
+    },
+    width: {
+      control: { type: "range", min: 80, max: 420, step: 4 },
+      description: "Collapsed width before hover expansion",
+    },
+    expandedMaxWidth: {
+      control: { type: "range", min: 240, max: 720, step: 10 },
+      description: "Maximum width on hover",
+    },
+    compact: {
+      control: "boolean",
+      description: "Use compact pill (single label) or full pill (eyebrow/title/subtitle)",
+    },
   },
+  render: (args) => <InteractiveDemo {...(args as PlaygroundArgs)} />,
 };
-
-export const EllipsisAllFields: Story = {
-  name: "Ellipsis · all fields overflow",
-  decorators: [
-    (Story) => (
-      <div className="w-[160px]">
-        <Story />
-      </div>
-    ),
-  ],
-  args: {
-    eyebrow: "Infrastructure Monitoring",
-    title: "Server Response Latency Overview",
-    subtitle: "99th-percentile breakdown by region",
-  },
-};
-
-export const EllipsisNarrowPill: Story = {
-  name: "Ellipsis · extreme squeeze (80 px)",
-  decorators: [
-    (Story) => (
-      <div className="w-[80px]">
-        <Story />
-      </div>
-    ),
-  ],
-  args: {
-    eyebrow: "Section",
-    title: "Weather",
-    subtitle: "Current conditions in your area",
-  },
-};
-
-export const EllipsisWidthRange: Story = {
-  name: "Ellipsis · width comparison (hover to expand)",
-  render: () => (
-    <div className="flex flex-col gap-6">
-      <p className="text-xs text-neutral-400">Hover any pill to see it expand. If text still overflows at 480 px, it auto-scrolls.</p>
-      {[100, 140, 180, 240, 320].map((w) => (
-        <div key={w} className="flex items-center gap-3">
-          <span className="w-12 text-right text-[11px] tabular-nums text-neutral-400">
-            {w}px
-          </span>
-          <div style={{ width: w }}>
-            <TitlePill
-              eyebrow="Analytics"
-              title="Very Long Widget Title That Truncates"
-              subtitle="With an equally verbose subtitle"
-            />
-          </div>
-        </div>
-      ))}
-    </div>
-  ),
-};
-
-export const HoverExpandDemo: Story = {
-  name: "Hover Expand · Liquid Glass",
-  render: () => (
-    <div className="flex flex-col gap-6">
-      <p className="max-w-md text-xs leading-5 text-neutral-400">
-        Hover over the pills below. They expand up to 480 px with an enhanced
-        glass effect. If content still overflows, gradient masks appear and the
-        text auto-scrolls.
-      </p>
-      <div className="flex flex-col gap-4">
-        <div className="w-[140px]">
-          <TitlePill
-            eyebrow="Analytics"
-            title="Very Long Widget Title"
-            subtitle="With an equally verbose subtitle text"
-          />
-        </div>
-        <div className="w-[200px]">
-          <TitlePill
-            eyebrow="Infrastructure Monitoring"
-            title="Server Response Latency Overview Dashboard"
-            subtitle="99th-percentile breakdown by region and availability zone for all production clusters"
-          />
-        </div>
-        <div className="w-[100px]">
-          <CompactTitlePill label="Infrastructure Monitoring Dashboard Overview" />
-        </div>
-      </div>
-    </div>
-  ),
-};
-
-export const Compact: Story = {
-  name: "Compact Variant",
-  render: () => <CompactTitlePill label="Weather" />,
-};
-
-export const CompactCustomIcon: Story = {
-  name: "Compact with Custom Icon",
-  render: () => (
-    <CompactTitlePill
-      label="Favorites"
-      icon={<span className="text-xs">⭐</span>}
-    />
-  ),
-};
-
-export const CompactEllipsis: Story = {
-  name: "Compact · label overflow",
-  render: () => (
-    <div className="w-[100px]">
-      <CompactTitlePill label="Infrastructure Monitoring Dashboard" />
-    </div>
-  ),
-};
-
-export const CompactEllipsisWidthRange: Story = {
-  name: "Compact · width comparison (hover to expand)",
-  render: () => (
-    <div className="flex flex-col gap-4">
-      {[80, 120, 160, 240].map((w) => (
-        <div key={w} className="flex items-center gap-3">
-          <span className="w-12 text-right text-[11px] tabular-nums text-neutral-400">
-            {w}px
-          </span>
-          <div style={{ width: w }}>
-            <CompactTitlePill label="Infrastructure Monitoring Dashboard" />
-          </div>
-        </div>
-      ))}
-    </div>
-  ),
-};
-

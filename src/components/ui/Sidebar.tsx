@@ -1,13 +1,12 @@
 "use client";
 
 import * as React from "react";
-import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import { createCollection } from "@/app/actions";
 import type { InteractionMode, Collection } from "@/app/page";
 import { ShellSlot } from "@synarava/shell-kit";
 import type { LeftSidebarShellConfig } from "@/lib/shells";
 import type { WidgetInstanceRecord, WidgetPlacementRecord } from "@/lib/widgets";
-import { isLeftShellWidgetEnabled, shellEntranceTimeoutMs } from "@/lib/shell-runtime";
 import { LeftSidebarShell } from "@/components/shells/LeftSidebarShell";
 import { ShellCollectionsWidget } from "@/components/widgets/shell-widgets/ShellCollectionsWidget";
 import { ShellControlsWidget } from "@/components/widgets/shell-widgets/ShellControlsWidget";
@@ -19,7 +18,6 @@ import { ShellResetViewWidget } from "@/components/widgets/shell-widgets/ShellRe
 import { ShellSearchWidget } from "@/components/widgets/shell-widgets/ShellSearchWidget";
 import { ShellChromePrimaryWidget } from "@/components/widgets/shell-widgets/ShellChromePrimaryWidget";
 import { useShellCollectionsBinding } from "@/components/widgets/shell-widgets/collections/useShellCollectionsBinding";
-import { ShellWidgetBoundary } from "@/components/shells/ShellWidgetBoundary";
 import { useShellRuntimeActions, useShellRuntimeValue } from "@synarava/shell-kit";
 import { type LayerVisibilityState } from "@/lib/layer-visibility";
 import { WidgetErrorBoundary } from "@/components/errors/WidgetErrorBoundary";
@@ -80,7 +78,7 @@ export default function Sidebar({
   onClearSelection, onDataSaved,
   isMobileViewport = false,
   mobileSidebarOpen, setMobileSidebarOpen,
-  desktopSidebarVisible = true, onToggleDesktopSidebar, sidebarReady = false, shellConfig, shellId = "left_sidebar", shellWidgets = [], shellWidgetsLoaded = false, collectionsLoaded = false,
+  desktopSidebarVisible = true, onToggleDesktopSidebar, sidebarReady = false, shellConfig, shellId = "left_sidebar", shellWidgets = [], collectionsLoaded = false,
   onShellWidgetsReorder,
   collections, layerVisibility, setCollections, targetCollectionId, setTargetCollectionId
   , pendingPin, onCollectionConfirm, onToggleCollectionVisibility, onShowOnlyCollection, autoOpenCollectionId, onFinishTraceDraft, onFinishAreaDraft, selectedTraceNodeIndex = null, onRemoveSelectedTraceNode
@@ -105,17 +103,6 @@ export default function Sidebar({
         ? "zone"
         : "pin";
 
-const shellSections = useMemo(
-    () =>
-      shellConfig?.sections ?? {
-        search: true,
-        modeSwitch: true,
-        collections: true,
-        controls: true,
-        actions: true,
-      },
-    [shellConfig?.sections]
-  );
   const desktopWidth = shellConfig?.width ?? 360;
   const orderedShellWidgets = useMemo(
     () => [...shellWidgets].sort((left, right) => left.position - right.position),
@@ -143,78 +130,7 @@ const shellSections = useMemo(
       ),
     [orderedShellWidgets, pinnedShellWidgets]
   );
-  const [readyWidgetIds, setReadyWidgetIds] = useState<string[]>([]);
-  const [shellEntranceTimedOut, setShellEntranceTimedOut] = useState(false);
-  const [shellHasEntered, setShellHasEntered] = useState(false);
   const [creatingCollection, setCreatingCollection] = useState(false);
-
-  const visibleShellWidgets = useMemo(
-    () =>
-      orderedShellWidgets.filter(
-        (widget) =>
-          widget.componentKey !== "shell_header" &&
-          isLeftShellWidgetEnabled(widget.componentKey, shellSections)
-      ),
-    [orderedShellWidgets, shellSections]
-  );
-
-  const requiredShellWidgetIds = useMemo(
-    () => visibleShellWidgets.map((widget) => widget.id),
-    [visibleShellWidgets]
-  );
-
-  const allRequiredWidgetsReady = requiredShellWidgetIds.every((widgetId) =>
-    readyWidgetIds.includes(widgetId)
-  );
-
-  const shellCanEnter =
-    shellHasEntered ||
-    (sidebarReady && shellWidgetsLoaded && (allRequiredWidgetsReady || shellEntranceTimedOut));
-  useEffect(() => {
-    setReadyWidgetIds((currentIds) =>
-      currentIds.filter((widgetId) => requiredShellWidgetIds.includes(widgetId))
-    );
-  }, [requiredShellWidgetIds]);
-
-  useEffect(() => {
-    if (shellHasEntered || !sidebarReady || !shellWidgetsLoaded || requiredShellWidgetIds.length === 0 || allRequiredWidgetsReady) {
-      setShellEntranceTimedOut(false);
-      return;
-    }
-
-    const timeout = window.setTimeout(() => {
-      setShellEntranceTimedOut(true);
-    }, shellEntranceTimeoutMs);
-
-    return () => window.clearTimeout(timeout);
-  }, [allRequiredWidgetsReady, requiredShellWidgetIds.length, shellHasEntered, shellWidgetsLoaded, sidebarReady]);
-
-  useEffect(() => {
-    if (shellCanEnter && !shellHasEntered) {
-      setShellHasEntered(true);
-    }
-  }, [shellCanEnter, shellHasEntered]);
-
-  const handleWidgetLayoutReady = useCallback((widgetId: string) => {
-    setReadyWidgetIds((currentIds) =>
-      currentIds.includes(widgetId) ? currentIds : [...currentIds, widgetId]
-    );
-  }, []);
-
-  const isWidgetLayoutReady = useCallback(
-    (widget: Pick<WidgetInstanceRecord, "id" | "slug" | "componentKey">) => {
-      if (!isLeftShellWidgetEnabled(widget.componentKey, shellSections)) {
-        return false;
-      }
-
-      if (widget.componentKey === "shell_collections") {
-        return collectionsLoaded;
-      }
-
-      return true;
-    },
-    [collectionsLoaded, shellSections]
-  );
 
   const {
     saving: collectionBindingSaving,
@@ -244,6 +160,18 @@ const shellSections = useMemo(
     onDataSaved,
     setMobileSidebarOpen,
   });
+
+  const leftSidebarInitialState = useMemo(
+    () => ({
+      collectionQuery: "",
+      interactionMode: mode,
+      areasDisabled: false,
+      interactionLocked: shellInteractionLocked,
+      highlightedCollectionId,
+      editingCollectionId,
+    }),
+    [mode, shellInteractionLocked, highlightedCollectionId, editingCollectionId]
+  );
 
   const saving = collectionBindingSaving || creatingCollection;
 
@@ -389,13 +317,7 @@ const shellSections = useMemo(
         onDragOver={(event) => handleDragOver(event, widget.id)}
         onDrop={(event) => handleDrop(event, widget.id)}
       >
-        <ShellWidgetBoundary
-          widgetId={widget.id}
-          layoutReady={isWidgetLayoutReady(widget)}
-          onLayoutReady={handleWidgetLayoutReady}
-        >
-          <WidgetErrorBoundary>{content}</WidgetErrorBoundary>
-        </ShellWidgetBoundary>
+        <WidgetErrorBoundary>{content}</WidgetErrorBoundary>
       </ShellSlot>
     );
   };
@@ -443,43 +365,38 @@ const shellSections = useMemo(
         </div>
       )}
       
-      <LeftSidebarShell
-        key={shellId}
-        shellId={shellId}
-        isOpen={isMobileViewport ? Boolean(mobileSidebarOpen) : shellCanEnter}
-        collapsed={!isMobileViewport && !desktopSidebarVisible}
-        shellWidth={desktopWidth}
-        initialState={{
-          collectionQuery: "",
-          interactionMode: mode,
-          areasDisabled: false,
-          interactionLocked: shellInteractionLocked,
-          highlightedCollectionId,
-          editingCollectionId,
-        }}
-        onCloseMobile={() => setMobileSidebarOpen?.(false)}
-        pinnedChildren={
-          isMobileViewport ? (
-            pinnedShellWidgets.map((widget) => renderShellWidget(widget))
-          ) : (
-            <ShellChromePrimaryWidget
-              desktopSidebarVisible={desktopSidebarVisible}
-              mobileSidebarOpen={Boolean(mobileSidebarOpen)}
-              shellWidth={desktopWidth}
-              onToggleDesktopSidebar={() => onToggleDesktopSidebar?.()}
-              onToggleMobileSidebar={() => setMobileSidebarOpen?.(!Boolean(mobileSidebarOpen))}
-            />
-          )
-        }
-      >
-        <ShellRuntimeModeSync mode={mode} />
-        <ShellRuntimeInteractionLockSync interactionLocked={shellInteractionLocked} />
-        <ShellRuntimeCollectionSelectionSync
-          highlightedCollectionId={highlightedCollectionId}
-          editingCollectionId={editingCollectionId}
-        />
-        {mainShellWidgets.map((widget) => renderShellWidget(widget))}
-      </LeftSidebarShell>
+      {(isMobileViewport || sidebarReady) && (
+        <LeftSidebarShell
+          key={`${shellId}:${isMobileViewport ? "mobile" : desktopSidebarVisible ? "open" : "collapsed"}`}
+          shellId={shellId}
+          isOpen={isMobileViewport ? Boolean(mobileSidebarOpen) : true}
+          collapsed={!isMobileViewport && !desktopSidebarVisible}
+          shellWidth={desktopWidth}
+          initialState={leftSidebarInitialState}
+          onCloseMobile={() => setMobileSidebarOpen?.(false)}
+          pinnedChildren={
+            isMobileViewport ? (
+              pinnedShellWidgets.map((widget) => renderShellWidget(widget))
+            ) : (
+              <ShellChromePrimaryWidget
+                desktopSidebarVisible={desktopSidebarVisible}
+                mobileSidebarOpen={Boolean(mobileSidebarOpen)}
+                shellWidth={desktopWidth}
+                onToggleDesktopSidebar={() => onToggleDesktopSidebar?.()}
+                onToggleMobileSidebar={() => setMobileSidebarOpen?.(!Boolean(mobileSidebarOpen))}
+              />
+            )
+          }
+        >
+          <ShellRuntimeModeSync mode={mode} />
+          <ShellRuntimeInteractionLockSync interactionLocked={shellInteractionLocked} />
+          <ShellRuntimeCollectionSelectionSync
+            highlightedCollectionId={highlightedCollectionId}
+            editingCollectionId={editingCollectionId}
+          />
+          {mainShellWidgets.map((widget) => renderShellWidget(widget))}
+        </LeftSidebarShell>
+      )}
     </>
   );
 }

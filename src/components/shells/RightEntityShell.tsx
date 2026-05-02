@@ -1,10 +1,9 @@
 "use client";
 
-import { useMemo, type ReactNode } from "react";
+import { useEffect, useMemo, type ReactNode } from "react";
 
-import { type ShellRuntimeState } from "@synarava/shell-kit";
-import { SideDockShell } from "@/components/shells/SideDockShell";
-import { getEntityWidgetHost } from "@/lib/widget-hosts";
+import { ShellRuntimeProvider, useShellRuntimeActions, type ShellRuntimeState, DockedShell, WidgetProvider } from "@synarava/shell-kit";
+import { getEntityWidgetHost, getWidgetHostOptions } from "@/lib/widget-hosts";
 import type { WidgetEntityType } from "@/lib/widgets";
 
 interface RightEntityShellInnerProps {
@@ -19,6 +18,16 @@ interface RightEntityShellInnerProps {
   children: ReactNode;
 }
 
+const RightEntityShellRuntimeBridge = ({ runtimeState }: { runtimeState: ShellRuntimeState }) => {
+  const { patchState } = useShellRuntimeActions();
+
+  useEffect(() => {
+    patchState(runtimeState);
+  }, [patchState, runtimeState]);
+
+  return null;
+};
+
 const RightEntityShellInner = ({
   shellId,
   isOpen,
@@ -31,29 +40,38 @@ const RightEntityShellInner = ({
   children,
 }: RightEntityShellInnerProps) => {
   const widgetHost = getEntityWidgetHost(entityType);
+  const { registerScrollContainer } = useShellRuntimeActions();
 
   return (
-    <SideDockShell
-      shellId={shellId}
-      initialState={runtimeState}
-      runtimeState={runtimeState}
-      isOpen={isOpen}
-      onClose={onClose}
-      side="right"
-      width={376}
-      title={title}
-      subtitle={subtitle}
-      closeLabel="Close entity widgets"
-      backdropCloseLabel="Dismiss entity drawer overlay"
-      closeTooltip="Close Panel"
-      currentHost={widgetHost}
-      showHeader={false}
-      backdropMode="always"
-      stackClassName="pointer-events-auto"
-      pinnedChildren={pinnedChildren}
-    >
-      {children}
-    </SideDockShell>
+    <>
+      <RightEntityShellRuntimeBridge runtimeState={runtimeState} />
+      <DockedShell
+        isOpen={isOpen}
+        onClose={onClose}
+        title={title}
+        subtitle={subtitle}
+        closeLabel="Close entity widgets"
+        backdropCloseLabel="Dismiss entity drawer overlay"
+        showHeader={false}
+        mobileHandle={false}
+        placement="right"
+        width={376}
+        zIndexClassName="z-50"
+        scrollContainerRef={registerScrollContainer}
+        scrollContainerDataId={shellId}
+        pinnedContent={pinnedChildren}
+        backdropClassName="fixed inset-0 z-[48] bg-black/14 backdrop-blur-[1px]"
+        showBackdrop={true}
+      >
+        <WidgetProvider
+          currentHost={widgetHost}
+          hostOptions={getWidgetHostOptions([widgetHost])}
+          hostSelectionDisabled
+        >
+          {children}
+        </WidgetProvider>
+      </DockedShell>
+    </>
   );
 };
 
@@ -83,6 +101,7 @@ export const RightEntityShell = ({
   const initialState = useMemo(() => runtimeState ?? {}, [runtimeState]);
 
   return (
+    <ShellRuntimeProvider shellId={shellId} initialState={initialState}>
       <RightEntityShellInner
         shellId={shellId}
         isOpen={isOpen}
@@ -95,5 +114,6 @@ export const RightEntityShell = ({
       >
         {children}
       </RightEntityShellInner>
+    </ShellRuntimeProvider>
   );
 };

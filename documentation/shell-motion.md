@@ -68,6 +68,29 @@ Examples:
 2. right shell docks to the right edge
 3. bottom shell docks to the bottom edge
 
+### Shared implementation rule
+
+In this project, shell behavior should live in `shell-kit`, not in individual app shells.
+
+The shared shell primitive should own:
+
+1. entrance and exit animation from placement
+2. pinned-versus-scroll layout rhythm
+3. scroll containment
+4. backdrop behavior
+5. collapse and expand transitions
+
+App shells should be thin adapters that mostly pass:
+
+1. `placement`
+2. `isOpen`
+3. `width`
+4. `pinnedContent`
+5. `children`
+6. small shell-specific hero or close-button content
+
+If left and right shells need the same behavior, that behavior belongs in the shared shell primitive.
+
 ### 2. Behavioral responsibility
 
 The shell owns:
@@ -218,6 +241,18 @@ Contains shell widgets such as:
 1. app header
 2. search
 3. mode switch
+
+The desktop left shell should use the same pinned/main scroll contract as right-side shells. Its role is different, but its shell rhythm should still come from the shared shell primitive.
+
+### Right shell
+
+Purpose:
+
+1. entity enrichment widgets
+2. contextual detail and editing
+3. transient inspection
+
+The right shell should not define its own sticky layout system. It should reuse the same shell-owned pinned/main behavior as the left shell.
 4. layer list
 5. map controls
 6. action cards
@@ -238,20 +273,20 @@ Contains entity widgets such as:
 
 ## Rules
 
-### 1. Shell entrance waits for layout-ready widgets
+### 1. Shell entrance is immediate
 
-The shell should not wait for every async request to finish.
+The shell should open immediately when triggered.
 
-Instead, the shell waits for widgets to reach a `layout-ready` state.
+Widgets inside should handle their own loading states with proper skeletons.
 
-For this product, `layout-ready` means:
+For this product, widget responsibility means:
 
-1. the widget has mounted
-2. the widget has reserved its initial height
-3. the widget can render without causing first-load layout jumps
-4. it may still continue loading data internally afterward
+1. the widget reserves its space through CSS or fixed dimensions
+2. the widget shows a skeleton/placeholder while loading data
+3. the widget transitions smoothly when data arrives
+4. widgets never cause layout jumps
 
-This keeps the shell premium and calm without making it hostage to slow background work.
+This keeps the shell premium and responsive.
 
 ### 2. Shell-ready is not data-ready
 
@@ -259,33 +294,21 @@ These are different:
 
 1. `data-ready`
    Every async fetch is complete.
-2. `layout-ready`
-   The widget can already live inside the shell without destabilizing it.
+2. `shell-ready`
+   The shell container is visible and stable.
 
-The shell cares about `layout-ready`.
+The shell opens immediately. Widgets show loading states as needed.
 
-### 3. Widgets must notify the shell
+### 3. Widgets manage their own loading states
 
-Each widget inside a shell should explicitly notify the shell when it is ready for shell entrance.
+Each widget inside a shell should handle its own async data:
 
-The signal should happen:
+1. show skeleton/placeholder immediately on mount
+2. maintain fixed dimensions or CSS-based space reservation
+3. transition smoothly when data arrives (fade-in, not pop-in)
+4. never cause the shell to jump or shift
 
-1. after initial mount
-2. after the widget has established its first stable box
-3. before any late content changes would become visually disruptive
-
-### 4. Timeout is mandatory
-
-Shell entrance must never block forever on one widget.
-
-So the runtime should use:
-
-1. required widget readiness
-2. a short grace timeout
-
-If a widget fails to report readiness, the shell should still enter after the timeout.
-
-### 5. Shell motion owns the main reveal
+### 4. Shell motion owns the main reveal
 
 When the shell enters:
 

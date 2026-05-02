@@ -85,20 +85,21 @@ export const LibraryWidgetPreview = ({
     emailVerifiedAt: new Date().toISOString(),
   };
 
-  switch (definition.componentKey) {
-    case "global_overview":
-      return <GlobalOverviewWidgetCard widget={widget} />;
-    case "user_profile":
-      return (
+  const previewContent = (() => {
+    switch (definition.componentKey) {
+      case "global_overview":
+        return <GlobalOverviewWidgetCard widget={widget} />;
+      case "user_profile":
+        return (
         <UserProfileWidgetCard
           widget={widget}
           profile={previewProfile}
           saving={false}
           onSave={asyncNoop}
         />
-      );
-    case "user_account_actions":
-      return (
+        );
+      case "user_account_actions":
+        return (
         <UserAccountActionsWidgetCard
           widget={widget}
           profile={previewProfile}
@@ -109,13 +110,13 @@ export const LibraryWidgetPreview = ({
           onRequestPasswordReset={asyncNoop}
           onChangePassword={async () => ({ ok: true, message: "Preview only." })}
         />
-      );
-    case "shell_search":
-      return withShellRuntime(<ShellSearchWidget />);
-    case "shell_mode_switch":
-      return withShellRuntime(<ShellModeSwitchWidget config={definition.defaultConfig} />);
-    case "shell_collections":
-      return withShellRuntime(
+        );
+      case "shell_search":
+        return <ShellSearchWidget />;
+      case "shell_mode_switch":
+        return <ShellModeSwitchWidget config={definition.defaultConfig} />;
+      case "shell_collections":
+        return (
         <ShellCollectionsWidget
           collections={[
             { id: "c1", name: "Interesting Places", color: "#2563eb", icon: "pin", itemCount: 10 },
@@ -139,9 +140,9 @@ export const LibraryWidgetPreview = ({
           onCollectionDone={asyncNoop}
           onRequestDeleteCollection={noop}
         />
-      );
-    case "shell_controls":
-      return (
+        );
+      case "shell_controls":
+        return (
         <ShellControlsWidget
           isSatellite
           setIsSatellite={noop}
@@ -151,17 +152,17 @@ export const LibraryWidgetPreview = ({
           setCurveMode={noop}
           disabled
         />
-      );
-    case "shell_create_collection":
-      return <ShellCreateCollectionWidget onCreateCollection={noop} saving={false} />;
-    case "shell_reset_view":
-      return <ShellResetViewWidget onResetView={noop} />;
-    case "shell_finish_trace":
-      return <ShellFinishTraceWidget visible onFinishTraceDraft={noop} />;
-    case "shell_remove_trace_point":
-      return <ShellRemoveTracePointWidget visible selectedTraceNodeIndex={1} onRemoveSelectedTraceNode={noop} />;
-    case "entity_info":
-      return (
+        );
+      case "shell_create_collection":
+        return <ShellCreateCollectionWidget onCreateCollection={noop} saving={false} />;
+      case "shell_reset_view":
+        return <ShellResetViewWidget onResetView={noop} />;
+      case "shell_finish_trace":
+        return <ShellFinishTraceWidget visible onFinishTraceDraft={noop} />;
+      case "shell_remove_trace_point":
+        return <ShellRemoveTracePointWidget visible selectedTraceNodeIndex={1} onRemoveSelectedTraceNode={noop} />;
+      case "entity_info":
+        return (
         <EntityInfoWidgetCard
           widget={widget}
           entity={pinEntity}
@@ -170,9 +171,9 @@ export const LibraryWidgetPreview = ({
           onTitleChange={noop}
           onTitleCommit={async () => {}}
         />
-      );
-    case "entity_delete":
-      return (
+        );
+      case "entity_delete":
+        return (
         <EntityDeleteWidgetCard
           widget={widget}
           entity={pinEntity}
@@ -180,9 +181,9 @@ export const LibraryWidgetPreview = ({
           disabled
           onDelete={noop}
         />
-      );
-    case "entity_rating":
-      return (
+        );
+      case "entity_rating":
+        return (
         <EntityRatingWidgetCard
           widget={widget}
           entity={pinEntity}
@@ -190,9 +191,9 @@ export const LibraryWidgetPreview = ({
           disabled
           onRate={noop}
         />
-      );
-    case "entity_gallery":
-      return (
+        );
+      case "entity_gallery":
+        return (
         <EntityGalleryWidgetCard
           widget={widget}
           entity={pinEntity}
@@ -210,9 +211,9 @@ export const LibraryWidgetPreview = ({
           onUpload={asyncNoop}
           onDeleteMediaItem={asyncNoop}
         />
-      );
-    case "entity_stories":
-      return (
+        );
+      case "entity_stories":
+        return (
         <EntityStoriesWidgetCard
           widget={widget}
           entity={pinEntity}
@@ -230,9 +231,9 @@ export const LibraryWidgetPreview = ({
           onSaveStoryEntry={asyncNoop}
           onRemoveStoryEntry={asyncNoop}
         />
-      );
-    case "entity_resources":
-      return (
+        );
+      case "entity_resources":
+        return (
         <EntityResourcesWidgetCard
           widget={widget}
           entity={pinEntity}
@@ -260,9 +261,9 @@ export const LibraryWidgetPreview = ({
           onRemoveResource={asyncNoop}
           onCommitResource={async () => {}}
         />
-      );
-    case "entity_nearby_pins":
-      return (
+        );
+      case "entity_nearby_pins":
+        return (
         <EntityNearbyPinsWidgetCard
           widget={widget}
           entity={pinEntity}
@@ -294,21 +295,24 @@ export const LibraryWidgetPreview = ({
             },
           ]}
         />
-      );
-    case "entity_transport_mode":
-      return (
+        );
+      case "entity_transport_mode":
+        return (
         <EntityPlaceholderWidgetCard
           widget={widget}
           entity={traceEntity}
           eyebrow="Transport"
           body="This widget captures how the route was traveled."
         />
-      );
-    default:
-      return (
+        );
+      default:
+        return (
         <div className="rounded-2xl border border-dashed border-black/10 bg-white/60 px-4 py-8 text-center text-sm text-neutral-500">
           {definition.name}
         </div>
-      );
-  }
+        );
+    }
+  })();
+
+  return withShellRuntime(previewContent);
 };

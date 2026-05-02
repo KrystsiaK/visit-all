@@ -1244,6 +1244,10 @@ export async function changeCurrentUserPassword(input: {
 }
 
 export async function updateLeftSidebarShellState(partialState: Partial<LeftSidebarShellInstance["state"]>) {
+  if (process.env.E2E_TEST_MODE === "1") {
+    return { id: null, skipped: true as const, state: partialState };
+  }
+
   const userId = await getUserId();
   await ensureUserShellInstance(userId, "left_sidebar");
 

@@ -20,7 +20,7 @@ const cspDirectives = [
 ].join("; ");
 
 const nextConfig: NextConfig = {
-  transpilePackages: ["@synarava/shell-kit"],
+  transpilePackages: ["@synarava/shell-kit", "@synarava/liquid-glass"],
   experimental: {
     serverActions: {
       bodySizeLimit: serverActionBodyLimit,

@@ -4,11 +4,11 @@
 
 ## What it is
 
-The generic animated panel shell. All concrete shells (Left, Right Entity, Widget Center,
-Widget Library, User Shell, Top Chrome) compose BaseShell with specific placement,
-sizing, and entrance presets.
+The generic animated panel shell. All concrete shells compose BaseShell either directly
+or via a higher-level adapter such as `DockedShell`.
 
-BaseShell knows: open/close, placement, motion, backdrop, scroll region, header region.
+BaseShell knows: open/close, placement, motion, backdrop, scroll region, header region,
+and the shared pinned-versus-scroll layout contract.
 BaseShell does NOT know: pins, paths, collections, ratings, map logic, product semantics.
 
 ## Props
@@ -18,12 +18,15 @@ BaseShell does NOT know: pins, paths, collections, ratings, map logic, product s
 - closeLabel, backdropCloseLabel - a11y labels
 - closeButton (ReactNode) - custom close button (default: X circle)
 - children - panel body content
+- pinnedContent - sticky hero or pinned widget stack rendered above the main children flow
 - scrollContainerRef, scrollContainerDataId - scroll container registration
 - headerMeta (ReactNode) - extra header content below subtitle
 - shellStyle (CSSProperties), shellClassName - outer shell styling
 - backdropClassName, surfaceClassName, headerClassName, bodyClassName, contentContainerClassName
+- scrollBodyClassName, scrollContentClassName, pinnedClassName, childrenClassName
 - mobileHandle (bool, default true) - pill-shaped drag handle on mobile
 - showBackdrop, showHeader, showCloseButton - visibility toggles
+- placement (ShellPlacement) - preferred ergonomic input; derives named entrance automatically
 - entrance (ShellEntranceName) - named animation preset (overlay, slide-left, etc.)
 - shellVariants, sectionVariants (framer Variants) - custom motion overrides
 - shellInitial, shellAnimate, shellExit - variant state names
@@ -38,10 +41,15 @@ AnimatePresence
         Mobile handle (optional)
         Header (glass card with title + subtitle + close button)
         Body (scrollable, gap-3, children go here)
+          scrollBody
+            scrollContent
+              pinnedContent (optional, sticky)
+              children flow
 
 ## Entrance animation
 
 Uses resolveShellEntrance() to pick shell + section Variants.
+Placement is the preferred API. BaseShell derives entrance from placement unless a custom entrance is supplied.
 Named presets: overlay, slide-left, slide-right, slide-top, slide-bottom.
 Custom variants override named presets.
 
@@ -52,4 +60,5 @@ framer-motion (AnimatePresence, motion), resolveShellEntrance from ../lib/shell-
 ## Consumed by
 
 ShellSurface in the app layer, which adds Tooltip close buttons and more.
-All concrete shells go through ShellSurface -> BaseShell.
+`DockedShell` should be the default for left/right product shells.
+Use BaseShell directly only when the shell shape is genuinely different.

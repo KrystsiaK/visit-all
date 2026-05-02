@@ -26,6 +26,7 @@ Priority Storybook coverage:
 1. every shared primitive has a default state story
 2. editable primitives expose empty, disabled, and read-only states
 3. shell-facing primitives expose at least one story at production scale
+4. package-level systems expose overview stories so material and motion changes can be reviewed holistically
 
 ### 3. End-to-end tests
 

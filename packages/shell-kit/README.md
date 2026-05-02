@@ -16,6 +16,7 @@ npm install
 ```tsx
 import {
   BaseShell,
+  DockedShell,
   BaseWidget,
   ShellRuntimeProvider,
   ShellSlot,
@@ -30,6 +31,7 @@ import {
 | Atom | Purpose |
 |------|---------|
 | `BaseShell` | Panel container — open/close, backdrop, motion, scroll, header. Accepts a `closeButton` render slot. |
+| `DockedShell` | Ergonomic left/right edge shell built on `BaseShell`. Use when a product shell just needs placement, width, pinned content, and children. |
 | `ShellRuntimeProvider` | Shell-scoped signal bus. Generic: `ShellRuntimeProvider<TState>` for typed state. |
 | `ShellSlot` | Widget position — drag handle, drop indicator, reorder geometry. |
 | `useShellWidgetReorder` | Canonical drag & reorder hook with auto-scroll. |
@@ -40,7 +42,8 @@ import {
 ## Mental model
 
 ```
-BaseShell       = panel / rack
+BaseShell       = low-level panel primitive
+DockedShell     = ergonomic edge-docked shell
 BaseWidget      = instrument
 ShellRuntime    = shared signals / wires
 ShellSlot       = widget position inside the panel
@@ -102,3 +105,11 @@ Every import inside `src/` must be either:
 
 No `@/`, no `next`, no host-project modules. Enforced by ESLint.
 
+## Recommended product usage
+
+When building a left or right app shell:
+
+1. prefer `DockedShell`
+2. use `BaseShell` only when the shell is materially different (`top chrome`, fullscreen library, floating special case)
+3. let shell-kit own pinned-versus-scroll layout rhythm
+4. keep product shells thin by binding runtime state, title, pinned content, and widget host only

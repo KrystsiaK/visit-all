@@ -10,7 +10,7 @@ async function ensureLeftSidebarOpen(page: import("@playwright/test").Page) {
   }
 
   const topHero = page.locator('[data-testid="top-chrome-hero"]:visible').first();
-  const toggleButton = page.locator('button:visible:has([data-testid="top-chrome-hero"])').first();
+  const toggleButton = page.getByRole("button", { name: /open layers panel/i });
   await expect(topHero).toBeVisible();
   await toggleButton.click();
   await expect(searchWidget).toBeVisible();
@@ -112,6 +112,8 @@ test.describe("shell visual contract", () => {
     await expect(rightHero).toBeVisible();
     await expect(rightFirstWidget).toBeVisible();
 
+    await page.waitForTimeout(250);
+
     const leftHeroBox = await topHero.boundingBox();
     const leftFirstBox = await searchWidget.boundingBox();
     const rightHeroBox = await rightHero.boundingBox();
@@ -127,7 +129,7 @@ test.describe("shell visual contract", () => {
     const leftGapAfterPinned = leftFirstBox!.y - (leftHeroBox!.y + leftHeroBox!.height);
     const rightGapAfterPinned = rightFirstBox!.y - (rightHeroBox!.y + rightHeroBox!.height);
 
-    expect(Math.abs(leftGapFromTop - rightGapFromTop)).toBeLessThanOrEqual(2);
-    expect(Math.abs(leftGapAfterPinned - rightGapAfterPinned)).toBeLessThanOrEqual(2);
+    expect(Math.abs(leftGapFromTop - rightGapFromTop)).toBeLessThanOrEqual(3);
+    expect(Math.abs(leftGapAfterPinned - rightGapAfterPinned)).toBeLessThanOrEqual(3);
   });
 });

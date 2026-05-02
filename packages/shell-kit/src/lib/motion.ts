@@ -1,23 +1,22 @@
 import type { Transition, Variants } from "framer-motion";
+import {
+  liquidGlassMotion,
+  liquidGlassDurations,
+  liquidGlassEaseStandard,
+} from "@synarava/liquid-glass";
 
-export const glassEase: [number, number, number, number] = [0.22, 1, 0.36, 1];
+export const glassEase: [number, number, number, number] = liquidGlassEaseStandard;
 
 export const glassDurations = {
-  shell: 0.24,
-  section: 0.2,
-  item: 0.22,
-  micro: 0.18,
+  shell: liquidGlassDurations.shell,
+  section: liquidGlassDurations.section,
+  item: liquidGlassDurations.item,
+  micro: liquidGlassDurations.micro,
 } as const;
 
-export const glassShellTransition: Transition = {
-  duration: glassDurations.shell,
-  ease: glassEase,
-};
+export const glassShellTransition: Transition = liquidGlassMotion.shell;
 
-export const glassSectionTransition: Transition = {
-  duration: glassDurations.section,
-  ease: glassEase,
-};
+export const glassSectionTransition: Transition = liquidGlassMotion.section;
 
 export const overlayShellVariants: Variants = {
   hidden: {
@@ -66,4 +65,3 @@ export const overlaySectionVariants: Variants = {
     },
   },
 };
-

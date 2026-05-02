@@ -11,6 +11,9 @@
     "test:ui": "vitest run --config vitest.ui.config.ts",
     "lint": "eslint src/"
   },
+  "dependencies": {
+    "@synarava/liquid-glass": "0.1.0"
+  },
   "peerDependencies": {
     "react": ">=18",
     "react-dom": ">=18",
@@ -20,4 +23,3 @@
     "tailwind-merge": ">=2"
   }
 }
-

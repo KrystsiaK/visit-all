@@ -52,7 +52,13 @@ export const ShellCollectionsWidget = ({
       className="pointer-events-auto relative mb-2 flex h-[396px] shrink-0 flex-col overflow-hidden rounded-2xl bg-white/70 shadow-[0px_10px_36px_rgba(0,0,0,0.08)] backdrop-blur-2xl"
       bodyClassName="flex min-h-0 flex-1 flex-col"
     >
-      <div ref={handleWidgetRef} data-shell-widget="collections" className="flex min-h-0 flex-1 flex-col">
+      <motion.div
+        ref={handleWidgetRef}
+        data-shell-widget="collections"
+        className="flex min-h-0 flex-1 flex-col"
+        layout
+        transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+      >
         {awaitingCollectionSelection ? <SelectionAura /> : null}
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
@@ -63,6 +69,7 @@ export const ShellCollectionsWidget = ({
             transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
             className="flex min-h-0 flex-1 flex-col"
             style={{ transformOrigin: "50% 0%" }}
+            layout
           >
           {!collectionsLoaded && collections.length === 0 ? (
             <LoadingRows />
@@ -103,7 +110,7 @@ export const ShellCollectionsWidget = ({
           )}
           </motion.div>
         </AnimatePresence>
-      </div>
+      </motion.div>
     </BaseWidget>
   );
 };

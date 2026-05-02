@@ -24,13 +24,19 @@ Required:
 1. `DATABASE_URL`
 2. `AUTH_SECRET`
 3. `NODE_ENV=production`
-4. `STORAGE_PROVIDER=s3`
-5. `S3_BUCKET`
-6. `S3_REGION=auto`
-7. `S3_ENDPOINT`
-8. `S3_ACCESS_KEY_ID`
-9. `S3_SECRET_ACCESS_KEY`
-10. `S3_PUBLIC_BASE_URL`
+4. `APP_URL`
+5. `NEXTAUTH_URL`
+6. `AUTH_TRUST_HOST=true`
+7. `RESEND_API_KEY`
+8. `AUTH_EMAIL_FROM`
+9. `MEDIA_UPLOADS_ENABLED=false` for an initial media-disabled launch
+10. `STORAGE_PROVIDER=s3` only when media uploads are intentionally enabled
+11. `S3_BUCKET`
+12. `S3_REGION=auto`
+13. `S3_ENDPOINT`
+14. `S3_ACCESS_KEY_ID`
+15. `S3_SECRET_ACCESS_KEY`
+16. `S3_PUBLIC_BASE_URL`
 
 ## GitHub Actions secrets
 
@@ -75,8 +81,11 @@ Before first launch confirm:
 1. Railway app has all required variables
 2. GitHub Actions has CI secrets
 3. `AUTH_SECRET` is not reused from local development
-4. R2 bucket URL resolves publicly
-5. `DATABASE_URL` points to managed production Postgres, not local docker
+4. `APP_URL` and `NEXTAUTH_URL` match the real production domain
+5. `AUTH_EMAIL_FROM` is authorized in Resend
+6. if media uploads stay disabled for launch, `MEDIA_UPLOADS_ENABLED=false` is explicitly set
+7. if media uploads are enabled later, the R2 bucket URL resolves publicly
+8. `DATABASE_URL` points to managed production PostGIS, not local docker
 
 ## TEMP / Tech Debt
 

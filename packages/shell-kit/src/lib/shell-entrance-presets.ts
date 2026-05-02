@@ -10,6 +10,22 @@ export type ShellEntranceName =
   | "slide-top"
   | "slide-bottom";
 
+export type ShellPlacement = "left" | "right" | "bottom" | "top" | "center" | "floating";
+
+const PLACEMENT_TO_ENTRANCE: Record<ShellPlacement, ShellEntranceName> = {
+  left:     "slide-left",
+  right:    "slide-right",
+  bottom:   "slide-bottom",
+  top:      "slide-top",
+  center:   "overlay",
+  floating: "overlay",
+};
+
+/** Derives the entrance animation from the shell's physical placement. */
+export function entranceFromPlacement(placement: ShellPlacement): ShellEntranceName {
+  return PLACEMENT_TO_ENTRANCE[placement];
+}
+
 export interface ShellEntrancePreset {
   shell: Variants;
   section: Variants;

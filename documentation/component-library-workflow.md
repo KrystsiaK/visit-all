@@ -12,13 +12,15 @@
 
 ## Storybook usage
 
-Storybook is the component-library surface for `visit-all`.
+Storybook is the shared monorepo component-library surface for `visit-all`.
 
 Use it to:
 
 1. inspect visual states of shared components in isolation
 2. lock in variants before reusing a primitive across widgets
 3. review spacing, typography, and editable states without the whole app shell
+4. review package-level systems, not only single widgets
+5. compare separate packages in one place without losing package boundaries
 
 Primary commands:
 
@@ -40,6 +42,15 @@ npm run build-storybook
 1. Storybook stories for states and visual language
 2. dedicated UI tests for interaction behavior
 3. app integration through `entity_rating`
+
+`@synarava/liquid-glass` and `@synarava/shell-kit` are now also first-class Storybook surfaces:
+
+1. `Liquid Glass/Overview` should show premium glass scenes, not only token cards
+2. `Liquid Glass/Material Matrix` can remain as a supporting reference
+3. `Liquid Glass/Hover Lab` should exercise real hover behavior on surfaces and controls
+4. `Liquid Glass/Focus Lab` should exercise real focus behavior through `GlassInput`
+5. `Shell Kit/Overview` documents shell-level composition and pinned/main rhythm
+6. `Shell Kit/DockedShell` documents the ergonomic left/right shell primitive
 
 ## Expected quality bar for shared primitives
 

@@ -70,13 +70,14 @@ The repo already includes [railway.json](/Users/kirylkrystsia/WebstormProjects/v
 
 ### Storage
 
-1. `STORAGE_PROVIDER=s3`
-2. `S3_BUCKET`
-3. `S3_REGION=auto`
-4. `S3_ENDPOINT`
-5. `S3_ACCESS_KEY_ID`
-6. `S3_SECRET_ACCESS_KEY`
-7. `S3_PUBLIC_BASE_URL`
+1. `MEDIA_UPLOADS_ENABLED=false` if the first production rollout should keep image uploads disabled
+2. `STORAGE_PROVIDER=s3` only when media uploads are intentionally enabled
+3. `S3_BUCKET`
+4. `S3_REGION=auto`
+5. `S3_ENDPOINT`
+6. `S3_ACCESS_KEY_ID`
+7. `S3_SECRET_ACCESS_KEY`
+8. `S3_PUBLIC_BASE_URL`
 
 ## Deployment flow
 
@@ -88,7 +89,7 @@ The repo already includes [railway.json](/Users/kirylkrystsia/WebstormProjects/v
 6. verify `/api/ready`
 7. log in
 8. create a pin
-9. upload a photo
+9. upload a photo only if `MEDIA_UPLOADS_ENABLED=true`
 
 ## Production migration command
 

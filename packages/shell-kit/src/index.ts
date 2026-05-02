@@ -2,11 +2,14 @@ export { BaseWidget } from "./widgets/BaseWidget";
 export { TitlePill, CompactTitlePill } from "./widgets/TitlePill";
 export { WidgetProvider, useWidgetContext, type WidgetContextValue, type WidgetHostOption } from "./widgets/WidgetContext";
 export { BaseShell } from "./shells/BaseShell";
+export { DockedShell } from "./shells/DockedShell";
 export {
   shellEntrancePresets,
   resolveShellEntrance,
+  entranceFromPlacement,
   type ShellEntranceName,
   type ShellEntrancePreset,
+  type ShellPlacement,
 } from "./lib/shell-entrance-presets";
 export {
   ShellRuntimeProvider,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, type ReactElement } from "react";
+import { useState, useCallback, useEffect, type ReactElement } from "react";
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 
 import {
@@ -174,33 +174,64 @@ export const Minimal: Story = {
 
 function PresetCard({ entrance }: { entrance: ShellEntranceName }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [replaying, setReplaying] = useState(false);
+
+  // auto-play on mount so the entrance animation is visible immediately
+  useEffect(() => {
+    const t = setTimeout(() => setIsOpen(true), 400);
+    return () => clearTimeout(t);
+  }, []);
+
+  const replay = useCallback(() => {
+    if (replaying) return;
+    setReplaying(true);
+    setIsOpen(false);
+    setTimeout(() => {
+      setIsOpen(true);
+      setReplaying(false);
+    }, 220);
+  }, [replaying]);
 
   return (
-    <div className="flex flex-col items-center gap-2">
-      <button
-        onClick={() => setIsOpen(true)}
-        className="rounded-xl border border-black/10 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-wider shadow transition-colors hover:bg-neutral-50"
-      >
-        {entrance}
-      </button>
+    <div className="flex flex-col items-center gap-3">
+      <div className="flex items-center gap-3">
+        <span className="rounded-lg bg-neutral-900 px-2.5 py-1 font-mono text-xs text-white">
+          {entrance}
+        </span>
+        <button
+          onClick={replay}
+          disabled={replaying}
+          className="rounded-xl border border-black/10 bg-white px-3 py-1.5 text-xs font-medium shadow transition-colors hover:bg-neutral-50 disabled:opacity-40"
+        >
+          ↺ Replay
+        </button>
+      </div>
 
-      <div className="relative h-[320px] w-[280px] overflow-hidden rounded-2xl border border-black/6 bg-neutral-50">
+      <div className="relative h-[340px] w-[280px] overflow-hidden rounded-2xl border border-black/8 bg-neutral-100/80 shadow-sm">
         <BaseShell
           isOpen={isOpen}
-          onClose={() => setIsOpen(false)}
+          onClose={replay}
           title={entrance}
-          subtitle="Click button above to replay"
-          closeLabel="Close"
+          subtitle="Press ↺ Replay to watch again"
+          closeLabel="Replay"
           entrance={entrance}
           shellClassName="absolute inset-2 flex flex-col pointer-events-auto"
           surfaceClassName="h-full pointer-events-auto"
           showBackdrop={false}
           mobileHandle={false}
         >
-          <BaseWidget eyebrow="Demo" title="Content">
-            <p className="text-xs text-neutral-500">Shell entrance: <strong>{entrance}</strong></p>
+          <BaseWidget eyebrow="entrance preset" title="Shell content">
+            <p className="text-xs text-neutral-500">
+              Enters from <strong>{entrance}</strong>
+            </p>
           </BaseWidget>
         </BaseShell>
+
+        {!isOpen && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className="text-xs text-neutral-400">closed</span>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -210,7 +241,7 @@ function EntrancePresetsGallery(): ReactElement {
   const presetNames = Object.keys(shellEntrancePresets) as ShellEntranceName[];
 
   return (
-    <div className="flex flex-wrap items-start justify-center gap-6">
+    <div className="flex flex-wrap items-start justify-center gap-8 p-8">
       {presetNames.map((name) => (
         <PresetCard key={name} entrance={name} />
       ))}
@@ -220,6 +251,15 @@ function EntrancePresetsGallery(): ReactElement {
 
 export const EntrancePresets: Story = {
   name: "Entrance Presets Gallery",
+  parameters: {
+    layout: "fullscreen",
+    docs: {
+      description: {
+        story:
+          "All 5 `ShellEntranceName` presets side-by-side. Shells open immediately on load. Hit **↺ Replay** on any card to replay its entrance animation.",
+      },
+    },
+  },
   render: () => <EntrancePresetsGallery />,
 };
 

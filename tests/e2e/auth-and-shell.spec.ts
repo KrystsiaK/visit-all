@@ -1,6 +1,17 @@
 import { expect, test } from "@playwright/test";
 import { login } from "./helpers/auth";
 
+async function ensureLayersPanelOpen(page: import("@playwright/test").Page) {
+  const collectionCard = page.getByTestId("collection-card").first();
+
+  if (!(await collectionCard.isVisible().catch(() => false))) {
+    await page.getByRole("button", { name: /open layers panel/i }).click();
+  }
+
+  await expect(collectionCard).toBeVisible();
+  return collectionCard;
+}
+
 test("e2e login reaches the main app shell", async ({ page, isMobile }) => {
   await login(page);
   await expect(page.getByRole("button", { name: /widgets/i })).toBeVisible();
@@ -72,7 +83,7 @@ test("show only activates from a visible layer without muting it", async ({ page
   test.skip(isMobile, "Desktop-only assertion");
   await login(page);
 
-  const collectionCard = page.getByTestId("collection-card").first();
+  const collectionCard = await ensureLayersPanelOpen(page);
   const eyeButton = collectionCard.getByTestId("collection-mute-button");
   const soloButton = collectionCard.getByTestId("collection-solo-button");
 
@@ -91,7 +102,7 @@ test("show only unmutes the same layer when activated after eye off", async ({ p
   test.skip(isMobile, "Desktop-only assertion");
   await login(page);
 
-  const collectionCard = page.getByTestId("collection-card").first();
+  const collectionCard = await ensureLayersPanelOpen(page);
   const eyeButton = collectionCard.getByTestId("collection-mute-button");
   const soloButton = collectionCard.getByTestId("collection-solo-button");
 
