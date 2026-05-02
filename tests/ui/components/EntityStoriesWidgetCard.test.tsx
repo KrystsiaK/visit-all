@@ -168,8 +168,8 @@ describe("EntityStoriesWidgetCard", () => {
         storyEntries={[
           {
             id: "story-1",
-            title: "Markdown Demo — полный пример",
-            bodyMarkdown: "# Markdown Demo — полный пример\n\nBody text here.",
+            title: "Markdown Demo — full example",
+            bodyMarkdown: "# Markdown Demo — full example\n\nBody text here.",
             position: 0,
             publishedAt: null,
           },
@@ -180,7 +180,7 @@ describe("EntityStoriesWidgetCard", () => {
       />
     );
 
-    expect(screen.getAllByText("Markdown Demo — полный пример")).toHaveLength(2);
+    expect(screen.getAllByText("Markdown Demo — full example")).toHaveLength(2);
     expect(screen.getByText("Body text here.")).toBeInTheDocument();
   });
 });
