@@ -203,16 +203,14 @@ export const BaseShell = ({
                   data-shell-scroll-container={scrollContainerDataId}
                   className={bodyClassName}
                 >
-                  {pinnedContent ? (
-                    <div className={scrollBodyClassName}>
-                      <div className={scrollContentClassName}>
+                  <div className={scrollBodyClassName}>
+                    <div className={scrollContentClassName}>
+                      {pinnedContent ? (
                         <div className={pinnedClassName}>{pinnedContent}</div>
-                        <div className={childrenClassName}>{children}</div>
-                      </div>
+                      ) : null}
+                      <div className={childrenClassName}>{children}</div>
                     </div>
-                  ) : (
-                    children
-                  )}
+                  </div>
                 </motion.div>
               </div>
             </div>

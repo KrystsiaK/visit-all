@@ -9,14 +9,14 @@ import {
   type EntityStoryEntryRecord,
   addEntityResourceLink,
   addEntityStoryEntry,
+  bootstrapEntityShellState,
   deleteEntity,
   getNearbyPinsForEntity,
   getEntityMediaItems,
   getEntityRating,
   getEntityResourceLinks,
+  getEntityShellSnapshot,
   getEntityStoryEntries,
-  getEntityWidgetPayload,
-  getEntityWidgets,
   removeEntityWidget,
   removeEntityMediaItem,
   removeEntityResourceLink,
@@ -238,29 +238,37 @@ export const useEntityWidgetBindings = ({
     }
 
     let cancelled = false;
+    const idleWindow = window as Window & {
+      requestIdleCallback?: (callback: IdleRequestCallback, options?: IdleRequestOptions) => number;
+      cancelIdleCallback?: (handle: number) => void;
+    };
+    let secondaryLoadHandle: number | null = null;
 
     void (async () => {
       setLoading(true);
       try {
-        const [payload, widgets, nextMediaItems, nextNearbyPins, nextResourceLinks, nextStoryEntries] = await Promise.all([
-          getEntityWidgetPayload(entityType, entityId),
-          getEntityWidgets(entityType, entityId),
-          getEntityMediaItems(entityType, entityId),
-          entityType === "pin" ? getNearbyPinsForEntity(entityId) : Promise.resolve([]),
-          getEntityResourceLinks(entityType, entityId),
-          getEntityStoryEntries(entityType, entityId),
-        ]);
+        const {
+          entityPayload: payload,
+          entityWidgets: widgets,
+          bootstrapRequired,
+        } = await getEntityShellSnapshot(entityType, entityId);
+
+        let resolvedPayload = payload;
+        let resolvedWidgets = widgets;
+
+        if (bootstrapRequired) {
+          await bootstrapEntityShellState(entityType, entityId);
+          const bootstrappedSnapshot = await getEntityShellSnapshot(entityType, entityId);
+          resolvedPayload = bootstrappedSnapshot.entityPayload;
+          resolvedWidgets = bootstrappedSnapshot.entityWidgets;
+        }
 
         if (!cancelled) {
-          setEntityPayload(payload);
-          setEntityWidgets(widgets);
-          setMediaItems(nextMediaItems);
-          setNearbyPins(nextNearbyPins);
-          setResourceLinks(nextResourceLinks);
-          setStoryEntries(nextStoryEntries);
-          const payloadTitle = payload.title || "";
-          const payloadNote = payload.description || "";
-          const payloadImage = nextMediaItems[0]?.publicUrl || payload.imageUrl || null;
+          setEntityPayload(resolvedPayload);
+          setEntityWidgets(resolvedWidgets);
+          const payloadTitle = resolvedPayload.title || "";
+          const payloadNote = resolvedPayload.description || "";
+          const payloadImage = resolvedPayload.imageUrl || null;
 
           setEntityTitle(payloadTitle);
           setPinNote(payloadNote);
@@ -268,14 +276,50 @@ export const useEntityWidgetBindings = ({
           latestDraftRef.current = { title: payloadTitle, note: payloadNote, imageUrl: payloadImage };
           lastPersistedRef.current = { title: payloadTitle, note: payloadNote, imageUrl: payloadImage };
 
-          const containerId = payload.metadata?.containerId;
-          if (typeof containerId === "string" && entityType === "pin") {
-            const rating = await getEntityRating(containerId);
-            if (!cancelled) {
-              setEntityRating(rating);
+
+          const loadSecondaryData = async () => {
+            const wantsMedia = resolvedWidgets.some((widget) => widget.componentKey === "entity_gallery");
+            const wantsNearbyPins = entityType === "pin" && resolvedWidgets.some((widget) => widget.componentKey === "entity_nearby_pins");
+            const wantsResources = resolvedWidgets.some((widget) => widget.componentKey === "entity_resources");
+            const wantsStories = resolvedWidgets.some((widget) => widget.componentKey === "entity_stories");
+            const wantsRating = entityType === "pin" && resolvedWidgets.some((widget) => widget.componentKey === "entity_rating");
+
+            const [nextMediaItems, nextNearbyPins, nextResourceLinks, nextStoryEntries, nextRating] = await Promise.all([
+              wantsMedia ? getEntityMediaItems(entityType, entityId) : Promise.resolve([]),
+              wantsNearbyPins ? getNearbyPinsForEntity(entityId) : Promise.resolve([]),
+              wantsResources ? getEntityResourceLinks(entityType, entityId) : Promise.resolve([]),
+              wantsStories ? getEntityStoryEntries(entityType, entityId) : Promise.resolve([]),
+              wantsRating && typeof resolvedPayload.metadata?.containerId === "string"
+                ? getEntityRating(resolvedPayload.metadata.containerId)
+                : Promise.resolve(null),
+            ]);
+
+            if (cancelled) {
+              return;
             }
-          } else if (!cancelled) {
-            setEntityRating(null);
+
+            setMediaItems(nextMediaItems);
+            setNearbyPins(nextNearbyPins);
+            setResourceLinks(nextResourceLinks);
+            setStoryEntries(nextStoryEntries);
+            setEntityRating(nextRating);
+
+            if (nextMediaItems[0]?.publicUrl) {
+              const nextImage = nextMediaItems[0].publicUrl;
+              setPinImage(nextImage);
+              latestDraftRef.current = { ...latestDraftRef.current, imageUrl: nextImage };
+              lastPersistedRef.current = { ...lastPersistedRef.current, imageUrl: nextImage };
+            }
+          };
+
+          if (typeof idleWindow.requestIdleCallback === "function") {
+            secondaryLoadHandle = idleWindow.requestIdleCallback(() => {
+              void loadSecondaryData();
+            }, { timeout: 1200 });
+          } else {
+            secondaryLoadHandle = window.setTimeout(() => {
+              void loadSecondaryData();
+            }, 120);
           }
         }
       } catch (error) {
@@ -289,6 +333,13 @@ export const useEntityWidgetBindings = ({
 
     return () => {
       cancelled = true;
+      if (secondaryLoadHandle !== null) {
+        if (typeof idleWindow.cancelIdleCallback === "function") {
+          idleWindow.cancelIdleCallback(secondaryLoadHandle);
+        } else {
+          window.clearTimeout(secondaryLoadHandle);
+        }
+      }
     };
   }, [entityId, entityType, isOpen, refreshTrigger]);
 

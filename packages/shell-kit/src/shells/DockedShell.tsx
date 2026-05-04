@@ -53,8 +53,8 @@ export const DockedShell = ({
 }: DockedShellProps) => {
   const shellClassName =
     placement === "left"
-      ? `fixed inset-y-0 left-4 flex w-[var(--dock-width)] max-w-[calc(100vw-2rem)] flex-col pointer-events-none md:left-6 md:max-w-[calc(100vw-3rem)] ${zIndexClassName}`
-      : `fixed inset-y-0 right-4 flex w-[var(--dock-width)] max-w-[calc(100vw-2rem)] flex-col pointer-events-none md:right-6 md:max-w-[calc(100vw-3rem)] ${zIndexClassName}`;
+      ? `fixed inset-y-0 left-0 flex w-[var(--dock-width)] max-w-[100vw] flex-col pointer-events-none ${zIndexClassName}`
+      : `fixed inset-y-0 right-0 flex w-[var(--dock-width)] max-w-[100vw] flex-col pointer-events-none ${zIndexClassName}`;
 
   const mergedShellStyle = {
     ["--dock-width" as string]: `${width}px`,

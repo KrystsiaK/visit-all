@@ -31,8 +31,8 @@ const LeftSidebarShellInner = ({
   const { registerScrollContainer } = useShellRuntimeActions();
 
   const shellClassName = collapsed
-    ? "fixed left-4 top-4 flex w-[var(--dock-width)] max-w-[calc(100vw-2rem)] flex-col pointer-events-none md:left-6 md:top-6 md:max-w-[calc(100vw-3rem)] z-40"
-    : "fixed inset-y-0 left-4 flex w-[var(--dock-width)] max-w-[calc(100vw-2rem)] flex-col pointer-events-none md:left-6 md:max-w-[calc(100vw-3rem)] z-40";
+    ? "fixed left-0 top-0 flex w-[var(--dock-width)] max-w-[100vw] flex-col pointer-events-none z-40"
+    : "fixed inset-y-0 left-0 flex w-[var(--dock-width)] max-w-[100vw] flex-col pointer-events-none z-40";
 
   if (collapsed) {
     return (

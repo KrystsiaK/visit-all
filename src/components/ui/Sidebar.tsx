@@ -365,6 +365,17 @@ export default function Sidebar({
         </div>
       )}
       
+      {!isMobileViewport ? (
+        <div className="fixed left-3 top-3 z-[61] hidden md:block">
+          <ShellChromePrimaryWidget
+            desktopSidebarVisible={desktopSidebarVisible}
+            mobileSidebarOpen={Boolean(mobileSidebarOpen)}
+            onToggleDesktopSidebar={() => onToggleDesktopSidebar?.()}
+            onToggleMobileSidebar={() => setMobileSidebarOpen?.(!Boolean(mobileSidebarOpen))}
+          />
+        </div>
+      ) : null}
+
       {(isMobileViewport || sidebarReady) && (
         <LeftSidebarShell
           key={`${shellId}:${isMobileViewport ? "mobile" : desktopSidebarVisible ? "open" : "collapsed"}`}
@@ -377,15 +388,7 @@ export default function Sidebar({
           pinnedChildren={
             isMobileViewport ? (
               pinnedShellWidgets.map((widget) => renderShellWidget(widget))
-            ) : (
-              <ShellChromePrimaryWidget
-                desktopSidebarVisible={desktopSidebarVisible}
-                mobileSidebarOpen={Boolean(mobileSidebarOpen)}
-                shellWidth={desktopWidth}
-                onToggleDesktopSidebar={() => onToggleDesktopSidebar?.()}
-                onToggleMobileSidebar={() => setMobileSidebarOpen?.(!Boolean(mobileSidebarOpen))}
-              />
-            )
+            ) : null
           }
         >
           <ShellRuntimeModeSync mode={mode} />
