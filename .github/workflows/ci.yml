@@ -7,6 +7,11 @@ on:
       - main
       - master
 
+env:
+  CI_HAS_DATABASE_URL: ${{ secrets.DATABASE_URL != '' }}
+  CI_HAS_AUTH_SECRET: ${{ secrets.AUTH_SECRET != '' }}
+  CI_HAS_SONAR_TOKEN: ${{ secrets.SONAR_TOKEN != '' }}
+
 jobs:
   quality:
     runs-on: ubuntu-latest
@@ -26,6 +31,7 @@ jobs:
         run: npm ci
 
       - name: Apply database migrations
+        if: ${{ env.CI_HAS_DATABASE_URL == 'true' }}
         run: npm run db:migrate
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
@@ -34,13 +40,13 @@ jobs:
         run: npm run ci:quality
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+          AUTH_SECRET: ${{ secrets.AUTH_SECRET || 'ci-placeholder-auth-secret' }}
 
   e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     needs: quality
-    if: ${{ secrets.DATABASE_URL != '' && secrets.AUTH_SECRET != '' }}
+    if: ${{ env.CI_HAS_DATABASE_URL == 'true' && env.CI_HAS_AUTH_SECRET == 'true' }}
 
     steps:
       - name: Checkout
@@ -72,7 +78,7 @@ jobs:
   sonar:
     runs-on: ubuntu-latest
     needs: quality
-    if: ${{ secrets.SONAR_TOKEN != '' }}
+    if: ${{ env.CI_HAS_SONAR_TOKEN == 'true' }}
 
     steps:
       - name: Checkout

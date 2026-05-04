@@ -1791,7 +1791,7 @@ export async function getPins() {
       LIMIT 1
     ) media ON TRUE
     LEFT JOIN collections c ON c.id = COALESCE(p.collection_id, ec.collection_id)
-    WHERE p.user_id = $1::uuid
+    WHERE p.user_id = $1::text
       AND COALESCE(ec.status, 'active') = 'active'
   `, [userId]);
   return rows;
@@ -2957,7 +2957,7 @@ export async function getEntityWidgetPayload(entityType: WidgetEntityType, entit
       ) media ON TRUE
       LEFT JOIN collections c ON c.id = e.collection_id
       WHERE e.id = $2::uuid
-        AND e.user_id = $3::uuid
+        AND e.user_id = $3::text
       LIMIT 1
     `,
     [entityType, entityId, userId]
@@ -4105,7 +4105,7 @@ export async function getNearbyPinsForEntity(
         FROM pins p
         LEFT JOIN entity_containers ec ON ec.id = p.container_id
         WHERE p.id = $1::uuid
-          AND p.user_id = $2::uuid
+          AND p.user_id = $2::text
           AND COALESCE(ec.status, 'active') = 'active'
         LIMIT 1
       )
