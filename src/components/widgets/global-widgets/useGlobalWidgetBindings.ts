@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import {
   addWidgetFromLibrary,
+  bootstrapWidgetLibraryState,
   getGlobalWidgets,
   getWidgetLibraryCatalog,
   reorderGlobalWidgets,
@@ -59,7 +60,12 @@ export const useGlobalWidgetBindings = ({
       setLoading(true);
 
       try {
-        const instances = await getGlobalWidgets();
+        let instances = await getGlobalWidgets();
+
+        if (instances.length === 0) {
+          await bootstrapWidgetLibraryState();
+          instances = await getGlobalWidgets();
+        }
 
         if (!cancelled) {
           setWidgets(instances);
@@ -90,7 +96,12 @@ export const useGlobalWidgetBindings = ({
 
     void (async () => {
       try {
-        const nextDefinitions = await getWidgetLibraryCatalog(entityType, entityId);
+        let nextDefinitions = await getWidgetLibraryCatalog(entityType, entityId);
+
+        if (nextDefinitions.length === 0) {
+          await bootstrapWidgetLibraryState(entityType, entityId);
+          nextDefinitions = await getWidgetLibraryCatalog(entityType, entityId);
+        }
 
         if (!cancelled) {
           setDefinitions(nextDefinitions);

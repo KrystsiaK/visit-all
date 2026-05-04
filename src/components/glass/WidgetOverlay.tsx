@@ -1,8 +1,9 @@
 import { AnimatePresence, motion } from "framer-motion";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { WidgetEntityType, WidgetInstanceRecord } from "@/lib/widgets";
 import { WidgetErrorBoundary } from "@/components/errors/WidgetErrorBoundary";
 import { RightEntityShell } from "@/components/shells/RightEntityShell";
-import { ShellSlot } from "@synarava/shell-kit";
+import { ShellSlot, useOptionalShellRuntimeActions } from "@synarava/shell-kit";
 import { EntityDeleteDialog } from "@/components/widgets/entity-widgets/EntityDeleteDialog";
 import { EntityOverlayEmptyState, EntityOverlaySkeletonCard } from "@/components/widgets/entity-widgets/EntityOverlayStates";
 import { renderEntityWidget } from "@/components/widgets/entity-widgets/renderEntityWidget";
@@ -30,6 +31,74 @@ interface WidgetOverlayProps {
     collectionId?: string;
   };
 }
+
+const heavyWidgetHeightByComponentKey: Record<string, number> = {
+  entity_gallery: 320,
+  entity_stories: 340,
+  entity_resources: 300,
+  entity_nearby_pins: 280,
+};
+
+const DeferredEntityWidgetSlot = ({
+  render,
+  estimatedHeight,
+  eager = false,
+}: {
+  render: () => ReactNode;
+  estimatedHeight: number;
+  eager?: boolean;
+}) => {
+  const [mounted, setMounted] = useState(eager);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const shellRuntimeActions = useOptionalShellRuntimeActions();
+
+  useEffect(() => {
+    if (mounted || eager || !containerRef.current) {
+      return;
+    }
+
+    const shellScrollContainer = shellRuntimeActions?.getScrollContainer() ?? null;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setMounted(true);
+          observer.disconnect();
+        }
+      },
+      {
+        root: shellScrollContainer,
+        rootMargin: "280px 0px",
+        threshold: 0.01,
+      }
+    );
+
+    observer.observe(containerRef.current);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [eager, mounted, shellRuntimeActions]);
+
+  return (
+    <div
+      ref={containerRef}
+      style={{
+        contentVisibility: mounted ? "visible" : "auto",
+        containIntrinsicSize: `${estimatedHeight}px`,
+      }}
+    >
+      {mounted ? (
+        render()
+      ) : (
+        <div
+          className="rounded-[28px] border border-black/8 bg-white/45 shadow-[0px_8px_28px_rgba(0,0,0,0.05)]"
+          style={{ minHeight: estimatedHeight }}
+        />
+      )}
+    </div>
+  );
+};
 
 export function WidgetOverlay({
   isOpen,
@@ -236,9 +305,22 @@ export function WidgetOverlay({
               <EntityOverlayEmptyState />
             ) : (
               resolvedMainEntityWidgets.map((widget, index) => (
-                <div key={widget.id} data-testid={`entity-main-widget-${index}`}>
-                  {renderWidget(widget, true)}
-                </div>
+                <DeferredEntityWidgetSlot
+                  key={widget.id}
+                  eager={index === 0}
+                  estimatedHeight={heavyWidgetHeightByComponentKey[widget.componentKey] ?? 220}
+                  render={() => (
+                    <div
+                      data-testid={`entity-main-widget-${index}`}
+                      style={{
+                        contentVisibility: "auto",
+                        containIntrinsicSize: "320px",
+                      }}
+                    >
+                      {renderWidget(widget, true)}
+                    </div>
+                  )}
+                />
               ))
             )}
           </RightEntityShell>

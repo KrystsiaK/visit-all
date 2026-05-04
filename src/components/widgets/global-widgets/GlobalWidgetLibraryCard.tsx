@@ -21,7 +21,13 @@ export const GlobalWidgetLibraryCard = ({
   const disabled = adding || !definition.canAdd;
 
   return (
-    <div className="flex flex-col gap-3">
+    <div
+      className="flex flex-col gap-3"
+      style={{
+        contentVisibility: "auto",
+        containIntrinsicSize: "280px",
+      }}
+    >
       <div className={disabled ? "opacity-65" : undefined}>
         <LibraryWidgetPreview definition={definition} />
       </div>

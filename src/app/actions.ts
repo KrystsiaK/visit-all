@@ -934,10 +934,7 @@ async function ensureDefaultShellWidgets(userId: string, shellSlug: "left_sideba
   }
 }
 
-export async function getLeftSidebarShell(): Promise<LeftSidebarShellInstance> {
-  const userId = await getUserId();
-  await ensureUserShellInstance(userId, "left_sidebar");
-
+async function getUserShellInstanceRecord<TShellInstance>(userId: string, slug: "left_sidebar" | "top_chrome" | "user_shell") {
   const { rows } = await pool.query(
     `
       SELECT
@@ -953,78 +950,17 @@ export async function getLeftSidebarShell(): Promise<LeftSidebarShellInstance> {
       FROM shell_instances si
       INNER JOIN shell_definitions sd ON sd.id = si.definition_id
       WHERE si.owner_type = 'user'
-        AND si.owner_id = $1
-        AND sd.slug = 'left_sidebar'
+        AND si.owner_id::text = $1::text
+        AND sd.slug = $2
       LIMIT 1
     `,
-    [userId]
+    [userId, slug]
   );
 
-  return rows[0] as LeftSidebarShellInstance;
+  return (rows[0] ?? null) as TShellInstance | null;
 }
 
-export async function getTopChromeShell(): Promise<TopChromeShellInstance> {
-  const userId = await getUserId();
-  await ensureUserShellInstance(userId, "top_chrome");
-
-  const { rows } = await pool.query(
-    `
-      SELECT
-        si.id,
-        sd.slug,
-        sd.name,
-        sd.kind,
-        sd.scope,
-        si.owner_type as "ownerType",
-        si.owner_id as "ownerId",
-        si.config,
-        si.state
-      FROM shell_instances si
-      INNER JOIN shell_definitions sd ON sd.id = si.definition_id
-      WHERE si.owner_type = 'user'
-        AND si.owner_id = $1
-        AND sd.slug = 'top_chrome'
-      LIMIT 1
-    `,
-    [userId]
-  );
-
-  return rows[0] as TopChromeShellInstance;
-}
-
-export async function getUserShell(): Promise<UserShellInstance> {
-  const userId = await getUserId();
-  await ensureUserShellInstance(userId, "user_shell");
-
-  const { rows } = await pool.query(
-    `
-      SELECT
-        si.id,
-        sd.slug,
-        sd.name,
-        sd.kind,
-        sd.scope,
-        si.owner_type as "ownerType",
-        si.owner_id as "ownerId",
-        si.config,
-        si.state
-      FROM shell_instances si
-      INNER JOIN shell_definitions sd ON sd.id = si.definition_id
-      WHERE si.owner_type = 'user'
-        AND si.owner_id = $1
-        AND sd.slug = 'user_shell'
-      LIMIT 1
-    `,
-    [userId]
-  );
-
-  return rows[0] as UserShellInstance;
-}
-
-export async function getLeftSidebarShellWidgets() {
-  const userId = await getUserId();
-  await ensureDefaultShellWidgets(userId, "left_sidebar");
-
+async function getUserShellWidgetsRecord(userId: string, shellSlug: "left_sidebar" | "top_chrome" | "user_shell") {
   const { rows } = await pool.query(
     `
       SELECT
@@ -1049,89 +985,120 @@ export async function getLeftSidebarShellWidgets() {
       INNER JOIN shell_instances si ON si.id = wp.shell_instance_id
       INNER JOIN shell_definitions sd ON sd.id = si.definition_id
       WHERE si.owner_type = 'user'
-        AND si.owner_id = $1
-        AND sd.slug = 'left_sidebar'
+        AND si.owner_id::text = $1::text
+        AND sd.slug = $2
         AND wi.layer = 'shell'
       ORDER BY wp.position ASC, wp.created_at ASC
     `,
-    [userId]
+    [userId, shellSlug]
   );
 
   return rows as Array<WidgetPlacementRecord & WidgetInstanceRecord>;
+}
+
+async function getLeftSidebarShellByUserId(userId: string): Promise<LeftSidebarShellInstance> {
+  return await getUserShellInstanceRecord<LeftSidebarShellInstance>(userId, "left_sidebar") as LeftSidebarShellInstance;
+}
+
+async function getTopChromeShellByUserId(userId: string): Promise<TopChromeShellInstance> {
+  return await getUserShellInstanceRecord<TopChromeShellInstance>(userId, "top_chrome") as TopChromeShellInstance;
+}
+
+async function getUserShellByUserId(userId: string): Promise<UserShellInstance> {
+  return await getUserShellInstanceRecord<UserShellInstance>(userId, "user_shell") as UserShellInstance;
+}
+
+async function getLeftSidebarShellWidgetsByUserId(userId: string) {
+  return getUserShellWidgetsRecord(userId, "left_sidebar");
+}
+
+async function getTopChromeShellWidgetsByUserId(userId: string) {
+  return getUserShellWidgetsRecord(userId, "top_chrome");
+}
+
+async function getUserShellWidgetsByUserId(userId: string) {
+  return getUserShellWidgetsRecord(userId, "user_shell");
+}
+
+export async function getLeftSidebarShell(): Promise<LeftSidebarShellInstance> {
+  const userId = await getUserId();
+  return getLeftSidebarShellByUserId(userId);
+}
+
+export async function getTopChromeShell(): Promise<TopChromeShellInstance> {
+  const userId = await getUserId();
+  return getTopChromeShellByUserId(userId);
+}
+
+export async function getUserShell(): Promise<UserShellInstance> {
+  const userId = await getUserId();
+  return getUserShellByUserId(userId);
+}
+
+export async function getLeftSidebarShellWidgets() {
+  const userId = await getUserId();
+  return getLeftSidebarShellWidgetsByUserId(userId);
 }
 
 export async function getTopChromeShellWidgets() {
   const userId = await getUserId();
-  await ensureDefaultShellWidgets(userId, "top_chrome");
-
-  const { rows } = await pool.query(
-    `
-      SELECT
-        wp.id,
-        wp.shell_instance_id as "shellInstanceId",
-        wp.widget_instance_id as "widgetInstanceId",
-        wp.slot,
-        wp.position,
-        wi.definition_id as "definitionId",
-        wd.slug,
-        COALESCE(wi.title, wd.name) as name,
-        wi.layer,
-        wi.entity_type as "entityType",
-        wi.entity_id as "entityId",
-        wd.component_key as "componentKey",
-        COALESCE(wd.default_config, '{}'::jsonb) || COALESCE(wi.config, '{}'::jsonb) as config,
-        wi.state
-      FROM widget_placements wp
-      INNER JOIN widget_instances wi ON wi.id = wp.widget_instance_id
-      INNER JOIN widget_definitions wd ON wd.id = wi.definition_id
-      INNER JOIN shell_instances si ON si.id = wp.shell_instance_id
-      INNER JOIN shell_definitions sd ON sd.id = si.definition_id
-      WHERE si.owner_type = 'user'
-        AND si.owner_id = $1
-        AND sd.slug = 'top_chrome'
-      ORDER BY wp.position ASC, wp.created_at ASC
-    `,
-    [userId]
-  );
-
-  return rows as Array<WidgetPlacementRecord & WidgetInstanceRecord>;
+  return getTopChromeShellWidgetsByUserId(userId);
 }
 
 export async function getUserShellWidgets() {
   const userId = await getUserId();
-  await ensureDefaultShellWidgets(userId, "user_shell");
+  return getUserShellWidgetsByUserId(userId);
+}
 
-  const { rows } = await pool.query(
-    `
-      SELECT
-        wp.id,
-        wp.shell_instance_id as "shellInstanceId",
-        wp.widget_instance_id as "widgetInstanceId",
-        wp.slot,
-        wp.position,
-        wi.definition_id as "definitionId",
-        wd.slug,
-        COALESCE(wi.title, wd.name) as name,
-        wi.layer,
-        wi.entity_type as "entityType",
-        wi.entity_id as "entityId",
-        wd.component_key as "componentKey",
-        COALESCE(wd.default_config, '{}'::jsonb) || COALESCE(wi.config, '{}'::jsonb) as config,
-        wi.state
-      FROM widget_placements wp
-      INNER JOIN widget_instances wi ON wi.id = wp.widget_instance_id
-      INNER JOIN widget_definitions wd ON wd.id = wi.definition_id
-      INNER JOIN shell_instances si ON si.id = wp.shell_instance_id
-      INNER JOIN shell_definitions sd ON sd.id = si.definition_id
-      WHERE si.owner_type = 'user'
-        AND si.owner_id = $1
-        AND sd.slug = 'user_shell'
-      ORDER BY wp.position ASC, wp.created_at ASC
-    `,
-    [userId]
-  );
+export async function getHomeShellSnapshot() {
+  const userId = await getUserId();
 
-  return rows as Array<WidgetPlacementRecord & WidgetInstanceRecord>;
+  const [
+    leftSidebarShell,
+    leftSidebarWidgets,
+    topChromeShell,
+    topChromeWidgets,
+    userShell,
+    userShellWidgets,
+    userProfile,
+  ] = await Promise.all([
+    getLeftSidebarShellByUserId(userId),
+    getLeftSidebarShellWidgetsByUserId(userId),
+    getTopChromeShellByUserId(userId),
+    getTopChromeShellWidgetsByUserId(userId),
+    getUserShellByUserId(userId),
+    getUserShellWidgetsByUserId(userId),
+    getCurrentUserProfileRecord(userId),
+  ]);
+
+  return {
+    leftSidebarShell,
+    leftSidebarWidgets,
+    topChromeShell,
+    topChromeWidgets,
+    userShell,
+    userShellWidgets,
+    userProfile,
+    bootstrapRequired:
+      !leftSidebarShell ||
+      !topChromeShell ||
+      !userShell ||
+      leftSidebarWidgets.length === 0 ||
+      topChromeWidgets.length === 0 ||
+      userShellWidgets.length === 0,
+  };
+}
+
+export async function bootstrapHomeShellState() {
+  const userId = await getUserId();
+
+  await Promise.all([
+    ensureDefaultShellWidgets(userId, "left_sidebar"),
+    ensureDefaultShellWidgets(userId, "top_chrome"),
+    ensureDefaultShellWidgets(userId, "user_shell"),
+  ]);
+
+  return { ok: true as const };
 }
 
 export async function getCurrentUserProfile() {
@@ -1644,13 +1611,13 @@ export async function getCollections(type?: string) {
 
   if (type) {
     const { rows } = await pool.query(
-      `${selectQuery} WHERE c.user_id = $1 AND c.type = $2 ORDER BY c.created_at DESC`,
+      `${selectQuery} WHERE c.user_id::text = $1::text AND c.type = $2 ORDER BY c.created_at DESC`,
       [userId, type]
     );
     return rows;
   }
   const { rows } = await pool.query(
-    `${selectQuery} WHERE c.user_id = $1 ORDER BY c.created_at DESC`,
+    `${selectQuery} WHERE c.user_id::text = $1::text ORDER BY c.created_at DESC`,
     [userId]
   );
   return rows;
@@ -1791,7 +1758,7 @@ export async function getPins() {
       LIMIT 1
     ) media ON TRUE
     LEFT JOIN collections c ON c.id = COALESCE(p.collection_id, ec.collection_id)
-    WHERE p.user_id = $1::text
+    WHERE p.user_id::text = $1::text
       AND COALESCE(ec.status, 'active') = 'active'
   `, [userId]);
   return rows;
@@ -2204,8 +2171,6 @@ export async function deleteEntity(entityType: WidgetEntityType, id: string) {
 
 // --- WIDGETS ---
 export async function getWidgetDefinitions(layer?: WidgetLayerType) {
-  await ensureWidgetLibrarySeed();
-
   const query = layer
     ? `
         SELECT
@@ -2257,14 +2222,6 @@ export async function getWidgetLibraryCatalog(
   entityId?: string
 ) {
   const userId = await getUserId();
-  await ensureWidgetLibrarySeed();
-  await ensureDefaultShellWidgets(userId, "left_sidebar");
-  await ensureDefaultShellWidgets(userId, "user_shell");
-  await ensureDefaultGlobalWidgets(userId);
-
-  if (entityType && entityId) {
-    await ensureDefaultEntityWidget(userId, entityType, entityId);
-  }
 
   const definitions = await getWidgetDefinitions();
 
@@ -2354,6 +2311,25 @@ export async function getWidgetLibraryCatalog(
       disabledReason,
     };
   }) as WidgetLibraryCatalogRecord[];
+}
+
+export async function bootstrapWidgetLibraryState(
+  entityType?: WidgetEntityType,
+  entityId?: string
+) {
+  const userId = await getUserId();
+
+  await Promise.all([
+    ensureDefaultShellWidgets(userId, "left_sidebar"),
+    ensureDefaultShellWidgets(userId, "user_shell"),
+    ensureDefaultGlobalWidgets(userId),
+  ]);
+
+  if (entityType && entityId) {
+    await ensureDefaultEntityWidget(userId, entityType, entityId);
+  }
+
+  return { ok: true as const };
 }
 
 async function ensureDefaultGlobalWidgets(userId: string) {
@@ -2488,7 +2464,6 @@ async function ensureDefaultEntityWidget(userId: string, entityType: WidgetEntit
 
 export async function getGlobalWidgets() {
   const userId = await getUserId();
-  await ensureDefaultGlobalWidgets(userId);
 
   const { rows } = await pool.query(
     `
@@ -2781,10 +2756,7 @@ export async function reorderGlobalWidgets(orderedWidgetIds: string[]) {
   }
 }
 
-export async function getEntityWidgets(entityType: WidgetEntityType, entityId: string) {
-  const userId = await getUserId();
-  await ensureDefaultEntityWidget(userId, entityType, entityId);
-
+async function getEntityWidgetsByUserId(userId: string, entityType: WidgetEntityType, entityId: string) {
   const { rows } = await pool.query(
     `
       SELECT
@@ -2820,6 +2792,11 @@ export async function getEntityWidgets(entityType: WidgetEntityType, entityId: s
   );
 
   return rows as WidgetInstanceRecord[];
+}
+
+export async function getEntityWidgets(entityType: WidgetEntityType, entityId: string) {
+  const userId = await getUserId();
+  return getEntityWidgetsByUserId(userId, entityType, entityId);
 }
 
 export async function reorderEntityWidgets(
@@ -2922,8 +2899,7 @@ export async function updateWidgetChromeBackground(
   return { ok: true, widgetId, backgroundStyle };
 }
 
-export async function getEntityWidgetPayload(entityType: WidgetEntityType, entityId: string) {
-  const userId = await getUserId();
+async function getEntityWidgetPayloadByUserId(userId: string, entityType: WidgetEntityType, entityId: string) {
   const { table, geometryKind } = mapEntityTable(entityType);
 
   // TEMP(tech-debt): image still falls back to legacy pin media until gallery/media
@@ -2957,7 +2933,7 @@ export async function getEntityWidgetPayload(entityType: WidgetEntityType, entit
       ) media ON TRUE
       LEFT JOIN collections c ON c.id = e.collection_id
       WHERE e.id = $2::uuid
-        AND e.user_id = $3::text
+        AND e.user_id::text = $3::text
       LIMIT 1
     `,
     [entityType, entityId, userId]
@@ -2990,6 +2966,32 @@ export async function getEntityWidgetPayload(entityType: WidgetEntityType, entit
   };
 
   return payload;
+}
+
+export async function getEntityWidgetPayload(entityType: WidgetEntityType, entityId: string) {
+  const userId = await getUserId();
+  return getEntityWidgetPayloadByUserId(userId, entityType, entityId);
+}
+
+export async function getEntityShellSnapshot(entityType: WidgetEntityType, entityId: string) {
+  const userId = await getUserId();
+
+  const [entityPayload, entityWidgets] = await Promise.all([
+    getEntityWidgetPayloadByUserId(userId, entityType, entityId),
+    getEntityWidgetsByUserId(userId, entityType, entityId),
+  ]);
+
+  return {
+    entityPayload,
+    entityWidgets,
+    bootstrapRequired: entityWidgets.length === 0,
+  };
+}
+
+export async function bootstrapEntityShellState(entityType: WidgetEntityType, entityId: string) {
+  const userId = await getUserId();
+  await ensureDefaultEntityWidget(userId, entityType, entityId);
+  return { ok: true as const };
 }
 
 export async function updateEntityInfo(
@@ -4105,7 +4107,7 @@ export async function getNearbyPinsForEntity(
         FROM pins p
         LEFT JOIN entity_containers ec ON ec.id = p.container_id
         WHERE p.id = $1::uuid
-          AND p.user_id = $2::text
+          AND p.user_id::text = $2::text
           AND COALESCE(ec.status, 'active') = 'active'
         LIMIT 1
       )

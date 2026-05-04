@@ -16,8 +16,6 @@ export const ShellResetViewWidget = ({
     title="Reset View"
     identityVisibility="settings-only"
     className="pointer-events-auto border-black/20 bg-[#f8f6f1]/92 shadow-[0px_10px_28px_rgba(0,0,0,0.14)]"
-    bodyClassName="p-0"
-    contentPaddingClassName="p-0"
   >
     <WidgetActionBody
       title="Reset View"

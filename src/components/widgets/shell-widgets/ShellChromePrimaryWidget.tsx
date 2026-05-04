@@ -5,30 +5,30 @@ import { ShellHeroCard } from "@/components/shells/ShellHeroCard";
 interface ShellChromePrimaryWidgetProps {
   desktopSidebarVisible: boolean;
   mobileSidebarOpen: boolean;
-  shellWidth: number;
   onToggleDesktopSidebar: () => void;
   onToggleMobileSidebar: () => void;
+  className?: string;
 }
 
 export const ShellChromePrimaryWidget = ({
   desktopSidebarVisible,
   mobileSidebarOpen,
-  shellWidth,
   onToggleDesktopSidebar,
   onToggleMobileSidebar,
+  className,
 }: ShellChromePrimaryWidgetProps) => (
   <>
     <button
       type="button"
       onClick={onToggleDesktopSidebar}
-      className="hidden w-full appearance-none border-0 bg-transparent p-0 text-left [backface-visibility:hidden] [transform:translateZ(0)] md:block"
-      style={{ width: `${shellWidth}px` }}
+      className={["hidden appearance-none border-0 bg-transparent p-0 text-left md:block", className].filter(Boolean).join(" ")}
       aria-label={desktopSidebarVisible ? "Close layers panel" : "Open layers panel"}
     >
       <ShellHeroCard
         dataTestId="top-chrome-hero"
         eyebrow="Synarava"
         title="Visit"
+        className="w-[280px] px-4 py-3"
         accent={<LogoMark className="h-10 w-10 overflow-hidden rounded-xl border border-black/10" />}
         trailing={
           <div className="flex h-10 w-10 items-center justify-center rounded-full border border-black/10 bg-white/70">
@@ -45,14 +45,14 @@ export const ShellChromePrimaryWidget = ({
     <button
       type="button"
       onClick={onToggleMobileSidebar}
-      className="block w-full appearance-none border-0 bg-transparent p-0 text-left md:hidden"
+      className={["block appearance-none border-0 bg-transparent p-0 text-left md:hidden", className].filter(Boolean).join(" ")}
       aria-label={mobileSidebarOpen ? "Close layers drawer" : "Open layers drawer"}
     >
       <ShellHeroCard
         dataTestId="top-chrome-hero"
         eyebrow="Synarava"
         title="Visit"
-        className="px-4 py-3"
+        className="w-[280px] px-4 py-3"
         accent={<LogoMark className="h-8 w-8 overflow-hidden rounded-xl border border-black/10" />}
         trailing={
           <div className="flex h-8 w-8 items-center justify-center rounded-full border border-black/10 bg-white/70">

@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import { useState, useEffect, useCallback, useMemo, useReducer, useRef } from "react";
 import Sidebar from "@/components/ui/Sidebar";
 import { ActiveFeatureProvider } from "@/components/widgets/ActiveFeatureContext";
-import { addWidgetFromLibrary, changeCurrentUserPassword, getCollections, getCurrentUserProfile, getLeftSidebarShell, getLeftSidebarShellWidgets, getTopChromeShell, getTopChromeShellWidgets, getUserShell, getUserShellWidgets, reorderShellWidgetPlacements, requestCurrentUserPasswordReset, resendCurrentUserVerificationEmail, savePin, saveTrace, updateCurrentUserProfile, updateTrace, deleteTrace, saveArea, updateArea, deleteArea, createCollection, deleteCollection, deletePin, updateLeftSidebarShellState } from "@/app/actions";
+import { addWidgetFromLibrary, bootstrapHomeShellState, changeCurrentUserPassword, getCollections, getHomeShellSnapshot, reorderShellWidgetPlacements, requestCurrentUserPasswordReset, resendCurrentUserVerificationEmail, savePin, saveTrace, updateCurrentUserProfile, updateTrace, deleteTrace, saveArea, updateArea, deleteArea, createCollection, deleteCollection, deletePin, updateLeftSidebarShellState } from "@/app/actions";
 import type { FeatureProperties } from "@/components/widgets/ActiveFeatureContext";
 import type { LeftSidebarShellInstance, TopChromeShellInstance, UserShellInstance } from "@/lib/shells";
 import type { WidgetInstanceRecord, WidgetPlacementRecord } from "@/lib/widgets";
@@ -363,28 +363,26 @@ export default function HomePage() {
 
     void (async () => {
       try {
-        const [shell, shellWidgets, chromeShell, chromeWidgets, accountShell, accountWidgets, profile] = await Promise.all([
-          getLeftSidebarShell(),
-          getLeftSidebarShellWidgets(),
-          getTopChromeShell(),
-          getTopChromeShellWidgets(),
-          getUserShell(),
-          getUserShellWidgets(),
-          getCurrentUserProfile(),
-        ]);
+        let snapshot = await getHomeShellSnapshot();
+
+        if (snapshot.bootstrapRequired) {
+          await bootstrapHomeShellState();
+          snapshot = await getHomeShellSnapshot();
+        }
+
         if (cancelled) {
           return;
         }
 
-        setLeftSidebarShell(shell);
-        setLeftSidebarWidgets(shellWidgets);
+        setLeftSidebarShell(snapshot.leftSidebarShell);
+        setLeftSidebarWidgets(snapshot.leftSidebarWidgets);
         setLeftSidebarWidgetsLoaded(true);
-        setTopChromeShell(chromeShell);
-        setTopChromeWidgets(chromeWidgets);
-        setUserShell(accountShell);
-        setUserShellWidgets(accountWidgets);
-        setUserProfile(profile);
-        setDesktopSidebarVisible(!shell.state.hidden);
+        setTopChromeShell(snapshot.topChromeShell);
+        setTopChromeWidgets(snapshot.topChromeWidgets);
+        setUserShell(snapshot.userShell);
+        setUserShellWidgets(snapshot.userShellWidgets);
+        setUserProfile(snapshot.userProfile);
+        setDesktopSidebarVisible(!snapshot.leftSidebarShell.state.hidden);
       } catch (error) {
         console.error("Failed to load left sidebar shell", error);
       }
@@ -942,7 +940,6 @@ export default function HomePage() {
             shellWidgets={topChromeWidgets}
             desktopSidebarVisible={desktopSidebarVisible}
             mobileSidebarOpen={mobileSidebarOpen}
-            shellWidth={leftSidebarShell?.config.width ?? 360}
             onToggleDesktopSidebar={toggleDesktopSidebar}
             onToggleMobileSidebar={() => {
               setIsWidgetPanelOpen(false);
