@@ -2,6 +2,8 @@
 
 import { useEffect } from "react";
 
+let glassFilterSvgMounted = false;
+
 /**
  * Injects a hidden SVG with glass refraction filters into <body>.
  * Mount once near the root of your app or in a Storybook decorator.
@@ -15,7 +17,10 @@ import { useEffect } from "react";
 export function GlassFilterDefs() {
   useEffect(() => {
     const FILTER_SVG_ID = "lg-filter-svg";
-    if (document.getElementById(FILTER_SVG_ID)) return;
+    if (glassFilterSvgMounted || document.getElementById(FILTER_SVG_ID)) {
+      glassFilterSvgMounted = true;
+      return;
+    }
 
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     svg.id = FILTER_SVG_ID;
@@ -198,7 +203,7 @@ export function GlassFilterDefs() {
     `;
 
     document.body.appendChild(svg);
-    return () => { document.getElementById(FILTER_SVG_ID)?.remove(); };
+    glassFilterSvgMounted = true;
   }, []);
 
   return null;

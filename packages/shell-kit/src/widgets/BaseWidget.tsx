@@ -116,14 +116,17 @@ export const BaseWidget = ({
   const hasDelete = Boolean(onDelete);
   const shellRuntime = useOptionalShellRuntime();
   const isLibraryPreview = shellRuntime?.shellId === "widget-library-preview";
+  const isRightEntityShell = shellRuntime?.shellId === "right_entity_shell";
   const usesTintedSurface = backgroundStyle !== "default";
+  const useSingleShellScroll = isRightEntityShell;
+  const allowWidgetOverflow = expanded || useSingleShellScroll;
 
   const topPadding = showUtilityBar ? (draggable ? "pt-5" : "pt-3.5") : undefined;
   const widgetContent = (
     <div
       className={cn(
         "flex min-h-0 flex-col",
-        expanded ? "max-h-none" : "max-h-[min(560px,68vh)]",
+        allowWidgetOverflow ? "max-h-none" : "max-h-[min(560px,68vh)]",
         contentPaddingClassName
       )}
     >
@@ -220,7 +223,7 @@ export const BaseWidget = ({
       <div
         className={cn(
           "min-h-0 flex-1 overflow-x-hidden pr-1 no-scrollbar",
-          expanded ? "overflow-visible" : "overflow-y-auto",
+          allowWidgetOverflow ? "overflow-visible" : "overflow-y-auto",
           bodyClassName
         )}
       >
@@ -268,7 +271,7 @@ export const BaseWidget = ({
           shineIntensity={1}
           className={cn(
             "group relative rounded-2xl",
-            expanded ? "overflow-visible" : "max-h-[min(560px,68vh)] overflow-hidden",
+            allowWidgetOverflow ? "overflow-visible" : "max-h-[min(560px,68vh)] overflow-hidden",
             className
           )}
         >
@@ -285,7 +288,7 @@ export const BaseWidget = ({
           effect="amplified"
           className={cn(
             "group relative rounded-2xl",
-            expanded ? "overflow-visible" : "max-h-[min(560px,68vh)] overflow-hidden",
+            allowWidgetOverflow ? "overflow-visible" : "max-h-[min(560px,68vh)] overflow-hidden",
             className
           )}
         >
@@ -298,7 +301,7 @@ export const BaseWidget = ({
           tone={getChromeTone(backgroundStyle)}
           className={cn(
             "group relative rounded-2xl",
-            expanded ? "overflow-visible" : "max-h-[min(560px,68vh)] overflow-hidden",
+            allowWidgetOverflow ? "overflow-visible" : "max-h-[min(560px,68vh)] overflow-hidden",
             className
           )}
         >
