@@ -2850,97 +2850,142 @@ async function ensureDefaultEntityWidget(userId: string, preferredEntityType?: W
     { slug: "entity_delete", position: 99, slot: "main" },
   ];
 
-  for (const widget of defaultEntityWidgets) {
-    await pool.query(
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+    await client.query(
       `
-        INSERT INTO widget_instances (definition_id, layer, entity_type, entity_id, position, title, user_id)
-        SELECT d.id, 'entity', NULL, NULL, $2, d.name, $1
-        FROM widget_definitions d
-        WHERE d.slug = $3
-        AND NOT EXISTS (
-          SELECT 1
-          FROM widget_instances wi
-          WHERE wi.user_id = $1
-            AND wi.layer = 'entity'
-            AND wi.entity_type IS NULL
-            AND wi.entity_id IS NULL
-            AND wi.definition_id = d.id
-        )
+        SELECT pg_advisory_xact_lock(hashtextextended($1, 0))
       `,
-      [userId, widget.position, widget.slug]
+      [`entity-shell-bootstrap:${userId}`]
     );
-  }
 
-  await pool.query(
-    `
-      DELETE FROM widget_placements wp
-      USING widget_instances wi, shell_instances si
-      WHERE wp.widget_instance_id = wi.id
-        AND si.id = wp.shell_instance_id
-        AND wi.user_id = $1
-        AND wi.layer = 'entity'
-        AND wi.entity_type IS NULL
-        AND wi.entity_id IS NULL
-        AND si.owner_type = 'entity'
-        AND si.owner_id = $2
-    `,
-    [userId, SHARED_ENTITY_SHELL_OWNER_ID]
-  );
-
-  await pool.query(
-    `
-      WITH entity_shell AS (
+    const shellResult = await client.query<{ id: string }>(
+      `
         SELECT si.id
         FROM shell_instances si
         INNER JOIN shell_definitions sd ON sd.id = si.definition_id
         WHERE si.owner_type = 'entity'
-          AND si.owner_id = $2
-          AND sd.slug = $3
+          AND si.owner_id = $1
+          AND sd.slug = $2
         LIMIT 1
-      )
-      INSERT INTO widget_placements (shell_instance_id, widget_instance_id, slot, position)
-      SELECT entity_shell.id,
-             wi.id,
-             CASE WHEN wd.slug = 'entity_info' THEN 'pinned' ELSE 'main' END,
-             wi.position
-      FROM widget_instances wi
-      INNER JOIN widget_definitions wd ON wd.id = wi.definition_id
-      CROSS JOIN entity_shell
-      WHERE wi.user_id = $1
-        AND wi.layer = 'entity'
-        AND wi.entity_type IS NULL
-        AND wi.entity_id IS NULL
-        AND NOT EXISTS (
-          SELECT 1
-          FROM widget_placements wp
-          WHERE wp.widget_instance_id = wi.id
-        )
-    `,
-    [userId, SHARED_ENTITY_SHELL_OWNER_ID, SHARED_ENTITY_SHELL_SLUG]
-  );
-
-  for (const widget of defaultEntityWidgets) {
-    await pool.query(
-      `
-        UPDATE widget_placements wp
-        SET slot = $3,
-            updated_at = NOW()
-        FROM widget_instances wi, shell_instances si, shell_definitions sd, widget_definitions wd
-        WHERE wp.widget_instance_id = wi.id
-          AND wp.shell_instance_id = si.id
-          AND sd.id = si.definition_id
-        AND wd.id = wi.definition_id
-        AND wi.user_id = $1
-        AND wi.layer = 'entity'
-        AND wi.entity_type IS NULL
-        AND wi.entity_id IS NULL
-        AND wd.slug = $2
-        AND si.owner_type = 'entity'
-        AND si.owner_id = $4
-        AND sd.slug = $5
       `,
-      [userId, widget.slug, widget.slot, SHARED_ENTITY_SHELL_OWNER_ID, SHARED_ENTITY_SHELL_SLUG]
+      [SHARED_ENTITY_SHELL_OWNER_ID, SHARED_ENTITY_SHELL_SLUG]
     );
+
+    const shellId = shellResult.rows[0]?.id;
+
+    if (!shellId) {
+      throw new Error("Shared entity shell instance not found.");
+    }
+
+    const existingWidgetsResult = await client.query<{
+      widgetInstanceId: string;
+      slug: string;
+      slot: string | null;
+      position: number | null;
+    }>(
+      `
+        SELECT
+          wi.id as "widgetInstanceId",
+          wd.slug,
+          wp.slot,
+          wp.position
+        FROM widget_instances wi
+        INNER JOIN widget_definitions wd ON wd.id = wi.definition_id
+        LEFT JOIN widget_placements wp
+          ON wp.widget_instance_id = wi.id
+         AND wp.shell_instance_id = $2::uuid
+        WHERE wi.user_id = $1
+          AND wi.layer = 'entity'
+          AND wi.entity_type IS NULL
+          AND wi.entity_id IS NULL
+          AND wd.slug = ANY($3::text[])
+      `,
+      [userId, shellId, defaultEntityWidgets.map((widget) => widget.slug)]
+    );
+
+    const widgetsBySlug = new Map(
+      existingWidgetsResult.rows.map((row) => [row.slug, row])
+    );
+
+    for (const widget of defaultEntityWidgets) {
+      let existingWidget = widgetsBySlug.get(widget.slug);
+
+      if (!existingWidget) {
+        const insertedWidgetResult = await client.query<{
+          widgetInstanceId: string;
+        }>(
+          `
+            INSERT INTO widget_instances (definition_id, layer, entity_type, entity_id, position, title, user_id)
+            SELECT d.id, 'entity', NULL, NULL, $2, d.name, $1
+            FROM widget_definitions d
+            WHERE d.slug = $3
+            RETURNING id as "widgetInstanceId"
+          `,
+          [userId, widget.position, widget.slug]
+        );
+
+        existingWidget = {
+          widgetInstanceId: insertedWidgetResult.rows[0].widgetInstanceId,
+          slug: widget.slug,
+          slot: null,
+          position: null,
+        };
+
+        widgetsBySlug.set(widget.slug, existingWidget);
+      }
+
+      if (existingWidget.slot && existingWidget.position !== null) {
+        continue;
+      }
+
+      const slotConflictResult = await client.query<{ occupied: boolean }>(
+        `
+          SELECT TRUE as occupied
+          FROM widget_placements
+          WHERE shell_instance_id = $1::uuid
+            AND slot = $2
+            AND position = $3
+          LIMIT 1
+        `,
+        [shellId, widget.slot, widget.position]
+      );
+
+      let placementPosition = widget.position;
+
+      if (slotConflictResult.rows[0]?.occupied) {
+        const nextPositionResult = await client.query<{ value: number }>(
+          `
+            SELECT COALESCE(MAX(position), -10) + 10 AS value
+            FROM widget_placements
+            WHERE shell_instance_id = $1::uuid
+              AND slot = $2
+          `,
+          [shellId, widget.slot]
+        );
+
+        placementPosition = nextPositionResult.rows[0]?.value ?? widget.position;
+      }
+
+      await client.query(
+        `
+          INSERT INTO widget_placements (shell_instance_id, widget_instance_id, slot, position)
+          VALUES ($1::uuid, $2::uuid, $3, $4)
+          ON CONFLICT (shell_instance_id, widget_instance_id)
+          DO NOTHING
+        `,
+        [shellId, existingWidget.widgetInstanceId, widget.slot, placementPosition]
+      );
+    }
+
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
   }
 }
 

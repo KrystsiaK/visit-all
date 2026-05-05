@@ -190,14 +190,21 @@ export const renderEntityWidget = ({
     );
   }
 
-  if (widget.componentKey === "entity_transport_mode" && entity.type === "trace") {
+  if (widget.componentKey === "entity_transport_mode") {
+    const body =
+      entity.type === "trace"
+        ? "This widget will capture how the route was traveled: walk, car, bus, tram, train, or ferry."
+        : entity.type === "area"
+          ? "This widget will capture how this zone is typically accessed or experienced: walking, driving, transit, cycling, or mixed access."
+          : "This widget will capture how this place is usually reached or experienced: walking, driving, transit, cycling, or mixed access.";
+
     return (
       <div>
         <EntityPlaceholderWidgetCard
           widget={widget}
           entity={entity}
           eyebrow="Transport"
-          body="This widget will capture how the route was traveled: walk, car, bus, tram, train, or ferry."
+          body={body}
           onBackgroundStyleChange={bindings.handleUpdateWidgetBackground}
           removing={removing}
           canRemove={removable}
