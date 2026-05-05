@@ -1,6 +1,5 @@
 "use client";
 
-import { AnimatePresence, motion } from "framer-motion";
 import { Settings2 } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import {
@@ -128,103 +127,94 @@ export const BaseWidget = ({
         contentPaddingClassName
       )}
     >
-      <AnimatePresence initial={false}>
-        {hasSettings && settingsOpen ? (
-          <motion.div
-            key="settings"
-            initial={{ opacity: 0, height: 0, y: -6 }}
-            animate={{ opacity: 1, height: "auto", y: 0 }}
-            exit={{ opacity: 0, height: 0, y: -6 }}
-            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-            className="overflow-hidden"
-          >
-            <div className={cn("mb-4 rounded-2xl p-4", getLiquidGlassClassName("inset", "neutral"))}>
-              {identityVisibility === "settings-only" && hasIdentity ? (
-                <div className="mb-4">
-                  {eyebrow ? (
-                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-neutral-500">
-                      {eyebrow}
-                    </p>
-                  ) : null}
-                  {title ? (
-                    <h3 className="mt-1 text-sm font-semibold leading-5 text-neutral-950">
-                      {title}
-                    </h3>
-                  ) : null}
-                  {subtitle ? (
-                    <p className="mt-1 text-xs leading-4 text-neutral-500">
-                      {subtitle}
-                    </p>
-                  ) : null}
-                </div>
-              ) : null}
-              {onBackgroundStyleChange ? (
-                <div className="mb-4">
+      {hasSettings && settingsOpen ? (
+        <div className="overflow-hidden">
+          <div className={cn("mb-4 rounded-2xl p-4", getLiquidGlassClassName("inset", "neutral"))}>
+            {identityVisibility === "settings-only" && hasIdentity ? (
+              <div className="mb-4">
+                {eyebrow ? (
                   <p className="text-[10px] font-black uppercase tracking-[0.18em] text-neutral-500">
-                    Background
+                    {eyebrow}
                   </p>
-                  <div className="mt-3 grid grid-cols-2 gap-2">
-                    {widgetChromeBackgroundStyles.map((style) => {
-                      const active = style.value === backgroundStyle;
-                      return (
-                        <button
-                          key={style.value}
-                          type="button"
-                          onClick={() => onBackgroundStyleChange(style.value)}
+                ) : null}
+                {title ? (
+                  <h3 className="mt-1 text-sm font-semibold leading-5 text-neutral-950">
+                    {title}
+                  </h3>
+                ) : null}
+                {subtitle ? (
+                  <p className="mt-1 text-xs leading-4 text-neutral-500">
+                    {subtitle}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+            {onBackgroundStyleChange ? (
+              <div className="mb-4">
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-neutral-500">
+                  Background
+                </p>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  {widgetChromeBackgroundStyles.map((style) => {
+                    const active = style.value === backgroundStyle;
+                    return (
+                      <button
+                        key={style.value}
+                        type="button"
+                        onClick={() => onBackgroundStyleChange(style.value)}
+                        className={cn(
+                          "flex min-h-11 items-center gap-2 rounded-2xl border px-3 py-2 text-left transition-colors",
+                          active
+                            ? "border-neutral-900 bg-white/90 text-neutral-950"
+                            : "border-black/8 bg-white/55 text-neutral-700 hover:bg-white/75"
+                        )}
+                      >
+                        <span
                           className={cn(
-                            "flex min-h-11 items-center gap-2 rounded-2xl border px-3 py-2 text-left transition-colors",
-                            active
-                              ? "border-neutral-900 bg-white/90 text-neutral-950"
-                              : "border-black/8 bg-white/55 text-neutral-700 hover:bg-white/75"
+                            "h-4 w-4 shrink-0 rounded-full border border-black/10",
+                            style.swatchClassName
                           )}
-                        >
-                          <span
-                            className={cn(
-                              "h-4 w-4 shrink-0 rounded-full border border-black/10",
-                              style.swatchClassName
-                            )}
-                          />
-                          <span className="text-sm font-medium">{style.label}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
+                        />
+                        <span className="text-sm font-medium">{style.label}</span>
+                      </button>
+                    );
+                  })}
                 </div>
-              ) : null}
-              {settingsContent ? (
-                <div className="mb-4">
-                  {settingsContent}
-                </div>
-              ) : null}
-              {hasDelete ? (
-                <div>
-                  <button
-                    type="button"
-                    onClick={onDelete}
-                    className="flex w-full items-center justify-center gap-2 rounded-2xl border border-[rgba(214,0,0,0.25)] bg-[rgba(255,0,0,0.04)] px-3 py-2.5 text-sm font-semibold text-[#a33b3b] transition-colors hover:border-[rgba(214,0,0,0.4)] hover:bg-[rgba(255,0,0,0.08)]"
+              </div>
+            ) : null}
+            {settingsContent ? (
+              <div className="mb-4">
+                {settingsContent}
+              </div>
+            ) : null}
+            {hasDelete ? (
+              <div>
+                <button
+                  type="button"
+                  onClick={onDelete}
+                  className="flex w-full items-center justify-center gap-2 rounded-2xl border border-[rgba(214,0,0,0.25)] bg-[rgba(255,0,0,0.04)] px-3 py-2.5 text-sm font-semibold text-[#a33b3b] transition-colors hover:border-[rgba(214,0,0,0.4)] hover:bg-[rgba(255,0,0,0.08)]"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="h-4 w-4"
                   >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="h-4 w-4"
-                    >
-                      <path d="M3 6h18" />
-                      <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
-                      <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-                    </svg>
-                    Delete Widget
-                  </button>
-                </div>
-              ) : null}
-            </div>
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
+                    <path d="M3 6h18" />
+                    <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                    <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                  </svg>
+                  Delete Widget
+                </button>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
 
       {accent ? <div className="mb-3">{accent}</div> : null}
       <div
@@ -240,7 +230,7 @@ export const BaseWidget = ({
   );
 
   return (
-    <motion.div className={cn("relative w-full", topPadding)} layout="position">
+    <div className={cn("relative w-full", topPadding)}>
       {showUtilityBar ? (
         <div className="pointer-events-none absolute inset-x-3 top-3.5 z-[5] flex -translate-y-1/2 items-center justify-between gap-2">
           <div className="pointer-events-auto min-w-0 max-w-[40%] flex-1 transition-[max-width] duration-420 ease-[cubic-bezier(0.23,1,0.32,1)] hover:max-w-full">
@@ -315,6 +305,6 @@ export const BaseWidget = ({
           {widgetContent}
         </LiquidGlassSurface>
       )}
-    </motion.div>
+    </div>
   );
 };
