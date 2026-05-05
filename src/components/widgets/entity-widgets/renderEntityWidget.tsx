@@ -101,7 +101,7 @@ export const renderEntityWidget = ({
     );
   }
 
-  if (widget.componentKey === "entity_rating" && entity.type === "pin") {
+  if (widget.componentKey === "entity_rating") {
     return (
       <motion.div variants={overlayItemVariants} layout="position">
         <EntityRatingWidgetCard
@@ -176,7 +176,7 @@ export const renderEntityWidget = ({
     );
   }
 
-  if (widget.componentKey === "entity_nearby_pins" && entity.type === "pin") {
+  if (widget.componentKey === "entity_nearby_pins") {
     return (
       <motion.div variants={overlayItemVariants} layout="position">
         <EntityNearbyPinsWidgetCard

@@ -32,6 +32,8 @@ function TitlePillTextRow({
   title,
   subtitle,
 }: TitlePillTextRowProps) {
+  const summary = [title, subtitle].filter(Boolean).join(" ");
+
   return (
     <div className="relative z-1 flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
       {eyebrow ? (
@@ -44,24 +46,14 @@ function TitlePillTextRow({
           {eyebrow}
         </span>
       ) : null}
-      {title ? (
+      {summary ? (
         <span
           className="min-w-0 truncate whitespace-nowrap text-xs font-semibold"
           style={{
             color: "rgba(132, 150, 182, 0.96)",
           }}
         >
-          {title}
-        </span>
-      ) : null}
-      {subtitle ? (
-        <span
-          className="min-w-0 truncate whitespace-nowrap text-[11px]"
-          style={{
-            color: "rgba(98, 114, 142, 0.92)",
-          }}
-        >
-          {subtitle}
+          {summary}
         </span>
       ) : null}
     </div>

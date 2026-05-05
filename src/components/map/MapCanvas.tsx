@@ -184,6 +184,15 @@ interface MapCanvasProps {
   mode: InteractionMode;
   onMapClick?: (lng: number, lat: number) => void;
   onTraceSelected?: (id: string, coords: {lng: number, lat: number}[], properties?: FeatureProperties) => void;
+  onTraceAnchorClick?: (
+    trace: {
+      id: string;
+      name?: string;
+      collectionId?: string;
+      endpoint: "start" | "end";
+      coordinates: { lng: number; lat: number };
+    }
+  ) => void;
   onAreaSelected?: (id: string, coords: {lng: number, lat: number}[], properties?: FeatureProperties) => void;
   onPinSelected?: (id: string, properties: FeatureProperties) => void;
   onPendingPinCancel?: () => void;
@@ -205,7 +214,7 @@ interface MapCanvasProps {
 }
 
 export default function MapCanvas({ 
-  mode, onMapClick, onTraceSelected, onAreaSelected, onPinSelected,
+  mode, onMapClick, onTraceSelected, onTraceAnchorClick, onAreaSelected, onPinSelected,
   onPendingPinCancel, onTraceNodeClick, selectedTraceNodeIndex = null,
   selectedPoint, drawingPath, setDrawingPath, 
   traceDraftFinalized = false, areaDraftFinalized = false, curveMode, terrain3D, isSatellite = false, resetViewTrigger = 0, refreshTrigger, hiddenCollectionIds = []
@@ -512,14 +521,14 @@ export default function MapCanvas({
       }
     }
 
-    // Saved geometry surfaces should not open the entity shell directly.
-    if (onTraceSelected && (!mode.includes('edit') || mode === 'editTrace')) {
+    // While editing existing geometry, surface clicks should not add new draft points underneath.
+    if (onTraceSelected && mode === 'editTrace') {
       const traceFeat = evt.features?.find(f => f.layer.id === 'traces');
       if (traceFeat?.properties?.id) {
         return;
       }
     }
-    if (onAreaSelected && (!mode.includes('edit') || mode === 'editArea')) {
+    if (onAreaSelected && mode === 'editArea') {
       const areaFeat = evt.features?.find(f => f.layer.id === 'areas-fill');
       if (areaFeat?.properties?.id) {
         return;
@@ -667,13 +676,41 @@ export default function MapCanvas({
             };
             const [startLng, startLat] = coords[0];
             const [endLng, endLat] = coords[coords.length - 1];
+            const handleStartAnchorClick = () => {
+              if (mode === "trace" && drawingPath && drawingPath.length >= 2 && !traceDraftFinalized) {
+                onTraceAnchorClick?.({
+                  id: trace.id,
+                  name: trace.name,
+                  collectionId: trace.collection_id ?? undefined,
+                  endpoint: "start",
+                  coordinates: { lng: startLng, lat: startLat },
+                });
+                return;
+              }
+
+              openTrace();
+            };
+            const handleEndAnchorClick = () => {
+              if (mode === "trace" && drawingPath && drawingPath.length >= 2 && !traceDraftFinalized) {
+                onTraceAnchorClick?.({
+                  id: trace.id,
+                  name: trace.name,
+                  collectionId: trace.collection_id ?? undefined,
+                  endpoint: "end",
+                  coordinates: { lng: endLng, lat: endLat },
+                });
+                return;
+              }
+
+              openTrace();
+            };
 
             return [
               <Marker key={`trace-start-${trace.id}`} longitude={startLng} latitude={startLat} anchor="bottom">
-                <GeometryAnchorMarker color={color} selected={isSelected} variant="trace-start" onClick={openTrace} />
+                <GeometryAnchorMarker color={color} selected={isSelected} variant="trace-start" onClick={handleStartAnchorClick} />
               </Marker>,
               <Marker key={`trace-end-${trace.id}`} longitude={endLng} latitude={endLat} anchor="bottom">
-                <GeometryAnchorMarker color={color} selected={isSelected} variant="trace-end" onClick={openTrace} />
+                <GeometryAnchorMarker color={color} selected={isSelected} variant="trace-end" onClick={handleEndAnchorClick} />
               </Marker>,
             ];
           })}

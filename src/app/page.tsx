@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import { useState, useEffect, useCallback, useMemo, useReducer, useRef } from "react";
 import Sidebar from "@/components/ui/Sidebar";
 import { ActiveFeatureProvider } from "@/components/widgets/ActiveFeatureContext";
-import { addWidgetFromLibrary, bootstrapHomeShellState, changeCurrentUserPassword, getCollections, getHomeShellSnapshot, reorderShellWidgetPlacements, requestCurrentUserPasswordReset, resendCurrentUserVerificationEmail, savePin, saveTrace, updateCurrentUserProfile, updateTrace, deleteTrace, saveArea, updateArea, deleteArea, createCollection, deleteCollection, deletePin, updateLeftSidebarShellState } from "@/app/actions";
+import { addWidgetFromLibrary, bootstrapHomeShellState, changeCurrentUserPassword, getCollections, getHomeShellSnapshot, mergeTraceIntoEndpoint, reorderShellWidgetPlacements, requestCurrentUserPasswordReset, resendCurrentUserVerificationEmail, savePin, saveTrace, updateCurrentUserProfile, updateTrace, deleteTrace, saveArea, updateArea, deleteArea, createCollection, deleteCollection, deletePin, updateLeftSidebarShellState } from "@/app/actions";
 import type { FeatureProperties } from "@/components/widgets/ActiveFeatureContext";
 import type { LeftSidebarShellInstance, TopChromeShellInstance, UserShellInstance } from "@/lib/shells";
 import type { WidgetInstanceRecord, WidgetPlacementRecord } from "@/lib/widgets";
@@ -14,6 +14,7 @@ import { MapErrorBoundary } from "@/components/errors/MapErrorBoundary";
 import { ShellErrorBoundary } from "@/components/errors/ShellErrorBoundary";
 import { UserAvatarBadge } from "@/components/user/avatar-styles";
 import type { UserProfileViewModel } from "@/components/widgets/user-widgets/UserProfileWidgetCard";
+import { DestructiveActionDialog } from "@/components/widgets/DestructiveActionDialog";
 import {
   modeToCollectionType,
   shouldAutoOpenLayerDrawer,
@@ -117,6 +118,12 @@ export default function HomePage() {
   );
   const [autoCreatedCollectionId, setAutoCreatedCollectionId] = useState<string | null>(null);
   const [autoOpenCollectionId, setAutoOpenCollectionId] = useState<string | null>(null);
+  const [pendingTraceMerge, setPendingTraceMerge] = useState<{
+    traceId: string;
+    traceTitle: string;
+    endpoint: "start" | "end";
+  } | null>(null);
+  const [mergeTraceSaving, setMergeTraceSaving] = useState(false);
   const geometryPersistTimeoutRef = useRef<number | null>(null);
 
   const registerCollectionEverywhere = useCallback((collection: Collection) => {
@@ -186,6 +193,49 @@ export default function HomePage() {
 
     fetchAllCollections();
   }, [dbRefreshTrigger]);
+
+  const finalizeFreshTraceSave = useCallback(
+    async (collectionId: string, collectionColor: string) => {
+      await saveTrace(drawingPath.map((point) => [point.lng, point.lat]), collectionColor, collectionId);
+      setDrawingPath([]);
+      setTraceDraftFinalized(false);
+      setAutoOpenCollectionId(null);
+      setPendingTraceMerge(null);
+      if (isMobileViewport) {
+        setMobileSidebarOpen(false);
+      }
+      setDbRefreshTrigger((value) => value + 1);
+    },
+    [drawingPath, isMobileViewport]
+  );
+
+  const finalizeMergedTraceSave = useCallback(async () => {
+    if (!pendingTraceMerge) {
+      return;
+    }
+
+    setMergeTraceSaving(true);
+
+    try {
+      await mergeTraceIntoEndpoint(
+        pendingTraceMerge.traceId,
+        drawingPath.map((point) => [point.lng, point.lat]),
+        pendingTraceMerge.endpoint
+      );
+      setDrawingPath([]);
+      setTraceDraftFinalized(false);
+      setAutoOpenCollectionId(null);
+      setPendingTraceMerge(null);
+      if (isMobileViewport) {
+        setMobileSidebarOpen(false);
+      }
+      setDbRefreshTrigger((value) => value + 1);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setMergeTraceSaving(false);
+    }
+  }, [drawingPath, isMobileViewport, pendingTraceMerge]);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(max-width: 767px)");
@@ -411,14 +461,7 @@ export default function HomePage() {
 
       if (mode === "trace" && traceDraftFinalized && drawingPath.length >= 2) {
         const selectedCollectionColor = collections.find((collection) => collection.id === collectionId)?.color || "#0000ff";
-        await saveTrace(drawingPath.map((point) => [point.lng, point.lat]), selectedCollectionColor, collectionId);
-        setDrawingPath([]);
-        setTraceDraftFinalized(false);
-        setAutoOpenCollectionId(null);
-        if (isMobileViewport) {
-          setMobileSidebarOpen(false);
-        }
-        setDbRefreshTrigger((value) => value + 1);
+        await finalizeFreshTraceSave(collectionId, selectedCollectionColor);
         return;
       }
 
@@ -520,6 +563,27 @@ export default function HomePage() {
     setSelectedPoint(null);
   };
 
+  const handleTraceAnchorMergeRequest = useCallback(
+    (trace: {
+      id: string;
+      name?: string;
+      collectionId?: string;
+      endpoint: "start" | "end";
+      coordinates: { lng: number; lat: number };
+    }) => {
+      if (mode !== "trace" || traceDraftFinalized || drawingPath.length < 2) {
+        return;
+      }
+
+      setPendingTraceMerge({
+        traceId: trace.id,
+        traceTitle: trace.name || "Untitled Path",
+        endpoint: trace.endpoint,
+      });
+    },
+    [drawingPath.length, mode, traceDraftFinalized]
+  );
+
   const handleAreaSelected = (id: string, coordinates: {lng: number, lat: number}[], properties?: FeatureProperties) => {
     setMobileSidebarOpen(false);
     setIsWidgetPanelOpen(false);
@@ -585,6 +649,7 @@ export default function HomePage() {
     setEditingAreaData(null);
     setEditingPinData(null);
     setPendingPin(null);
+    setPendingTraceMerge(null);
     setAutoOpenCollectionId(null);
     setTraceDraftFinalized(false);
     setAreaDraftFinalized(false);
@@ -613,6 +678,7 @@ export default function HomePage() {
     setEditingAreaData(null);
     setEditingPinData(null);
     setPendingPin(null);
+    setPendingTraceMerge(null);
     setAutoOpenCollectionId(null);
     setTraceDraftFinalized(false);
     setAreaDraftFinalized(false);
@@ -751,6 +817,12 @@ export default function HomePage() {
       setTraceDraftFinalized(false);
     }
   }, [mode, traceDraftFinalized]);
+
+  useEffect(() => {
+    if (mode !== "trace" && pendingTraceMerge) {
+      setPendingTraceMerge(null);
+    }
+  }, [mode, pendingTraceMerge]);
 
   useEffect(() => {
     if (mode !== "area" && areaDraftFinalized) {
@@ -1003,6 +1075,7 @@ export default function HomePage() {
                   mode={mode}
                   onMapClick={handleMapClick} 
                   onTraceSelected={handleTraceSelected}
+                  onTraceAnchorClick={handleTraceAnchorMergeRequest}
                   onAreaSelected={handleAreaSelected}
                   onPinSelected={handlePinSelected}
                   onPendingPinCancel={handlePendingPinCancel}
@@ -1152,6 +1225,26 @@ export default function HomePage() {
                 />
               </ShellErrorBoundary>
             ) : null}
+
+            <DestructiveActionDialog
+              open={Boolean(pendingTraceMerge)}
+              saving={mergeTraceSaving}
+              eyebrow="Merge Paths"
+              title={pendingTraceMerge ? `Merge With ${pendingTraceMerge.traceTitle}` : "Merge Paths"}
+              description={
+                pendingTraceMerge
+                  ? "Do you want to merge the current draft with this existing path? If you confirm, the route will be saved immediately in the background as one continuous path."
+                  : ""
+              }
+              confirmLabel="Merge Paths"
+              pendingLabel="Saving..."
+              cancelLabel="Cancel"
+              confirmButtonClassName="h-16 border-l border-black/10 bg-[#111111] text-sm font-black uppercase tracking-[0.18em] text-white transition-colors hover:bg-[#0f7a3d] disabled:cursor-not-allowed disabled:opacity-65"
+              onCancel={() => setPendingTraceMerge(null)}
+              onConfirm={() => {
+                void finalizeMergedTraceSave();
+              }}
+            />
 
             {IS_E2E_TEST_MODE ? (
               <button
