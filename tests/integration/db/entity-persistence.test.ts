@@ -313,7 +313,7 @@ describe("DB integration: entity persistence", () => {
     await updateEntityRating(midRated.container_id, 4);
     await updateEntityRating(farRated.container_id, 5);
 
-    const nearbyPins = await getNearbyPinsForEntity(targetPin.id, {
+    const nearbyPins = await getNearbyPinsForEntity("pin", targetPin.id, {
       limit: 3,
       minRating: null,
       radiusMeters: 10000,

@@ -5,7 +5,7 @@ import { WidgetErrorBoundary } from "@/components/errors/WidgetErrorBoundary";
 import { RightEntityShell } from "@/components/shells/RightEntityShell";
 import { ShellSlot, useOptionalShellRuntimeActions } from "@synarava/shell-kit";
 import { EntityDeleteDialog } from "@/components/widgets/entity-widgets/EntityDeleteDialog";
-import { EntityOverlayEmptyState, EntityOverlaySkeletonCard } from "@/components/widgets/entity-widgets/EntityOverlayStates";
+import { EntityOverlaySkeletonCard } from "@/components/widgets/entity-widgets/EntityOverlayStates";
 import { renderEntityWidget } from "@/components/widgets/entity-widgets/renderEntityWidget";
 import { useEntityWidgetBindings } from "@/components/widgets/entity-widgets/useEntityWidgetBindings";
 
@@ -130,6 +130,7 @@ export function WidgetOverlay({
     pinnedEntityWidgets,
     mainEntityWidgets,
     loading,
+    supportsDirectPinEditing,
     draggedWidgetId,
     dropTarget,
     activeData,
@@ -200,7 +201,7 @@ export function WidgetOverlay({
         saving,
         storySaving,
         mediaSaving,
-        supportsDirectPinEditing: entityType === "pin" || !entityType,
+        supportsDirectPinEditing,
         widgetInteractionsDeferred,
         entityRating,
         removingWidgetId,
@@ -301,8 +302,6 @@ export function WidgetOverlay({
                 <EntityOverlaySkeletonCard emphasis="hero" />
                 <EntityOverlaySkeletonCard />
               </>
-            ) : resolvedMainEntityWidgets.length === 0 && resolvedPinnedEntityWidgets.length === 0 ? (
-              <EntityOverlayEmptyState />
             ) : (
               resolvedMainEntityWidgets.map((widget, index) => (
                 <DeferredEntityWidgetSlot

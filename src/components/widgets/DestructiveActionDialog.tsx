@@ -7,6 +7,9 @@ interface DestructiveActionDialogProps {
   title: string;
   description: string;
   confirmLabel: string;
+  pendingLabel?: string;
+  cancelLabel?: string;
+  confirmButtonClassName?: string;
   onCancel: () => void;
   onConfirm: () => void;
 }
@@ -18,6 +21,9 @@ export function DestructiveActionDialog({
   title,
   description,
   confirmLabel,
+  pendingLabel = "Deleting...",
+  cancelLabel = "Cancel",
+  confirmButtonClassName = "h-16 border-l border-black/10 bg-[#111111] text-sm font-black uppercase tracking-[0.18em] text-white transition-colors hover:bg-[#ff0000] disabled:cursor-not-allowed disabled:opacity-65",
   onCancel,
   onConfirm,
 }: DestructiveActionDialogProps) {
@@ -48,15 +54,15 @@ export function DestructiveActionDialog({
             onClick={onCancel}
             className="h-16 bg-[#f8f6f1] text-sm font-black uppercase tracking-[0.18em] text-neutral-700 transition-colors hover:bg-white"
           >
-            Cancel
+            {cancelLabel}
           </button>
           <button
             type="button"
             onClick={onConfirm}
             disabled={saving}
-            className="h-16 border-l border-black/10 bg-[#111111] text-sm font-black uppercase tracking-[0.18em] text-white transition-colors hover:bg-[#ff0000] disabled:cursor-not-allowed disabled:opacity-65"
+            className={confirmButtonClassName}
           >
-            {saving ? "Deleting..." : confirmLabel}
+            {saving ? pendingLabel : confirmLabel}
           </button>
         </div>
       </div>

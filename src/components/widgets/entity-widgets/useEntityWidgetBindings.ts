@@ -279,14 +279,14 @@ export const useEntityWidgetBindings = ({
 
           const loadSecondaryData = async () => {
             const wantsMedia = resolvedWidgets.some((widget) => widget.componentKey === "entity_gallery");
-            const wantsNearbyPins = entityType === "pin" && resolvedWidgets.some((widget) => widget.componentKey === "entity_nearby_pins");
+            const wantsNearbyPins = resolvedWidgets.some((widget) => widget.componentKey === "entity_nearby_pins");
             const wantsResources = resolvedWidgets.some((widget) => widget.componentKey === "entity_resources");
             const wantsStories = resolvedWidgets.some((widget) => widget.componentKey === "entity_stories");
-            const wantsRating = entityType === "pin" && resolvedWidgets.some((widget) => widget.componentKey === "entity_rating");
+            const wantsRating = resolvedWidgets.some((widget) => widget.componentKey === "entity_rating");
 
             const [nextMediaItems, nextNearbyPins, nextResourceLinks, nextStoryEntries, nextRating] = await Promise.all([
               wantsMedia ? getEntityMediaItems(entityType, entityId) : Promise.resolve([]),
-              wantsNearbyPins ? getNearbyPinsForEntity(entityId) : Promise.resolve([]),
+              wantsNearbyPins ? getNearbyPinsForEntity(entityType, entityId) : Promise.resolve([]),
               wantsResources ? getEntityResourceLinks(entityType, entityId) : Promise.resolve([]),
               wantsStories ? getEntityStoryEntries(entityType, entityId) : Promise.resolve([]),
               wantsRating && typeof resolvedPayload.metadata?.containerId === "string"
@@ -702,7 +702,7 @@ export const useEntityWidgetBindings = ({
     tags: entityWidgets.map((widget) => widget.name),
   };
 
-  const supportsDirectPinEditing = entityType === "pin" || !entityType;
+  const supportsDirectPinEditing = Boolean(entityType);
   const resolvedTitle = entityTitle || activeData.title;
   const normalizedEntity = entityPayload ?? {
     id: activeData.id,

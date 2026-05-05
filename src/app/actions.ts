@@ -125,7 +125,7 @@ const widgetLibrarySeed: Array<{
     slug: "entity_rating",
     name: "Entity Rating",
     layer: "entity",
-    supportedEntityTypes: ["pin"],
+    supportedEntityTypes: ["pin", "trace", "area"],
     componentKey: "entity_rating",
     defaultConfig: {
       kind: "rating",
@@ -136,7 +136,7 @@ const widgetLibrarySeed: Array<{
     slug: "entity_nearby_pins",
     name: "Nearby Pins",
     layer: "entity",
-    supportedEntityTypes: ["pin"],
+    supportedEntityTypes: ["pin", "trace", "area"],
     componentKey: "entity_nearby_pins",
     defaultConfig: {
       kind: "nearby_pins",
@@ -148,7 +148,7 @@ const widgetLibrarySeed: Array<{
     slug: "entity_transport_mode",
     name: "Transport Mode",
     layer: "entity",
-    supportedEntityTypes: ["trace"],
+    supportedEntityTypes: ["pin", "trace", "area"],
     componentKey: "entity_transport_mode",
     defaultConfig: {
       kind: "transport_mode",
@@ -666,22 +666,26 @@ async function ensureUserShellInstance(userId: string, slug: "left_sidebar" | "t
   );
 }
 
-const getEntityShellSlug = (entityType: WidgetEntityType) => {
-  if (entityType === "trace") {
-    return "trace_entity_shell";
-  }
-
-  if (entityType === "area") {
-    return "area_entity_shell";
-  }
-
-  return "pin_entity_shell";
+const SHARED_ENTITY_SHELL_SLUG = "pin_entity_shell";
+const SHARED_ENTITY_SHELL_OWNER_ID = "shared_entity_shell";
+const sharedEntityWidgetComponentKeys = [
+  "entity_info",
+  "entity_rating",
+  "entity_resources",
+  "entity_stories",
+  "entity_gallery",
+  "entity_nearby_pins",
+  "entity_transport_mode",
+  "entity_delete",
+] as const;
+const legacyEntityShellSlugByType: Record<WidgetEntityType, string> = {
+  pin: "pin_entity_shell",
+  trace: "trace_entity_shell",
+  area: "area_entity_shell",
 };
 
-async function ensureEntityShellInstance(entityType: WidgetEntityType, entityId: string) {
+async function ensureEntityShellInstance() {
   await ensureShellDefinitionSeed();
-
-  const slug = getEntityShellSlug(entityType);
 
   await pool.query(
     `
@@ -697,8 +701,118 @@ async function ensureEntityShellInstance(entityType: WidgetEntityType, entityId:
           AND si.owner_id = $1
       )
     `,
-    [entityId, slug]
+    [SHARED_ENTITY_SHELL_OWNER_ID, SHARED_ENTITY_SHELL_SLUG]
   );
+}
+
+async function migrateLegacyEntityWidgetsToShared(
+  userId: string,
+  preferredEntityType?: WidgetEntityType
+) {
+  const sharedWidgets = await pool.query(
+    `
+      SELECT 1
+      FROM widget_instances wi
+      WHERE wi.user_id = $1
+        AND wi.layer = 'entity'
+        AND wi.entity_type IS NULL
+        AND wi.entity_id IS NULL
+      LIMIT 1
+    `,
+    [userId]
+  );
+
+  if (sharedWidgets.rowCount && sharedWidgets.rowCount > 0) {
+    return;
+  }
+
+  const orderedLegacyTypes = (
+    preferredEntityType
+      ? [preferredEntityType, "pin", "trace", "area"]
+      : ["pin", "trace", "area"]
+  ).filter((entityType, index, values) => values.indexOf(entityType) === index) as WidgetEntityType[];
+
+  for (const entityType of orderedLegacyTypes) {
+    const legacyWidgets = await pool.query(
+      `
+        SELECT wi.id
+        FROM widget_instances wi
+        INNER JOIN widget_definitions wd ON wd.id = wi.definition_id
+        WHERE wi.user_id = $1
+          AND wi.layer = 'entity'
+          AND wi.entity_type = $2
+          AND wi.entity_id IS NULL
+          AND wd.component_key = ANY($3::text[])
+        LIMIT 1
+      `,
+      [userId, entityType, [...sharedEntityWidgetComponentKeys]]
+    );
+
+    if (!legacyWidgets.rowCount) {
+      continue;
+    }
+
+    await pool.query(
+      `
+        UPDATE widget_instances wi
+        SET entity_type = NULL,
+            updated_at = NOW()
+        FROM widget_definitions wd
+        WHERE wd.id = wi.definition_id
+          AND wi.user_id = $1
+          AND wi.layer = 'entity'
+          AND wi.entity_type = $2
+          AND wi.entity_id IS NULL
+          AND wd.component_key = ANY($3::text[])
+      `,
+      [userId, entityType, [...sharedEntityWidgetComponentKeys]]
+    );
+
+    await pool.query(
+      `
+        WITH shared_shell AS (
+          SELECT si.id
+          FROM shell_instances si
+          INNER JOIN shell_definitions sd ON sd.id = si.definition_id
+          WHERE si.owner_type = 'entity'
+            AND si.owner_id = $2
+            AND sd.slug = $3
+          LIMIT 1
+        ),
+        legacy_shell AS (
+          SELECT si.id
+          FROM shell_instances si
+          INNER JOIN shell_definitions sd ON sd.id = si.definition_id
+          WHERE si.owner_type = 'entity'
+            AND si.owner_id = $4
+            AND sd.slug = $5
+          LIMIT 1
+        )
+        UPDATE widget_placements wp
+        SET shell_instance_id = shared_shell.id,
+            updated_at = NOW()
+        FROM widget_instances wi, widget_definitions wd, shared_shell, legacy_shell
+        WHERE wp.widget_instance_id = wi.id
+          AND wp.shell_instance_id = legacy_shell.id
+          AND wd.id = wi.definition_id
+          AND wi.user_id = $1
+          AND wi.layer = 'entity'
+          AND wi.entity_type IS NULL
+          AND wi.entity_id IS NULL
+          AND wd.component_key = ANY($6::text[])
+      `,
+      [
+        userId,
+        SHARED_ENTITY_SHELL_OWNER_ID,
+        SHARED_ENTITY_SHELL_SLUG,
+        entityType,
+        legacyEntityShellSlugByType[entityType],
+        [...sharedEntityWidgetComponentKeys],
+      ]
+    );
+
+    return;
+  }
 }
 
 async function ensureDefaultShellWidgets(userId: string, shellSlug: "left_sidebar" | "top_chrome" | "user_shell") {
@@ -1911,10 +2025,370 @@ export async function getTraces() {
   return rows;
 }
 
+const TRACE_MERGE_THRESHOLD_METERS = 3;
+
+type TraceMergeMatchKind =
+  | "draft_start_to_existing_start"
+  | "draft_start_to_existing_end"
+  | "draft_end_to_existing_start"
+  | "draft_end_to_existing_end";
+
+export interface TraceMergeCandidateRecord {
+  traceId: string;
+  containerId: string | null;
+  title: string;
+  collectionId: string | null;
+  distanceMeters: number;
+  matchKind: TraceMergeMatchKind;
+}
+
+type TraceEndpointKind = "start" | "end";
+
+function reverseTraceCoordinates(coordinates: [number, number][]) {
+  return [...coordinates].reverse();
+}
+
+function areCoordinatesClose(
+  left: [number, number] | undefined,
+  right: [number, number] | undefined,
+  tolerance = 0.0000001
+) {
+  if (!left || !right) {
+    return false;
+  }
+
+  return Math.abs(left[0] - right[0]) <= tolerance && Math.abs(left[1] - right[1]) <= tolerance;
+}
+
+function stitchTraceCoordinates(
+  leading: [number, number][],
+  trailing: [number, number][]
+) {
+  if (leading.length === 0) {
+    return trailing;
+  }
+
+  if (trailing.length === 0) {
+    return leading;
+  }
+
+  const seamLeading = leading[leading.length - 1];
+  const seamTrailing = trailing[0];
+
+  if (areCoordinatesClose(seamLeading, seamTrailing)) {
+    return [...leading, ...trailing.slice(1)];
+  }
+
+  return [...leading, ...trailing];
+}
+
+function buildMergedTraceCoordinates(
+  existingCoordinates: [number, number][],
+  draftCoordinates: [number, number][],
+  matchKind: TraceMergeMatchKind
+) {
+  switch (matchKind) {
+    case "draft_start_to_existing_start":
+      return stitchTraceCoordinates(reverseTraceCoordinates(draftCoordinates), existingCoordinates);
+    case "draft_start_to_existing_end":
+      return stitchTraceCoordinates(existingCoordinates, draftCoordinates);
+    case "draft_end_to_existing_start":
+      return stitchTraceCoordinates(draftCoordinates, existingCoordinates);
+    case "draft_end_to_existing_end":
+      return stitchTraceCoordinates(draftCoordinates, reverseTraceCoordinates(existingCoordinates));
+    default:
+      return stitchTraceCoordinates(existingCoordinates, draftCoordinates);
+  }
+}
+
+function coordinatesToLineStringWkt(coordinates: [number, number][]) {
+  const wktPoints = coordinates.map((coordinate) => `${coordinate[0]} ${coordinate[1]}`).join(", ");
+  return `LINESTRING(${wktPoints})`;
+}
+
+async function resolveTraceMergeCandidate(
+  userId: string,
+  coordinates: [number, number][],
+  collectionId?: string
+) {
+  if (!collectionId || coordinates.length < 2) {
+    return null;
+  }
+
+  const draftStart = coordinates[0];
+  const draftEnd = coordinates[coordinates.length - 1];
+
+  const { rows } = await pool.query(
+    `
+      WITH draft AS (
+        SELECT
+          ST_SetSRID(ST_MakePoint($1, $2), 4326) AS draft_start,
+          ST_SetSRID(ST_MakePoint($3, $4), 4326) AS draft_end
+      )
+      SELECT
+        t.id AS "traceId",
+        t.container_id AS "containerId",
+        COALESCE(ed.title, t.name, 'Untitled Path') AS title,
+        COALESCE(t.collection_id, ec.collection_id)::text AS "collectionId",
+        ST_AsGeoJSON(t.path)::json AS path,
+        LEAST(
+          ST_DistanceSphere(ST_StartPoint(t.path), draft.draft_start),
+          ST_DistanceSphere(ST_EndPoint(t.path), draft.draft_start),
+          ST_DistanceSphere(ST_StartPoint(t.path), draft.draft_end),
+          ST_DistanceSphere(ST_EndPoint(t.path), draft.draft_end)
+        ) AS "distanceMeters",
+        CASE
+          WHEN ST_DistanceSphere(ST_StartPoint(t.path), draft.draft_start) <= ST_DistanceSphere(ST_EndPoint(t.path), draft.draft_start)
+            AND ST_DistanceSphere(ST_StartPoint(t.path), draft.draft_start) <= ST_DistanceSphere(ST_StartPoint(t.path), draft.draft_end)
+            AND ST_DistanceSphere(ST_StartPoint(t.path), draft.draft_start) <= ST_DistanceSphere(ST_EndPoint(t.path), draft.draft_end)
+            THEN 'draft_start_to_existing_start'
+          WHEN ST_DistanceSphere(ST_EndPoint(t.path), draft.draft_start) <= ST_DistanceSphere(ST_StartPoint(t.path), draft.draft_start)
+            AND ST_DistanceSphere(ST_EndPoint(t.path), draft.draft_start) <= ST_DistanceSphere(ST_StartPoint(t.path), draft.draft_end)
+            AND ST_DistanceSphere(ST_EndPoint(t.path), draft.draft_start) <= ST_DistanceSphere(ST_EndPoint(t.path), draft.draft_end)
+            THEN 'draft_start_to_existing_end'
+          WHEN ST_DistanceSphere(ST_StartPoint(t.path), draft.draft_end) <= ST_DistanceSphere(ST_StartPoint(t.path), draft.draft_start)
+            AND ST_DistanceSphere(ST_StartPoint(t.path), draft.draft_end) <= ST_DistanceSphere(ST_EndPoint(t.path), draft.draft_start)
+            AND ST_DistanceSphere(ST_StartPoint(t.path), draft.draft_end) <= ST_DistanceSphere(ST_EndPoint(t.path), draft.draft_end)
+            THEN 'draft_end_to_existing_start'
+          ELSE 'draft_end_to_existing_end'
+        END AS "matchKind"
+      FROM traces t
+      LEFT JOIN entity_containers ec ON ec.id = t.container_id
+      LEFT JOIN entity_details ed ON ed.entity_container_id = t.container_id
+      CROSS JOIN draft
+      WHERE t.user_id::text = $5::text
+        AND COALESCE(ec.status, 'active') = 'active'
+        AND COALESCE(t.collection_id, ec.collection_id)::text = $6::text
+        AND (
+          ST_DWithin(ST_StartPoint(t.path)::geography, draft.draft_start::geography, $7) OR
+          ST_DWithin(ST_EndPoint(t.path)::geography, draft.draft_start::geography, $7) OR
+          ST_DWithin(ST_StartPoint(t.path)::geography, draft.draft_end::geography, $7) OR
+          ST_DWithin(ST_EndPoint(t.path)::geography, draft.draft_end::geography, $7)
+        )
+      ORDER BY "distanceMeters" ASC
+      LIMIT 1
+    `,
+    [
+      draftStart[0],
+      draftStart[1],
+      draftEnd[0],
+      draftEnd[1],
+      userId,
+      collectionId,
+      TRACE_MERGE_THRESHOLD_METERS,
+    ]
+  );
+
+  const candidate = rows[0] as
+    | (TraceMergeCandidateRecord & {
+        path: { coordinates?: [number, number][] };
+      })
+    | undefined;
+
+  if (!candidate || !Array.isArray(candidate.path?.coordinates) || candidate.path.coordinates.length < 2) {
+    return null;
+  }
+
+  return {
+    candidate: {
+      traceId: candidate.traceId,
+      containerId: candidate.containerId,
+      title: candidate.title,
+      collectionId: candidate.collectionId,
+      distanceMeters: Number(candidate.distanceMeters),
+      matchKind: candidate.matchKind,
+    } satisfies TraceMergeCandidateRecord,
+    existingCoordinates: candidate.path.coordinates,
+  };
+}
+
+export async function previewTraceMerge(
+  coordinates: [number, number][],
+  collectionId?: string
+) {
+  const userId = await getUserId();
+  const resolvedCandidate = await resolveTraceMergeCandidate(userId, coordinates, collectionId);
+
+  return resolvedCandidate?.candidate ?? null;
+}
+
+export async function mergeTraceIntoExisting(
+  existingTraceId: string,
+  coordinates: [number, number][],
+  collectionId?: string
+) {
+  const userId = await getUserId();
+  const resolvedCandidate = await resolveTraceMergeCandidate(userId, coordinates, collectionId);
+
+  if (!resolvedCandidate || resolvedCandidate.candidate.traceId !== existingTraceId) {
+    throw new Error("The selected path is no longer mergeable. Try again from the latest map state.");
+  }
+
+  const mergedCoordinates = buildMergedTraceCoordinates(
+    resolvedCandidate.existingCoordinates,
+    coordinates,
+    resolvedCandidate.candidate.matchKind
+  );
+
+  const mergedWkt = coordinatesToLineStringWkt(mergedCoordinates);
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    await client.query(
+      `
+        UPDATE traces
+        SET path = ST_SetSRID($1::geometry, 4326),
+            collection_id = COALESCE($2::uuid, collection_id)
+        WHERE id = $3::uuid
+          AND user_id::text = $4::text
+      `,
+      [mergedWkt, collectionId ?? null, existingTraceId, userId]
+    );
+
+    if (resolvedCandidate.candidate.containerId) {
+      await client.query(
+        `
+          UPDATE entity_containers
+          SET collection_id = COALESCE($1::uuid, collection_id),
+              source_payload = jsonb_set(
+                jsonb_set(
+                  COALESCE(source_payload, '{}'::jsonb),
+                  '{coordinates}',
+                  to_jsonb($2::json),
+                  true
+                ),
+                '{geometry,coordinates}',
+                to_jsonb($2::json),
+                true
+              ),
+              updated_at = NOW()
+          WHERE id = $3::uuid
+            AND user_id::text = $4::text
+        `,
+        [collectionId ?? null, JSON.stringify(mergedCoordinates), resolvedCandidate.candidate.containerId, userId]
+      );
+    }
+
+    await client.query("COMMIT");
+
+    return {
+      id: existingTraceId,
+      mergedCoordinates,
+      mergedIntoExisting: true,
+      mergedTraceTitle: resolvedCandidate.candidate.title,
+    };
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function mergeTraceIntoEndpoint(
+  existingTraceId: string,
+  coordinates: [number, number][],
+  targetEndpoint: TraceEndpointKind
+) {
+  const userId = await getUserId();
+  const { rows } = await pool.query(
+    `
+      SELECT
+        t.id,
+        t.container_id AS "containerId",
+        COALESCE(t.collection_id, ec.collection_id)::text AS "collectionId",
+        COALESCE(ed.title, t.name, 'Untitled Path') AS title,
+        ST_AsGeoJSON(t.path)::json AS path
+      FROM traces t
+      LEFT JOIN entity_containers ec ON ec.id = t.container_id
+      LEFT JOIN entity_details ed ON ed.entity_container_id = t.container_id
+      WHERE t.id = $1::uuid
+        AND t.user_id::text = $2::text
+        AND COALESCE(ec.status, 'active') = 'active'
+      LIMIT 1
+    `,
+    [existingTraceId, userId]
+  );
+
+  const existingTrace = rows[0] as
+    | {
+        containerId: string | null;
+        collectionId: string | null;
+        title: string;
+        path: { coordinates?: [number, number][] };
+      }
+    | undefined;
+
+  if (!existingTrace || !Array.isArray(existingTrace.path?.coordinates) || existingTrace.path.coordinates.length < 2) {
+    throw new Error("The selected path could not be loaded for merging.");
+  }
+
+  const mergedCoordinates =
+    targetEndpoint === "start"
+      ? stitchTraceCoordinates(coordinates, existingTrace.path.coordinates)
+      : stitchTraceCoordinates(coordinates, reverseTraceCoordinates(existingTrace.path.coordinates));
+
+  const mergedWkt = coordinatesToLineStringWkt(mergedCoordinates);
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    await client.query(
+      `
+        UPDATE traces
+        SET path = ST_SetSRID($1::geometry, 4326)
+        WHERE id = $2::uuid
+          AND user_id::text = $3::text
+      `,
+      [mergedWkt, existingTraceId, userId]
+    );
+
+    if (existingTrace.containerId) {
+      await client.query(
+        `
+          UPDATE entity_containers
+          SET source_payload = jsonb_set(
+                jsonb_set(
+                  COALESCE(source_payload, '{}'::jsonb),
+                  '{coordinates}',
+                  to_jsonb($1::json),
+                  true
+                ),
+                '{geometry,coordinates}',
+                to_jsonb($1::json),
+                true
+              ),
+              updated_at = NOW()
+          WHERE id = $2::uuid
+            AND user_id::text = $3::text
+        `,
+        [JSON.stringify(mergedCoordinates), existingTrace.containerId, userId]
+      );
+    }
+
+    await client.query("COMMIT");
+
+    return {
+      id: existingTraceId,
+      mergedCoordinates,
+      mergedIntoExisting: true,
+      mergedTraceTitle: existingTrace.title,
+      collectionId: existingTrace.collectionId,
+    };
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 export async function saveTrace(coordinates: [number, number][], color: string, collectionId?: string) {
   const userId = await getUserId();
-  const wktPoints = coordinates.map(c => `${c[0]} ${c[1]}`).join(', ');
-  const wkt = `LINESTRING(${wktPoints})`;
+  const wkt = coordinatesToLineStringWkt(coordinates);
   const client = await pool.connect();
 
   try {
@@ -1958,8 +2432,7 @@ export async function saveTrace(coordinates: [number, number][], color: string, 
 
 export async function updateTrace(id: string, coordinates: [number, number][]) {
   const userId = await getUserId();
-  const wktPoints = coordinates.map(c => `${c[0]} ${c[1]}`).join(', ');
-  const wkt = `LINESTRING(${wktPoints})`;
+  const wkt = coordinatesToLineStringWkt(coordinates);
   const { rows } = await pool.query(`UPDATE traces SET path = ST_SetSRID($1::geometry, 4326) WHERE id = $2 AND user_id = $3 RETURNING id`, [wkt, id, userId]);
   return rows[0];
 }
@@ -2223,7 +2696,15 @@ export async function getWidgetLibraryCatalog(
 ) {
   const userId = await getUserId();
 
-  const definitions = await getWidgetDefinitions();
+  const definitions = (await getWidgetDefinitions()).filter((definition) => {
+    if (definition.layer !== "entity") {
+      return true;
+    }
+
+    return sharedEntityWidgetComponentKeys.includes(
+      definition.componentKey as (typeof sharedEntityWidgetComponentKeys)[number]
+    );
+  });
 
   const [shellUsage, globalUsage, entityUsage] = await Promise.all([
     pool.query(
@@ -2254,10 +2735,10 @@ export async function getWidgetLibraryCatalog(
             INNER JOIN widget_definitions wd ON wd.id = wi.definition_id
             WHERE wi.user_id = $1
               AND wi.layer = 'entity'
-              AND wi.entity_type = $2
-              AND wi.entity_id = $3::uuid
+              AND wi.entity_type IS NULL
+              AND wi.entity_id IS NULL
           `,
-          [userId, entityType, entityId]
+          [userId]
         )
       : Promise.resolve({ rows: [] }),
   ]);
@@ -2326,7 +2807,7 @@ export async function bootstrapWidgetLibraryState(
   ]);
 
   if (entityType && entityId) {
-    await ensureDefaultEntityWidget(userId, entityType, entityId);
+    await ensureDefaultEntityWidget(userId, entityType);
   }
 
   return { ok: true as const };
@@ -2353,9 +2834,10 @@ async function ensureDefaultGlobalWidgets(userId: string) {
   );
 }
 
-async function ensureDefaultEntityWidget(userId: string, entityType: WidgetEntityType, entityId: string) {
+async function ensureDefaultEntityWidget(userId: string, preferredEntityType?: WidgetEntityType) {
   await ensureWidgetLibrarySeed();
-  await ensureEntityShellInstance(entityType, entityId);
+  await ensureEntityShellInstance();
+  await migrateLegacyEntityWidgetsToShared(userId, preferredEntityType);
 
   const defaultEntityWidgets = [
     { slug: "entity_info", position: 0, slot: "pinned" },
@@ -2372,21 +2854,20 @@ async function ensureDefaultEntityWidget(userId: string, entityType: WidgetEntit
     await pool.query(
       `
         INSERT INTO widget_instances (definition_id, layer, entity_type, entity_id, position, title, user_id)
-        SELECT d.id, 'entity', $2, $3::uuid, $4, d.name, $1
+        SELECT d.id, 'entity', NULL, NULL, $2, d.name, $1
         FROM widget_definitions d
-        WHERE d.slug = $5
-          AND $2 = ANY(d.supported_entity_types)
+        WHERE d.slug = $3
         AND NOT EXISTS (
           SELECT 1
           FROM widget_instances wi
           WHERE wi.user_id = $1
             AND wi.layer = 'entity'
-            AND wi.entity_type = $2
-            AND wi.entity_id = $3::uuid
+            AND wi.entity_type IS NULL
+            AND wi.entity_id IS NULL
             AND wi.definition_id = d.id
         )
       `,
-      [userId, entityType, entityId, widget.position, widget.slug]
+      [userId, widget.position, widget.slug]
     );
   }
 
@@ -2398,11 +2879,12 @@ async function ensureDefaultEntityWidget(userId: string, entityType: WidgetEntit
         AND si.id = wp.shell_instance_id
         AND wi.user_id = $1
         AND wi.layer = 'entity'
-        AND wi.entity_type = $2
-        AND wi.entity_id = $3::uuid
-        AND si.owner_type = 'user'
+        AND wi.entity_type IS NULL
+        AND wi.entity_id IS NULL
+        AND si.owner_type = 'entity'
+        AND si.owner_id = $2
     `,
-    [userId, entityType, entityId]
+    [userId, SHARED_ENTITY_SHELL_OWNER_ID]
   );
 
   await pool.query(
@@ -2426,38 +2908,38 @@ async function ensureDefaultEntityWidget(userId: string, entityType: WidgetEntit
       CROSS JOIN entity_shell
       WHERE wi.user_id = $1
         AND wi.layer = 'entity'
-        AND wi.entity_type = $4
-        AND wi.entity_id = $2::uuid
+        AND wi.entity_type IS NULL
+        AND wi.entity_id IS NULL
         AND NOT EXISTS (
           SELECT 1
           FROM widget_placements wp
           WHERE wp.widget_instance_id = wi.id
         )
     `,
-    [userId, entityId, getEntityShellSlug(entityType), entityType]
+    [userId, SHARED_ENTITY_SHELL_OWNER_ID, SHARED_ENTITY_SHELL_SLUG]
   );
 
   for (const widget of defaultEntityWidgets) {
     await pool.query(
       `
         UPDATE widget_placements wp
-        SET slot = $5,
+        SET slot = $3,
             updated_at = NOW()
         FROM widget_instances wi, shell_instances si, shell_definitions sd, widget_definitions wd
         WHERE wp.widget_instance_id = wi.id
           AND wp.shell_instance_id = si.id
           AND sd.id = si.definition_id
-          AND wd.id = wi.definition_id
-          AND wi.user_id = $1
-          AND wi.layer = 'entity'
-          AND wi.entity_type = $2
-          AND wi.entity_id = $3::uuid
-          AND wd.slug = $4
-          AND si.owner_type = 'entity'
-          AND si.owner_id = $3::text
-          AND sd.slug = $6
+        AND wd.id = wi.definition_id
+        AND wi.user_id = $1
+        AND wi.layer = 'entity'
+        AND wi.entity_type IS NULL
+        AND wi.entity_id IS NULL
+        AND wd.slug = $2
+        AND si.owner_type = 'entity'
+        AND si.owner_id = $4
+        AND sd.slug = $5
       `,
-      [userId, entityType, entityId, widget.slug, widget.slot, getEntityShellSlug(entityType)]
+      [userId, widget.slug, widget.slot, SHARED_ENTITY_SHELL_OWNER_ID, SHARED_ENTITY_SHELL_SLUG]
     );
   }
 }
@@ -2585,7 +3067,7 @@ export async function addWidgetFromLibrary(
     throw new Error("This widget requires choosing a target panel from the widget pool.");
   }
 
-  await ensureDefaultEntityWidget(userId, entityType, entityId);
+  await ensureDefaultEntityWidget(userId, entityType);
 
   const { rows } = await pool.query(
     `
@@ -2604,12 +3086,12 @@ export async function addWidgetFromLibrary(
         INNER JOIN widget_instances wi ON wi.id = wp.widget_instance_id
         WHERE wi.user_id = $1
           AND wi.layer = 'entity'
-          AND wi.entity_type = $4
-          AND wi.entity_id = $2::uuid
+          AND wi.entity_type IS NULL
+          AND wi.entity_id IS NULL
       ),
       inserted_widget AS (
         INSERT INTO widget_instances (definition_id, layer, entity_type, entity_id, position, title, user_id)
-        SELECT d.id, 'entity', $4, $2::uuid, next_position.value, d.name, $1
+        SELECT d.id, 'entity', NULL, NULL, next_position.value, d.name, $1
         FROM widget_definitions d
         CROSS JOIN next_position
         WHERE d.slug = $5
@@ -2620,8 +3102,8 @@ export async function addWidgetFromLibrary(
             FROM widget_instances wi
             WHERE wi.user_id = $1
               AND wi.layer = 'entity'
-              AND wi.entity_type = $4
-              AND wi.entity_id = $2::uuid
+              AND wi.entity_type IS NULL
+              AND wi.entity_id IS NULL
               AND wi.definition_id = d.id
           )
         RETURNING id, position
@@ -2632,12 +3114,12 @@ export async function addWidgetFromLibrary(
       CROSS JOIN entity_shell
       RETURNING widget_instance_id as "widgetInstanceId"
     `,
-    [userId, entityId, getEntityShellSlug(entityType), entityType, definitionSlug]
+    [userId, SHARED_ENTITY_SHELL_OWNER_ID, SHARED_ENTITY_SHELL_SLUG, entityType, definitionSlug]
   );
 
   return {
     ok: true,
-    host: getEntityShellSlug(entityType),
+    host: SHARED_ENTITY_SHELL_SLUG,
     widgetInstanceId: rows[0]?.widgetInstanceId ?? null,
   };
 }
@@ -2659,8 +3141,8 @@ export async function removeEntityWidget(
       INNER JOIN widget_definitions wd ON wd.id = wi.definition_id
       WHERE wi.user_id = $1
         AND wi.layer = 'entity'
-        AND wi.entity_type = $2
-        AND wi.entity_id = $3::uuid
+        AND wi.entity_type IS NULL
+        AND wi.entity_id IS NULL
         AND wi.id = $4::uuid
       LIMIT 1
     `,
@@ -2682,8 +3164,8 @@ export async function removeEntityWidget(
       DELETE FROM widget_instances
       WHERE user_id = $1
         AND layer = 'entity'
-        AND entity_type = $2
-        AND entity_id = $3::uuid
+        AND entity_type IS NULL
+        AND entity_id IS NULL
         AND id = $4::uuid
     `,
     [userId, entityType, entityId, widgetId]
@@ -2756,7 +3238,8 @@ export async function reorderGlobalWidgets(orderedWidgetIds: string[]) {
   }
 }
 
-async function getEntityWidgetsByUserId(userId: string, entityType: WidgetEntityType, entityId: string) {
+async function getEntityWidgetsByUserId(userId: string, ..._entityContext: [WidgetEntityType, string]) {
+  void _entityContext;
   const { rows } = await pool.query(
     `
       SELECT
@@ -2781,14 +3264,15 @@ async function getEntityWidgetsByUserId(userId: string, entityType: WidgetEntity
       INNER JOIN shell_definitions sd ON sd.id = si.definition_id
       WHERE wi.user_id = $1
         AND wi.layer = 'entity'
-        AND wi.entity_type = $2
-        AND wi.entity_id = $3::uuid
+        AND wi.entity_type IS NULL
+        AND wi.entity_id IS NULL
         AND si.owner_type = 'entity'
-        AND si.owner_id = $3::text
-        AND sd.slug = $4
+        AND si.owner_id = $2
+        AND sd.slug = $3
+        AND wd.component_key = ANY($4::text[])
       ORDER BY wp.position ASC, wp.created_at ASC
     `,
-    [userId, entityType, entityId, getEntityShellSlug(entityType)]
+    [userId, SHARED_ENTITY_SHELL_OWNER_ID, SHARED_ENTITY_SHELL_SLUG, [...sharedEntityWidgetComponentKeys]]
   );
 
   return rows as WidgetInstanceRecord[];
@@ -2821,8 +3305,8 @@ export async function reorderEntityWidgets(
         FROM widget_instances wi
         WHERE wi.user_id = $1
           AND wi.layer = 'entity'
-          AND wi.entity_type = $2
-          AND wi.entity_id = $3::uuid
+          AND wi.entity_type IS NULL
+          AND wi.entity_id IS NULL
           AND wi.id = ANY($4::uuid[])
       `,
       [userId, entityType, entityId, orderedWidgetIds]
@@ -2840,8 +3324,8 @@ export async function reorderEntityWidgets(
           updated_at = NOW()
         WHERE user_id = $1
           AND layer = 'entity'
-          AND entity_type = $2
-          AND entity_id = $3::uuid
+          AND entity_type IS NULL
+          AND entity_id IS NULL
           AND id = ANY($4::uuid[])
       `,
       [userId, entityType, entityId, orderedWidgetIds]
@@ -2856,8 +3340,8 @@ export async function reorderEntityWidgets(
             updated_at = NOW()
           WHERE user_id = $1
             AND layer = 'entity'
-            AND entity_type = $2
-            AND entity_id = $3::uuid
+            AND entity_type IS NULL
+            AND entity_id IS NULL
             AND id = $5::uuid
         `,
         [userId, entityType, entityId, position, widgetId]
@@ -2981,16 +3465,22 @@ export async function getEntityShellSnapshot(entityType: WidgetEntityType, entit
     getEntityWidgetsByUserId(userId, entityType, entityId),
   ]);
 
+  const presentComponentKeys = new Set(entityWidgets.map((widget) => widget.componentKey));
+  const missingSharedWidgets = sharedEntityWidgetComponentKeys.some(
+    (componentKey) => !presentComponentKeys.has(componentKey)
+  );
+
   return {
     entityPayload,
     entityWidgets,
-    bootstrapRequired: entityWidgets.length === 0,
+    bootstrapRequired: entityWidgets.length === 0 || missingSharedWidgets,
   };
 }
 
 export async function bootstrapEntityShellState(entityType: WidgetEntityType, entityId: string) {
+  void entityId;
   const userId = await getUserId();
-  await ensureDefaultEntityWidget(userId, entityType, entityId);
+  await ensureDefaultEntityWidget(userId, entityType);
   return { ok: true as const };
 }
 
@@ -4076,6 +4566,7 @@ export async function updateEntityRating(containerId: string, value: number) {
 }
 
 export async function getNearbyPinsForEntity(
+  entityType: WidgetEntityType,
   entityId: string,
   options?: {
     limit?: number;
@@ -4102,14 +4593,34 @@ export async function getNearbyPinsForEntity(
     lat: number;
   }>(
     `
-      WITH target_pin AS (
-        SELECT p.id, p.location, p.user_id
+      WITH target_entity AS (
+        SELECT p.id, p.location AS anchor_geom, p.user_id::text AS user_id
         FROM pins p
         LEFT JOIN entity_containers ec ON ec.id = p.container_id
-        WHERE p.id = $1::uuid
-          AND p.user_id::text = $2::text
+        WHERE $2::text = 'pin'
+          AND p.id = $1::uuid
+          AND p.user_id::text = $3::text
           AND COALESCE(ec.status, 'active') = 'active'
-        LIMIT 1
+
+        UNION ALL
+
+        SELECT t.id, ST_LineInterpolatePoint(t.path, 0.5) AS anchor_geom, t.user_id::text AS user_id
+        FROM traces t
+        LEFT JOIN entity_containers ec ON ec.id = t.container_id
+        WHERE $2::text = 'trace'
+          AND t.id = $1::uuid
+          AND t.user_id::text = $3::text
+          AND COALESCE(ec.status, 'active') = 'active'
+
+        UNION ALL
+
+        SELECT a.id, ST_PointOnSurface(a.path) AS anchor_geom, a.user_id::text AS user_id
+        FROM areas a
+        LEFT JOIN entity_containers ec ON ec.id = a.container_id
+        WHERE $2::text = 'area'
+          AND a.id = $1::uuid
+          AND a.user_id::text = $3::text
+          AND COALESCE(ec.status, 'active') = 'active'
       )
       SELECT
         p.id,
@@ -4120,38 +4631,38 @@ export async function getNearbyPinsForEntity(
         c.color AS collection_color,
         COALESCE(media.public_url, p.image_url) AS image_url,
         er.value AS rating,
-        ST_DistanceSphere(p.location, tp.location) AS distance_meters,
+        ST_DistanceSphere(p.location, te.anchor_geom) AS distance_meters,
         ST_X(p.location) AS lng,
         ST_Y(p.location) AS lat
-      FROM target_pin tp
+      FROM target_entity te
       JOIN pins p
-        ON p.user_id = tp.user_id
-       AND p.id <> tp.id
+        ON p.user_id::text = te.user_id
+       AND NOT ($2::text = 'pin' AND p.id = te.id)
       LEFT JOIN entity_containers ec ON ec.id = p.container_id
       LEFT JOIN entity_details ed ON ed.entity_container_id = p.container_id
       LEFT JOIN entity_ratings er
         ON er.entity_container_id = p.container_id
-       AND er.user_id = $2::text
+       AND er.user_id::text = $3::text
       LEFT JOIN LATERAL (
         SELECT emi.public_url
         FROM entity_media_items emi
         WHERE emi.entity_container_id = p.container_id
-          AND emi.user_id = $2::text
+          AND emi.user_id::text = $3::text
         ORDER BY emi.position ASC, emi.created_at ASC
         LIMIT 1
       ) media ON TRUE
       LEFT JOIN collections c ON c.id = COALESCE(p.collection_id, ec.collection_id)
       WHERE COALESCE(ec.status, 'active') = 'active'
-        AND ($4::double precision IS NULL OR ST_DistanceSphere(p.location, tp.location) <= $4::double precision)
-        AND ($5::integer IS NULL OR er.value >= $5::integer)
+        AND ($5::double precision IS NULL OR ST_DistanceSphere(p.location, te.anchor_geom) <= $5::double precision)
+        AND ($6::integer IS NULL OR er.value >= $6::integer)
       ORDER BY
         CASE WHEN er.value IS NULL THEN 1 ELSE 0 END ASC,
         er.value DESC NULLS LAST,
-        ST_DistanceSphere(p.location, tp.location) ASC,
+        ST_DistanceSphere(p.location, te.anchor_geom) ASC,
         p.created_at ASC
-      LIMIT $3
+      LIMIT $4
     `,
-    [entityId, userId, limit, radiusMeters, minRating]
+    [entityId, entityType, userId, limit, radiusMeters, minRating]
   );
 
   return rows.map((row) => ({

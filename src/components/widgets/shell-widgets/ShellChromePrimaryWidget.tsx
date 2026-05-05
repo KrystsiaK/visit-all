@@ -28,7 +28,7 @@ export const ShellChromePrimaryWidget = ({
         dataTestId="top-chrome-hero"
         eyebrow="Synarava"
         title="Visit"
-        className="w-[280px] px-4 py-3"
+        className="w-[336px] px-4 py-3"
         accent={<LogoMark className="h-10 w-10 overflow-hidden rounded-xl border border-black/10" />}
         trailing={
           <div className="flex h-10 w-10 items-center justify-center rounded-full border border-black/10 bg-white/70">
@@ -52,7 +52,7 @@ export const ShellChromePrimaryWidget = ({
         dataTestId="top-chrome-hero"
         eyebrow="Synarava"
         title="Visit"
-        className="w-[280px] px-4 py-3"
+        className="w-[336px] px-4 py-3"
         accent={<LogoMark className="h-8 w-8 overflow-hidden rounded-xl border border-black/10" />}
         trailing={
           <div className="flex h-8 w-8 items-center justify-center rounded-full border border-black/10 bg-white/70">
