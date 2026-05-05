@@ -34,6 +34,31 @@ import { useDebouncedCallback } from "@/hooks/useDebounce";
 import type { WidgetEntityPayload, WidgetEntityType, WidgetInstanceRecord } from "@/lib/widgets";
 import { useShellWidgetReorder } from "@synarava/shell-kit";
 
+interface EntityShellCacheEntry {
+  entityPayload: WidgetEntityPayload | null;
+  entityWidgets: WidgetInstanceRecord[];
+  entityRating: number | null;
+  mediaItems: EntityMediaItemRecord[];
+  nearbyPins: EntityNearbyPinRecord[];
+  resourceLinks: EntityResourceLinkRecord[];
+  storyEntries: EntityStoryEntryRecord[];
+  entityTitle: string;
+  pinNote: string;
+  pinImage: string | null;
+  ready: boolean;
+  updatedAt: number;
+}
+
+const entityShellCache = new Map<string, EntityShellCacheEntry>();
+
+function getEntityShellCacheKey(entityType?: WidgetEntityType, entityId?: string) {
+  if (!entityType || !entityId) {
+    return null;
+  }
+
+  return `${entityType}:${entityId}`;
+}
+
 interface EntityOverlayData {
   id: string;
   title: string;
@@ -145,6 +170,7 @@ export const useEntityWidgetBindings = ({
   const [removingWidgetId, setRemovingWidgetId] = useState<string | null>(null);
   const latestDraftRef = useRef({ title: "", note: "", imageUrl: null as string | null });
   const lastPersistedRef = useRef({ title: "", note: "", imageUrl: null as string | null });
+  const cacheKey = getEntityShellCacheKey(entityType, entityId);
 
   const pinnedEntityWidgets = entityWidgets.filter((widget) => widget.slot === "pinned");
   const mainEntityWidgets = entityWidgets.filter((widget) => widget.slot !== "pinned");
@@ -238,14 +264,34 @@ export const useEntityWidgetBindings = ({
     }
 
     let cancelled = false;
-    const idleWindow = window as Window & {
-      requestIdleCallback?: (callback: IdleRequestCallback, options?: IdleRequestOptions) => number;
-      cancelIdleCallback?: (handle: number) => void;
-    };
-    let secondaryLoadHandle: number | null = null;
+    const cached = cacheKey ? entityShellCache.get(cacheKey) : null;
+    const readyCached = cached?.ready ? cached : null;
+
+    if (readyCached && !cancelled) {
+      setEntityPayload(readyCached.entityPayload);
+      setEntityWidgets(readyCached.entityWidgets);
+      setEntityRating(readyCached.entityRating);
+      setMediaItems(readyCached.mediaItems);
+      setNearbyPins(readyCached.nearbyPins);
+      setResourceLinks(readyCached.resourceLinks);
+      setStoryEntries(readyCached.storyEntries);
+      setEntityTitle(readyCached.entityTitle);
+      setPinNote(readyCached.pinNote);
+      setPinImage(readyCached.pinImage);
+      latestDraftRef.current = {
+        title: readyCached.entityTitle,
+        note: readyCached.pinNote,
+        imageUrl: readyCached.pinImage,
+      };
+      lastPersistedRef.current = {
+        title: readyCached.entityTitle,
+        note: readyCached.pinNote,
+        imageUrl: readyCached.pinImage,
+      };
+    }
 
     void (async () => {
-      setLoading(true);
+      setLoading(!readyCached);
       try {
         const {
           entityPayload: payload,
@@ -275,51 +321,71 @@ export const useEntityWidgetBindings = ({
           setPinImage(payloadImage);
           latestDraftRef.current = { title: payloadTitle, note: payloadNote, imageUrl: payloadImage };
           lastPersistedRef.current = { title: payloadTitle, note: payloadNote, imageUrl: payloadImage };
+          if (cacheKey) {
+            entityShellCache.set(cacheKey, {
+              entityPayload: resolvedPayload,
+              entityWidgets: resolvedWidgets,
+              entityRating: null,
+              mediaItems: [],
+              nearbyPins: [],
+              resourceLinks: [],
+              storyEntries: [],
+              entityTitle: payloadTitle,
+              pinNote: payloadNote,
+              pinImage: payloadImage,
+              ready: false,
+              updatedAt: Date.now(),
+            });
+          }
 
 
-          const loadSecondaryData = async () => {
-            const wantsMedia = resolvedWidgets.some((widget) => widget.componentKey === "entity_gallery");
-            const wantsNearbyPins = resolvedWidgets.some((widget) => widget.componentKey === "entity_nearby_pins");
-            const wantsResources = resolvedWidgets.some((widget) => widget.componentKey === "entity_resources");
-            const wantsStories = resolvedWidgets.some((widget) => widget.componentKey === "entity_stories");
-            const wantsRating = resolvedWidgets.some((widget) => widget.componentKey === "entity_rating");
+          const wantsMedia = resolvedWidgets.some((widget) => widget.componentKey === "entity_gallery");
+          const wantsNearbyPins = resolvedWidgets.some((widget) => widget.componentKey === "entity_nearby_pins");
+          const wantsResources = resolvedWidgets.some((widget) => widget.componentKey === "entity_resources");
+          const wantsStories = resolvedWidgets.some((widget) => widget.componentKey === "entity_stories");
+          const wantsRating = resolvedWidgets.some((widget) => widget.componentKey === "entity_rating");
 
-            const [nextMediaItems, nextNearbyPins, nextResourceLinks, nextStoryEntries, nextRating] = await Promise.all([
-              wantsMedia ? getEntityMediaItems(entityType, entityId) : Promise.resolve([]),
-              wantsNearbyPins ? getNearbyPinsForEntity(entityType, entityId) : Promise.resolve([]),
-              wantsResources ? getEntityResourceLinks(entityType, entityId) : Promise.resolve([]),
-              wantsStories ? getEntityStoryEntries(entityType, entityId) : Promise.resolve([]),
-              wantsRating && typeof resolvedPayload.metadata?.containerId === "string"
-                ? getEntityRating(resolvedPayload.metadata.containerId)
-                : Promise.resolve(null),
-            ]);
+          const [nextMediaItems, nextNearbyPins, nextResourceLinks, nextStoryEntries, nextRating] = await Promise.all([
+            wantsMedia ? getEntityMediaItems(entityType, entityId) : Promise.resolve([]),
+            wantsNearbyPins ? getNearbyPinsForEntity(entityType, entityId) : Promise.resolve([]),
+            wantsResources ? getEntityResourceLinks(entityType, entityId) : Promise.resolve([]),
+            wantsStories ? getEntityStoryEntries(entityType, entityId) : Promise.resolve([]),
+            wantsRating && typeof resolvedPayload.metadata?.containerId === "string"
+              ? getEntityRating(resolvedPayload.metadata.containerId)
+              : Promise.resolve(null),
+          ]);
 
-            if (cancelled) {
-              return;
-            }
+          if (cancelled) {
+            return;
+          }
 
-            setMediaItems(nextMediaItems);
-            setNearbyPins(nextNearbyPins);
-            setResourceLinks(nextResourceLinks);
-            setStoryEntries(nextStoryEntries);
-            setEntityRating(nextRating);
+          setMediaItems(nextMediaItems);
+          setNearbyPins(nextNearbyPins);
+          setResourceLinks(nextResourceLinks);
+          setStoryEntries(nextStoryEntries);
+          setEntityRating(nextRating);
+          if (cacheKey) {
+            entityShellCache.set(cacheKey, {
+              entityPayload: resolvedPayload,
+              entityWidgets: resolvedWidgets,
+              entityRating: nextRating,
+              mediaItems: nextMediaItems,
+              nearbyPins: nextNearbyPins,
+              resourceLinks: nextResourceLinks,
+              storyEntries: nextStoryEntries,
+              entityTitle: payloadTitle,
+              pinNote: payloadNote,
+              pinImage: nextMediaItems[0]?.publicUrl ?? payloadImage,
+              ready: true,
+              updatedAt: Date.now(),
+            });
+          }
 
-            if (nextMediaItems[0]?.publicUrl) {
-              const nextImage = nextMediaItems[0].publicUrl;
-              setPinImage(nextImage);
-              latestDraftRef.current = { ...latestDraftRef.current, imageUrl: nextImage };
-              lastPersistedRef.current = { ...lastPersistedRef.current, imageUrl: nextImage };
-            }
-          };
-
-          if (typeof idleWindow.requestIdleCallback === "function") {
-            secondaryLoadHandle = idleWindow.requestIdleCallback(() => {
-              void loadSecondaryData();
-            }, { timeout: 1200 });
-          } else {
-            secondaryLoadHandle = window.setTimeout(() => {
-              void loadSecondaryData();
-            }, 120);
+          if (nextMediaItems[0]?.publicUrl) {
+            const nextImage = nextMediaItems[0].publicUrl;
+            setPinImage(nextImage);
+            latestDraftRef.current = { ...latestDraftRef.current, imageUrl: nextImage };
+            lastPersistedRef.current = { ...lastPersistedRef.current, imageUrl: nextImage };
           }
         }
       } catch (error) {
@@ -333,15 +399,42 @@ export const useEntityWidgetBindings = ({
 
     return () => {
       cancelled = true;
-      if (secondaryLoadHandle !== null) {
-        if (typeof idleWindow.cancelIdleCallback === "function") {
-          idleWindow.cancelIdleCallback(secondaryLoadHandle);
-        } else {
-          window.clearTimeout(secondaryLoadHandle);
-        }
-      }
     };
-  }, [entityId, entityType, isOpen, refreshTrigger]);
+  }, [cacheKey, entityId, entityType, isOpen, refreshTrigger]);
+
+  useEffect(() => {
+    if (!cacheKey || !entityPayload || loading) {
+      return;
+    }
+
+    entityShellCache.set(cacheKey, {
+      entityPayload,
+      entityWidgets,
+      entityRating,
+      mediaItems,
+      nearbyPins,
+      resourceLinks,
+      storyEntries,
+    entityTitle,
+    pinNote,
+    pinImage,
+    ready: true,
+    updatedAt: Date.now(),
+  });
+  }, [
+    cacheKey,
+    entityPayload,
+    entityWidgets,
+    entityRating,
+    mediaItems,
+    nearbyPins,
+    resourceLinks,
+    storyEntries,
+    entityTitle,
+    pinNote,
+    pinImage,
+    loading,
+  ]);
 
   const debouncedPersist = useDebouncedCallback(() => {
     void persistPinDetails();

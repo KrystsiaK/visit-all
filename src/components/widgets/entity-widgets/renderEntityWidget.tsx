@@ -1,7 +1,5 @@
 "use client";
 
-import { motion } from "framer-motion";
-
 import { EntityDeleteWidgetCard } from "@/components/widgets/EntityDeleteWidgetCard";
 import { EntityGalleryWidgetCard } from "@/components/widgets/EntityGalleryWidgetCard";
 import { EntityInfoWidgetCard } from "@/components/widgets/EntityInfoWidgetCard";
@@ -11,7 +9,6 @@ import { EntityRatingWidgetCard } from "@/components/widgets/EntityRatingWidgetC
 import { EntityResourcesWidgetCard } from "@/components/widgets/EntityResourcesWidgetCard";
 import { EntityStoriesWidgetCard } from "@/components/widgets/EntityStoriesWidgetCard";
 import type { WidgetEntityPayload, WidgetInstanceRecord } from "@/lib/widgets";
-import { overlayItemVariants } from "@/lib/motion";
 import type { EntityWidgetBindingsResult } from "@/components/widgets/entity-widgets/useEntityWidgetBindings";
 
 interface RenderEntityWidgetProps {
@@ -65,7 +62,7 @@ export const renderEntityWidget = ({
 
   if (widget.componentKey === "entity_info") {
     return (
-      <motion.div variants={overlayItemVariants} layout="position">
+      <div>
         <EntityInfoWidgetCard
           widget={widget}
           entity={entity}
@@ -79,13 +76,13 @@ export const renderEntityWidget = ({
           canRemove={removable}
           onRemove={() => void bindings.handleRemoveWidget(widget.id)}
         />
-      </motion.div>
+      </div>
     );
   }
 
   if (widget.componentKey === "entity_delete") {
     return (
-      <motion.div variants={overlayItemVariants} layout="position">
+      <div>
         <EntityDeleteWidgetCard
           widget={widget}
           entity={entity}
@@ -97,13 +94,13 @@ export const renderEntityWidget = ({
           canRemove={removable}
           onRemove={() => void bindings.handleRemoveWidget(widget.id)}
         />
-      </motion.div>
+      </div>
     );
   }
 
   if (widget.componentKey === "entity_rating") {
     return (
-      <motion.div variants={overlayItemVariants} layout="position">
+      <div>
         <EntityRatingWidgetCard
           widget={widget}
           entity={entity}
@@ -115,13 +112,13 @@ export const renderEntityWidget = ({
           canRemove={removable}
           onRemove={() => void bindings.handleRemoveWidget(widget.id)}
         />
-      </motion.div>
+      </div>
     );
   }
 
   if (widget.componentKey === "entity_gallery") {
     return (
-      <motion.div variants={overlayItemVariants} layout="position">
+      <div>
         <EntityGalleryWidgetCard
           widget={widget}
           entity={entity}
@@ -134,13 +131,13 @@ export const renderEntityWidget = ({
           canRemove={removable}
           onRemove={() => void bindings.handleRemoveWidget(widget.id)}
         />
-      </motion.div>
+      </div>
     );
   }
 
   if (widget.componentKey === "entity_stories") {
     return (
-      <motion.div variants={overlayItemVariants} layout="position">
+      <div>
         <EntityStoriesWidgetCard
           widget={widget}
           entity={entity}
@@ -153,13 +150,13 @@ export const renderEntityWidget = ({
           canRemove={removable}
           onRemove={() => void bindings.handleRemoveWidget(widget.id)}
         />
-      </motion.div>
+      </div>
     );
   }
 
   if (widget.componentKey === "entity_resources") {
     return (
-      <motion.div variants={overlayItemVariants} layout="position">
+      <div>
         <EntityResourcesWidgetCard
           widget={widget}
           entity={entity}
@@ -172,13 +169,13 @@ export const renderEntityWidget = ({
           canRemove={removable}
           onRemove={() => void bindings.handleRemoveWidget(widget.id)}
         />
-      </motion.div>
+      </div>
     );
   }
 
   if (widget.componentKey === "entity_nearby_pins") {
     return (
-      <motion.div variants={overlayItemVariants} layout="position">
+      <div>
         <EntityNearbyPinsWidgetCard
           widget={widget}
           entity={entity}
@@ -189,13 +186,13 @@ export const renderEntityWidget = ({
           canRemove={removable}
           onRemove={() => void bindings.handleRemoveWidget(widget.id)}
         />
-      </motion.div>
+      </div>
     );
   }
 
   if (widget.componentKey === "entity_transport_mode" && entity.type === "trace") {
     return (
-      <motion.div variants={overlayItemVariants} layout="position">
+      <div>
         <EntityPlaceholderWidgetCard
           widget={widget}
           entity={entity}
@@ -206,7 +203,7 @@ export const renderEntityWidget = ({
           canRemove={removable}
           onRemove={() => void bindings.handleRemoveWidget(widget.id)}
         />
-      </motion.div>
+      </div>
     );
   }
 
