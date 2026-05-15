@@ -194,6 +194,47 @@ export default function HomePage() {
     fetchAllCollections();
   }, [dbRefreshTrigger]);
 
+  useEffect(() => {
+    if (collections.length === 0) {
+      return;
+    }
+
+    setAllCollections((currentCollections) => {
+      let changed = false;
+      const nextCollections = currentCollections.map((currentCollection) => {
+        const updatedCollection = collections.find((collection) => collection.id === currentCollection.id);
+        if (!updatedCollection) {
+          return currentCollection;
+        }
+
+        if (
+          updatedCollection.name === currentCollection.name &&
+          updatedCollection.color === currentCollection.color &&
+          updatedCollection.icon === currentCollection.icon &&
+          updatedCollection.itemCount === currentCollection.itemCount
+        ) {
+          return currentCollection;
+        }
+
+        changed = true;
+        return { ...currentCollection, ...updatedCollection };
+      });
+
+      return changed ? nextCollections : currentCollections;
+    });
+  }, [collections]);
+
+  const liveCollectionStyles = useMemo(
+    () =>
+      Object.fromEntries(
+        allCollections.map((collection) => [
+          collection.id,
+          { color: collection.color, icon: collection.icon },
+        ])
+      ),
+    [allCollections]
+  );
+
   const finalizeFreshTraceSave = useCallback(
     async (collectionId: string, collectionColor: string) => {
       await saveTrace(drawingPath.map((point) => [point.lng, point.lat]), collectionColor, collectionId);
@@ -850,6 +891,22 @@ export default function HomePage() {
     }
   }, [areaDraftFinalized, isMobileViewport, mode, pendingPin, traceDraftFinalized]);
 
+  const isAnyRightPanelOpen =
+    isWidgetPanelOpen ||
+    isUserShellOpen ||
+    (mode === "editPin" && !!editingPinData) ||
+    (mode === "editTrace" && !!editingTraceId) ||
+    (mode === "editArea" && !!editingAreaId);
+  const effectiveMobileSidebarOpen = mobileSidebarOpen && !(isMobileViewport && isAnyRightPanelOpen);
+
+  useEffect(() => {
+    if (!isMobileViewport || !isAnyRightPanelOpen) {
+      return;
+    }
+
+    setMobileSidebarOpen(false);
+  }, [isAnyRightPanelOpen, isMobileViewport]);
+
   const handleFinishTraceDraft = () => {
     if (drawingPath.length < 2) return;
     setSelectedTraceNodeIndex(null);
@@ -1011,7 +1068,7 @@ export default function HomePage() {
             shell={topChromeShell}
             shellWidgets={topChromeWidgets}
             desktopSidebarVisible={desktopSidebarVisible}
-            mobileSidebarOpen={mobileSidebarOpen}
+            mobileSidebarOpen={effectiveMobileSidebarOpen}
             onToggleDesktopSidebar={toggleDesktopSidebar}
             onToggleMobileSidebar={() => {
               setIsWidgetPanelOpen(false);
@@ -1041,7 +1098,7 @@ export default function HomePage() {
             onUndo={handleUndo}
             onDataSaved={handleDataSaved}
             isMobileViewport={isMobileViewport}
-            mobileSidebarOpen={mobileSidebarOpen}
+            mobileSidebarOpen={effectiveMobileSidebarOpen}
             setMobileSidebarOpen={setMobileSidebarOpen}
             desktopSidebarVisible={desktopSidebarVisible}
             onToggleDesktopSidebar={toggleDesktopSidebar}
@@ -1050,6 +1107,7 @@ export default function HomePage() {
             shellConfig={leftSidebarShell?.config}
             shellWidgets={displayLeftSidebarWidgets}
             onShellWidgetsReorder={handleLeftSidebarWidgetsReorder}
+            onShellWidgetsChange={setLeftSidebarWidgets}
             shellWidgetsLoaded={leftSidebarWidgetsLoaded}
             collectionsLoaded={collectionsHydrated}
             collections={collections}
@@ -1094,6 +1152,7 @@ export default function HomePage() {
                   resetViewTrigger={resetViewTrigger}
                   refreshTrigger={dbRefreshTrigger}
                   hiddenCollectionIds={invisibleCollectionIds}
+                  collectionStyles={liveCollectionStyles}
                 />
               ) : (
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(190,215,235,0.9),rgba(246,242,232,0.92)_38%,rgba(241,236,224,0.98)_100%)]" />
@@ -1212,6 +1271,7 @@ export default function HomePage() {
                   isOpen={isUserShellOpen}
                   onClose={() => setIsUserShellOpen(false)}
                   widgets={userShellWidgets}
+                  onWidgetsChange={setUserShellWidgets}
                   profile={userProfile}
                   loading={!userShell || !userProfile}
                   savingProfile={savingUserProfile}

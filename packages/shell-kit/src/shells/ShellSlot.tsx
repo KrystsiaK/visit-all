@@ -7,6 +7,8 @@ import { cn } from "../lib/cn";
 
 interface ShellSlotProps {
   children: ReactNode;
+  compact?: boolean;
+  hideHandle?: boolean;
   isDragging?: boolean;
   isDropTarget?: boolean;
   dropEdge?: "before" | "after" | null;
@@ -18,6 +20,8 @@ interface ShellSlotProps {
 
 export const ShellSlot = ({
   children,
+  compact = false,
+  hideHandle = false,
   isDragging = false,
   isDropTarget = false,
   dropEdge = null,
@@ -31,7 +35,8 @@ export const ShellSlot = ({
   return (
     <div
       className={cn(
-        "group relative w-full pt-4 pointer-events-auto",
+        "group relative w-full pointer-events-auto",
+        compact ? "pt-0 pb-4" : "pt-3",
         isDragging && "z-10"
       )}
       onDragOver={onDragOver}
@@ -77,13 +82,13 @@ export const ShellSlot = ({
         </>
       ) : null}
 
-      {reorderEnabled ? (
-        <div className="pointer-events-none absolute inset-x-0 top-0 z-[4] flex h-4 items-start justify-center">
+      {reorderEnabled && !hideHandle ? (
+        <div className="pointer-events-none absolute inset-x-0 top-[-6px] z-[5] flex h-4 items-start justify-center">
           <div
             draggable
             onDragStart={onDragStart}
             onDragEnd={onDragEnd}
-            className="pointer-events-auto flex h-3.5 min-w-10 items-start justify-center rounded-full px-2 text-neutral-300 transition-colors duration-200 group-hover:text-neutral-500 cursor-grab active:cursor-grabbing"
+            className="pointer-events-auto flex h-3.5 min-w-10 items-start justify-center rounded-full bg-white/82 px-2 text-neutral-300 shadow-[0px_4px_10px_rgba(0,0,0,0.08)] ring-1 ring-black/6 transition-[color,background-color,box-shadow] duration-200 group-hover:bg-white/92 group-hover:text-neutral-500 cursor-grab active:cursor-grabbing"
             aria-label="Reorder widget"
             title="Drag to reorder widget"
           >

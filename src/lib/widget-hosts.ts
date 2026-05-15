@@ -8,8 +8,10 @@ import type {
 export type WidgetHost =
   | "widget_library"
   | "widget_center"
+  | "top_chrome"
   | "left_sidebar"
   | "user_shell"
+  | "shared_entity_shell"
   | "pin_entity_shell"
   | "trace_entity_shell"
   | "area_entity_shell";
@@ -22,8 +24,10 @@ export interface WidgetHostOption {
 const widgetHostLabels: Record<WidgetHost, string> = {
   widget_library: "Widget Library",
   widget_center: "Widget Center",
+  top_chrome: "Top Chrome",
   left_sidebar: "Left Shell",
-  user_shell: "Account Shell",
+  user_shell: "Profile Shell",
+  shared_entity_shell: "Right Shell",
   pin_entity_shell: "Pin Shell",
   trace_entity_shell: "Path Shell",
   area_entity_shell: "Area Shell",
@@ -44,8 +48,15 @@ export const getEntityWidgetHost = (entityType: WidgetEntityType): WidgetHost =>
 };
 
 const getShellWidgetHost = (componentKey: WidgetComponentKey): WidgetHost => {
+  if (componentKey === "shell_notes" || componentKey === "shell_clock") {
+    return "left_sidebar";
+  }
+
+  if (componentKey === "shell_chrome_primary") {
+    return "top_chrome";
+  }
+
   if (
-    componentKey === "shell_chrome_primary" ||
     componentKey === "shell_search" ||
     componentKey === "shell_mode_switch" ||
     componentKey === "shell_collections" ||
@@ -67,9 +78,6 @@ const getShellWidgetHost = (componentKey: WidgetComponentKey): WidgetHost => {
   return "left_sidebar";
 };
 
-const uniqHosts = (hosts: WidgetHost[]) =>
-  hosts.filter((host, index) => hosts.indexOf(host) === index);
-
 export const getWidgetAllowedHosts = ({
   layer,
   componentKey,
@@ -80,10 +88,16 @@ export const getWidgetAllowedHosts = ({
   }
 
   if (layer === "shell") {
+    if (componentKey === "shell_notes" || componentKey === "shell_clock") {
+      return ["left_sidebar", "shared_entity_shell", "user_shell"];
+    }
+
     return [getShellWidgetHost(componentKey)];
   }
 
-  return uniqHosts(supportedEntityTypes.map(getEntityWidgetHost));
+  void supportedEntityTypes;
+
+  return ["shared_entity_shell"];
 };
 
 export const getWidgetCurrentHost = (

@@ -95,7 +95,7 @@ export const WidgetPanel = ({
             <GlobalWidgetLibraryCard
               key={definition.id}
               definition={definition}
-              onAdd={(slug) => void handleAddWidgetFromLibrary(slug, onLibraryMutation)}
+              onAdd={(slug, hosts) => void handleAddWidgetFromLibrary(slug, hosts, onLibraryMutation)}
               adding={addingSlug === definition.slug}
             />
           ))}

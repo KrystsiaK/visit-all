@@ -1,5 +1,6 @@
 "use client";
 
+import { removeShellWidgetPlacement } from "@/app/actions";
 import { ShellSlot } from "@synarava/shell-kit";
 import { UserShell } from "@/components/shells/UserShell";
 import { UserAccountActionsWidgetCard } from "@/components/widgets/user-widgets/UserAccountActionsWidgetCard";
@@ -7,12 +8,15 @@ import {
   UserProfileWidgetCard,
   type UserProfileViewModel,
 } from "@/components/widgets/user-widgets/UserProfileWidgetCard";
-import type { WidgetInstanceRecord } from "@/lib/widgets";
+import { ShellNotesWidget } from "@/components/widgets/shell-widgets/ShellNotesWidget";
+import { ShellClockWidget } from "@/components/widgets/shell-widgets/ShellClockWidget";
+import type { WidgetInstanceRecord, WidgetPlacementRecord } from "@/lib/widgets";
 
 export function UserShellPanel({
   isOpen,
   onClose,
   widgets,
+  onWidgetsChange,
   profile,
   loading,
   savingProfile,
@@ -26,7 +30,8 @@ export function UserShellPanel({
 }: {
   isOpen: boolean;
   onClose: () => void;
-  widgets: WidgetInstanceRecord[];
+  widgets: Array<WidgetPlacementRecord & WidgetInstanceRecord>;
+  onWidgetsChange?: (nextWidgets: Array<WidgetPlacementRecord & WidgetInstanceRecord>) => void;
   profile: UserProfileViewModel | null;
   loading: boolean;
   savingProfile: boolean;
@@ -42,6 +47,15 @@ export function UserShellPanel({
     confirmPassword: string;
   }) => Promise<{ ok: boolean; message: string; fieldErrors?: Partial<Record<"currentPassword" | "nextPassword" | "confirmPassword", string>> }>;
 }) {
+  const handleRemoveShellWidget = async (widgetId: string) => {
+    try {
+      await removeShellWidgetPlacement(widgetId, "user_shell");
+      onWidgetsChange?.(widgets.filter((widget) => widget.id !== widgetId));
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
   return (
     <UserShell isOpen={isOpen} onClose={onClose}>
       {loading ? (
@@ -79,6 +93,20 @@ export function UserShellPanel({
               onResendVerification={onResendVerification}
               onRequestPasswordReset={onRequestPasswordReset}
               onChangePassword={onChangePassword}
+            />
+          );
+        } else if (widget.componentKey === "shell_notes") {
+          content = (
+            <ShellNotesWidget
+              widget={widget}
+              onDelete={() => void handleRemoveShellWidget(widget.id)}
+            />
+          );
+        } else if (widget.componentKey === "shell_clock") {
+          content = (
+            <ShellClockWidget
+              widget={widget}
+              onDelete={() => void handleRemoveShellWidget(widget.id)}
             />
           );
         }

@@ -56,6 +56,8 @@ const WidgetCenterShellInner = ({ shellId, isOpen, onClose, title, subtitle, run
         mobileHandle={false}
         placement="right"
         width={376}
+        fullWidthOnMobile
+        swipeToClose
         zIndexClassName="z-[90]"
         scrollContainerRef={registerScrollContainer}
         scrollContainerDataId={shellId}

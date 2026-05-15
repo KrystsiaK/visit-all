@@ -106,14 +106,14 @@ export const BaseWidget = ({
   onDelete,
 }: BaseWidgetProps) => {
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const hasSettings = Boolean(settingsContent || onBackgroundStyleChange);
+  const hasDelete = Boolean(onDelete);
+  const hasSettings = Boolean(settingsContent || onBackgroundStyleChange || hasDelete);
   const hasIdentity = Boolean(eyebrow || title || subtitle);
   const showInlineIdentity = identityVisibility === "inline" && hasIdentity;
   const compactLabel = eyebrow || title;
   const showCompactIdentity = identityVisibility === "settings-only" && Boolean(compactLabel);
   const showUtilityBar = hasSettings || showInlineIdentity || showCompactIdentity;
   const expanded = sizeMode === "expanded" || settingsOpen;
-  const hasDelete = Boolean(onDelete);
   const shellRuntime = useOptionalShellRuntime();
   const isLibraryPreview = shellRuntime?.shellId === "widget-library-preview";
   const isRightEntityShell = shellRuntime?.shellId === "right_entity_shell";
@@ -222,7 +222,7 @@ export const BaseWidget = ({
       {accent ? <div className="mb-3">{accent}</div> : null}
       <div
         className={cn(
-          "min-h-0 flex-1 overflow-x-hidden pr-1 no-scrollbar",
+          "min-h-0 flex-1 overflow-x-hidden no-scrollbar",
           allowWidgetOverflow ? "overflow-visible" : "overflow-y-auto",
           bodyClassName
         )}

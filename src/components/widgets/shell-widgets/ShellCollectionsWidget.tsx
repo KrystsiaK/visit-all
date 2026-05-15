@@ -50,6 +50,7 @@ export const ShellCollectionsWidget = ({
       title="Collections"
       identityVisibility="settings-only"
       className="pointer-events-auto relative mb-2 flex h-[396px] shrink-0 flex-col overflow-hidden rounded-2xl bg-white/70 shadow-[0px_10px_36px_rgba(0,0,0,0.08)] backdrop-blur-2xl"
+      contentPaddingClassName="px-0 pb-0 pt-[18px]"
       bodyClassName="flex min-h-0 flex-1 flex-col"
     >
       <motion.div
@@ -80,32 +81,34 @@ export const ShellCollectionsWidget = ({
           ) : (
             <div
               data-collections-scroll-region="true"
-              className="custom-scrollbar min-h-0 flex-1 space-y-2 overflow-y-auto overflow-x-hidden pt-0.5 pr-1"
+              className="custom-scrollbar min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-0"
             >
-              <AnimatePresence initial={false}>
-                {filteredCollections.map((collection) => (
-                  <CollectionCard
-                    key={collection.id}
-                    collection={collection}
-                    editingCollection={editingCollection}
-                    highlightedCollectionId={highlightedCollectionId}
-                    editingCollectionId={editingCollectionId}
-                    itemLabel={itemLabel}
-                    layerVisibility={layerVisibility}
-                    awaitingCollectionSelection={awaitingCollectionSelection}
-                    primaryActionLabel={primaryActionLabel}
-                    selectionCommitPendingId={selectionCommitPendingId}
-                    saving={saving}
-                    onCollectionClick={onCollectionClick}
-                    onToggleCollectionVisibility={onToggleCollectionVisibility}
-                    onShowOnlyCollection={onShowOnlyCollection}
-                    onCollectionNameChange={onCollectionNameChange}
-                    onCollectionColorChange={onCollectionColorChange}
-                    onCollectionDone={onCollectionDone}
-                    onRequestDeleteCollection={onRequestDeleteCollection}
-                  />
-                ))}
-              </AnimatePresence>
+              <div className="flex min-h-full flex-col gap-2 px-0 py-0.5">
+                <AnimatePresence initial={false}>
+                  {filteredCollections.map((collection) => (
+                    <CollectionCard
+                      key={collection.id}
+                      collection={collection}
+                      editingCollection={editingCollection}
+                      highlightedCollectionId={highlightedCollectionId}
+                      editingCollectionId={editingCollectionId}
+                      itemLabel={itemLabel}
+                      layerVisibility={layerVisibility}
+                      awaitingCollectionSelection={awaitingCollectionSelection}
+                      primaryActionLabel={primaryActionLabel}
+                      selectionCommitPendingId={selectionCommitPendingId}
+                      saving={saving}
+                      onCollectionClick={onCollectionClick}
+                      onToggleCollectionVisibility={onToggleCollectionVisibility}
+                      onShowOnlyCollection={onShowOnlyCollection}
+                      onCollectionNameChange={onCollectionNameChange}
+                      onCollectionColorChange={onCollectionColorChange}
+                      onCollectionDone={onCollectionDone}
+                      onRequestDeleteCollection={onRequestDeleteCollection}
+                    />
+                  ))}
+                </AnimatePresence>
+              </div>
             </div>
           )}
           </motion.div>

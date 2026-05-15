@@ -58,6 +58,8 @@ const UserShellInner = ({
         mobileHandle={false}
         placement="right"
         width={376}
+        fullWidthOnMobile
+        swipeToClose
         zIndexClassName="z-[90]"
         scrollContainerRef={registerScrollContainer}
         scrollContainerDataId="user_shell"

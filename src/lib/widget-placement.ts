@@ -46,6 +46,26 @@ export function getWidgetPlacementPolicy(
   contextEntityType?: WidgetEntityType
 ): WidgetPlacementPolicy {
   if (definition.layer === "shell") {
+    if (definition.componentKey === "shell_notes") {
+      return {
+        mode: "multi_host",
+        hosts: getWidgetAllowedHosts(definition),
+        removable: true,
+        reorderable: true,
+        managedBySystem: false,
+      };
+    }
+
+    if (definition.componentKey === "shell_clock") {
+      return {
+        mode: "single_selectable_host",
+        hosts: getWidgetAllowedHosts(definition),
+        removable: true,
+        reorderable: true,
+        managedBySystem: false,
+      };
+    }
+
     return {
       mode: "required_fixed",
       hosts: getWidgetAllowedHosts(definition),
@@ -119,16 +139,25 @@ export function getWidgetPlacementState(
         summary: `Auto-placed into ${describeHosts(policy.hosts)}.`,
       };
     case "single_selectable_host":
+      if (uniquePlacedHosts.length > 0) {
+        return {
+          placedHosts: uniquePlacedHosts,
+          availableHosts: [],
+          actionMode: "unavailable",
+          actionLabel: "In App",
+          canAdd: false,
+          disabledReason: `Already placed in ${describeHosts(uniquePlacedHosts)}.`,
+          summary: `Can live in one of: ${describeHosts(policy.hosts)}.`,
+        };
+      }
+
       return {
         placedHosts: uniquePlacedHosts,
         availableHosts,
-        actionMode: availableHosts.length > 0 ? "choose-one" : "unavailable",
-        actionLabel: "Choose Panel",
+        actionMode: "choose-one",
+        actionLabel: "Choose Shell",
         canAdd: availableHosts.length > 0,
-        disabledReason:
-          availableHosts.length > 0
-            ? null
-            : `Already placed in ${describeHosts(uniquePlacedHosts)}.`,
+        disabledReason: null,
         summary: `Can live in one of: ${describeHosts(policy.hosts)}.`,
       };
     case "multi_host":
@@ -136,13 +165,13 @@ export function getWidgetPlacementState(
         placedHosts: uniquePlacedHosts,
         availableHosts,
         actionMode: availableHosts.length > 0 ? "choose-many" : "unavailable",
-        actionLabel: "Choose Panels",
+        actionLabel: "Choose Shells",
         canAdd: availableHosts.length > 0,
         disabledReason:
           availableHosts.length > 0
             ? null
-            : `Already placed in all allowed panels: ${describeHosts(uniquePlacedHosts)}.`,
-        summary: `Can be added to multiple panels: ${describeHosts(policy.hosts)}.`,
+            : `Already placed in all allowed shells: ${describeHosts(uniquePlacedHosts)}.`,
+        summary: `Can be added to multiple shells: ${describeHosts(policy.hosts)}.`,
       };
     default: {
       const exhaustiveCheck: never = policy.mode;
