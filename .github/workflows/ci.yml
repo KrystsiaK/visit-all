@@ -13,6 +13,25 @@ env:
   CI_HAS_SONAR_TOKEN: ${{ secrets.SONAR_TOKEN != '' }}
 
 jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    outputs:
+      has_database_url: ${{ steps.flags.outputs.has_database_url }}
+      has_auth_secret: ${{ steps.flags.outputs.has_auth_secret }}
+      has_sonar_token: ${{ steps.flags.outputs.has_sonar_token }}
+
+    steps:
+      - name: Compute secret availability
+        id: flags
+        env:
+          HAS_DATABASE_URL: ${{ secrets.DATABASE_URL != '' }}
+          HAS_AUTH_SECRET: ${{ secrets.AUTH_SECRET != '' }}
+          HAS_SONAR_TOKEN: ${{ secrets.SONAR_TOKEN != '' }}
+        run: |
+          echo "has_database_url=${HAS_DATABASE_URL}" >> "$GITHUB_OUTPUT"
+          echo "has_auth_secret=${HAS_AUTH_SECRET}" >> "$GITHUB_OUTPUT"
+          echo "has_sonar_token=${HAS_SONAR_TOKEN}" >> "$GITHUB_OUTPUT"
+
   quality:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -45,8 +64,10 @@ jobs:
   e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    needs: quality
-    if: ${{ env.CI_HAS_DATABASE_URL == 'true' && env.CI_HAS_AUTH_SECRET == 'true' }}
+    needs:
+      - preflight
+      - quality
+    if: ${{ needs.preflight.outputs.has_database_url == 'true' && needs.preflight.outputs.has_auth_secret == 'true' }}
 
     steps:
       - name: Checkout
@@ -77,8 +98,10 @@ jobs:
 
   sonar:
     runs-on: ubuntu-latest
-    needs: quality
-    if: ${{ env.CI_HAS_SONAR_TOKEN == 'true' }}
+    needs:
+      - preflight
+      - quality
+    if: ${{ needs.preflight.outputs.has_sonar_token == 'true' }}
 
     steps:
       - name: Checkout

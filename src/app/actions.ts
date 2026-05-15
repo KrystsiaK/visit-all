@@ -1534,7 +1534,7 @@ async function getEntityContainerId(
       SELECT container_id
       FROM ${table}
       WHERE id = $1::uuid
-        AND user_id = $2
+        AND user_id::text = $2::text
       LIMIT 1
     `,
     [entityId, userId]
@@ -3968,17 +3968,12 @@ export async function updateEntityTitle(
       throw new Error("Entity container not found.");
     }
 
-    await client.query(
-      `
-        INSERT INTO entity_details (entity_container_id, user_id, title, description, updated_at)
-        VALUES ($1::uuid, $2::uuid, $3, '', NOW())
-        ON CONFLICT (entity_container_id)
-        DO UPDATE SET
-          title = EXCLUDED.title,
-          updated_at = NOW()
-      `,
-      [containerId, userId, normalizedTitle]
-    );
+    await upsertEntityDetails(client, {
+      entityContainerId: containerId,
+      userId,
+      title: normalizedTitle,
+      description: "",
+    });
 
     if (entityType === "pin") {
       await client.query(
@@ -3986,7 +3981,7 @@ export async function updateEntityTitle(
           UPDATE pins
           SET name = $1
           WHERE id = $2::uuid
-            AND user_id = $3::uuid
+            AND user_id::text = $3::text
         `,
         [normalizedTitle, entityId, userId]
       );
