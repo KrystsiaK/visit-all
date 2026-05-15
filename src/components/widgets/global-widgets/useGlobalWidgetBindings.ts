@@ -12,6 +12,7 @@ import {
 import { useShellWidgetReorder } from "@synarava/shell-kit";
 import type { WidgetLibraryCatalogRecord } from "@/app/actions";
 import type { WidgetEntityType, WidgetInstanceRecord } from "@/lib/widgets";
+import type { WidgetHost } from "@/lib/widget-hosts";
 
 interface UseGlobalWidgetBindingsProps {
   isOpen: boolean;
@@ -121,12 +122,13 @@ export const useGlobalWidgetBindings = ({
 
   const handleAddWidgetFromLibrary = async (
     slug: string,
+    targetHosts?: WidgetHost[],
     onLibraryMutation?: () => void
   ) => {
     setAddingSlug(slug);
 
     try {
-      await addWidgetFromLibrary(slug, entityType, entityId);
+      await addWidgetFromLibrary(slug, entityType, entityId, targetHosts);
       onLibraryMutation?.();
       const nextWidgets = await getGlobalWidgets();
       setWidgets(nextWidgets);

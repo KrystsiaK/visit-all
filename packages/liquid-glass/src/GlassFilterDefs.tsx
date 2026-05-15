@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useLayoutEffect } from "react";
 
 let glassFilterSvgMounted = false;
 
@@ -15,7 +15,7 @@ let glassFilterSvgMounted = false;
  * not the element itself — this is true optical refraction.
  */
 export function GlassFilterDefs() {
-  useEffect(() => {
+  useLayoutEffect(() => {
     const FILTER_SVG_ID = "lg-filter-svg";
     if (glassFilterSvgMounted || document.getElementById(FILTER_SVG_ID)) {
       glassFilterSvgMounted = true;

@@ -6,6 +6,10 @@ export {
   TintedGlassSurface,
   type TintedGlassSurfaceProps,
 } from "./TintedGlassSurface";
+export {
+  StainedGlassSurface,
+  type StainedGlassSurfaceProps,
+} from "./StainedGlassSurface";
 
 export {
   clampTransparency,

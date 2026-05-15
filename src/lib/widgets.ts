@@ -13,6 +13,8 @@ export type WidgetComponentKey =
   | "global_overview"
   | "user_profile"
   | "user_account_actions"
+  | "shell_notes"
+  | "shell_clock"
   | "entity_info"
   | "entity_delete"
   | "entity_gallery"

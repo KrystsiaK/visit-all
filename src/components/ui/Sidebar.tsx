@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
-import { createCollection } from "@/app/actions";
+import { createCollection, removeShellWidgetPlacement } from "@/app/actions";
 import type { InteractionMode, Collection } from "@/app/page";
 import { ShellSlot } from "@synarava/shell-kit";
 import type { LeftSidebarShellConfig } from "@/lib/shells";
@@ -13,8 +13,10 @@ import { ShellControlsWidget } from "@/components/widgets/shell-widgets/ShellCon
 import { ShellCreateCollectionWidget } from "@/components/widgets/shell-widgets/ShellCreateCollectionWidget";
 import { ShellFinishTraceWidget } from "@/components/widgets/shell-widgets/ShellFinishTraceWidget";
 import { ShellModeSwitchWidget } from "@/components/widgets/shell-widgets/ShellModeSwitchWidget";
+import { ShellNotesWidget } from "@/components/widgets/shell-widgets/ShellNotesWidget";
 import { ShellRemoveTracePointWidget } from "@/components/widgets/shell-widgets/ShellRemoveTracePointWidget";
 import { ShellResetViewWidget } from "@/components/widgets/shell-widgets/ShellResetViewWidget";
+import { ShellClockWidget } from "@/components/widgets/shell-widgets/ShellClockWidget";
 import { ShellSearchWidget } from "@/components/widgets/shell-widgets/ShellSearchWidget";
 import { ShellChromePrimaryWidget } from "@/components/widgets/shell-widgets/ShellChromePrimaryWidget";
 import { useShellCollectionsBinding } from "@/components/widgets/shell-widgets/collections/useShellCollectionsBinding";
@@ -52,6 +54,7 @@ interface SidebarProps {
   shellId?: string;
   shellWidgets?: Array<WidgetPlacementRecord & WidgetInstanceRecord>;
   onShellWidgetsReorder?: (nextWidgets: Array<WidgetPlacementRecord & WidgetInstanceRecord>) => void;
+  onShellWidgetsChange?: (nextWidgets: Array<WidgetPlacementRecord & WidgetInstanceRecord>) => void;
   shellWidgetsLoaded?: boolean;
   collectionsLoaded?: boolean;
   collections: Collection[];
@@ -80,6 +83,7 @@ export default function Sidebar({
   mobileSidebarOpen, setMobileSidebarOpen,
   desktopSidebarVisible = true, onToggleDesktopSidebar, sidebarReady = false, shellConfig, shellId = "left_sidebar", shellWidgets = [], collectionsLoaded = false,
   onShellWidgetsReorder,
+  onShellWidgetsChange,
   collections, layerVisibility, setCollections, targetCollectionId, setTargetCollectionId
   , pendingPin, onCollectionConfirm, onToggleCollectionVisibility, onShowOnlyCollection, autoOpenCollectionId, onFinishTraceDraft, onFinishAreaDraft, selectedTraceNodeIndex = null, onRemoveSelectedTraceNode
 }: SidebarProps) {
@@ -203,6 +207,15 @@ export default function Sidebar({
     onReorder: onShellWidgetsReorder,
   });
 
+  const handleRemoveShellWidget = async (widgetId: string) => {
+    try {
+      await removeShellWidgetPlacement(widgetId, "left_sidebar");
+      onShellWidgetsChange?.(shellWidgets.filter((widget) => widget.id !== widgetId));
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
   const renderShellWidget = (widget: WidgetPlacementRecord & WidgetInstanceRecord) => {
     let content: React.ReactNode = null;
     let shouldRender = true;
@@ -266,6 +279,20 @@ export default function Sidebar({
       );
     } else if (widget.componentKey === "shell_reset_view") {
       content = <ShellResetViewWidget onResetView={onResetView} disabled={shellInteractionLocked} />;
+    } else if (widget.componentKey === "shell_notes") {
+      content = (
+        <ShellNotesWidget
+          widget={widget}
+          onDelete={() => void handleRemoveShellWidget(widget.id)}
+        />
+      );
+    } else if (widget.componentKey === "shell_clock") {
+      content = (
+        <ShellClockWidget
+          widget={widget}
+          onDelete={() => void handleRemoveShellWidget(widget.id)}
+        />
+      );
     } else if (widget.componentKey === "shell_finish_trace") {
       shouldRender =
         (mode === "trace" && drawingPath.length >= 2 && !traceDraftFinalized) ||
@@ -309,6 +336,7 @@ export default function Sidebar({
     return (
       <ShellSlot
         key={widget.id}
+        hideHandle={widget.componentKey === "shell_create_collection" || widget.componentKey === "shell_reset_view"}
         isDragging={draggedWidgetId === widget.id}
         isDropTarget={dropTarget?.widgetId === widget.id}
         dropEdge={dropTarget?.widgetId === widget.id ? dropTarget.edge : null}
@@ -378,7 +406,6 @@ export default function Sidebar({
 
       {(isMobileViewport || sidebarReady) && (
         <LeftSidebarShell
-          key={`${shellId}:${isMobileViewport ? "mobile" : desktopSidebarVisible ? "open" : "collapsed"}`}
           shellId={shellId}
           isOpen={isMobileViewport ? Boolean(mobileSidebarOpen) : true}
           collapsed={!isMobileViewport && !desktopSidebarVisible}

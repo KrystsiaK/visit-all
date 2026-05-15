@@ -68,6 +68,23 @@ interface AreaMapRecord {
   path?: PolygonGeometry;
 }
 
+interface PinMarkerGroup {
+  id: string;
+  lng: number;
+  lat: number;
+  pins: PinMapRecord[];
+}
+
+const metersBetweenPoints = (left: [number, number], right: [number, number]) => {
+  const toRadians = (value: number) => (value * Math.PI) / 180;
+  const [leftLng, leftLat] = left;
+  const [rightLng, rightLat] = right;
+  const averageLat = toRadians((leftLat + rightLat) / 2);
+  const deltaLngMeters = (rightLng - leftLng) * 111_320 * Math.cos(averageLat);
+  const deltaLatMeters = (rightLat - leftLat) * 110_540;
+  return Math.hypot(deltaLngMeters, deltaLatMeters);
+};
+
 function GeometryAnchorMarker({
   color,
   selected,
@@ -211,13 +228,14 @@ interface MapCanvasProps {
   resetViewTrigger?: number;
   refreshTrigger?: number;
   hiddenCollectionIds?: string[];
+  collectionStyles?: Record<string, { color: string; icon: string }>;
 }
 
 export default function MapCanvas({ 
   mode, onMapClick, onTraceSelected, onTraceAnchorClick, onAreaSelected, onPinSelected,
   onPendingPinCancel, onTraceNodeClick, selectedTraceNodeIndex = null,
   selectedPoint, drawingPath, setDrawingPath, 
-  traceDraftFinalized = false, areaDraftFinalized = false, curveMode, terrain3D, isSatellite = false, resetViewTrigger = 0, refreshTrigger, hiddenCollectionIds = []
+  traceDraftFinalized = false, areaDraftFinalized = false, curveMode, terrain3D, isSatellite = false, resetViewTrigger = 0, refreshTrigger, hiddenCollectionIds = [], collectionStyles = {}
 }: MapCanvasProps) {
   const previousResetViewTrigger = useRef(resetViewTrigger);
   const mapRef = useRef<MapRef | null>(null);
@@ -226,6 +244,7 @@ export default function MapCanvas({
   const [pins, setPins] = useState<PinMapRecord[]>([]);
   const [traces, setTraces] = useState<TraceMapRecord[]>([]);
   const [areas, setAreas] = useState<AreaMapRecord[]>([]);
+  const [currentZoom, setCurrentZoom] = useState(DEFAULT_HOME_VIEW.zoom);
   const { isLocating, location, permissionState, requestLocation } = useUserGeolocation();
 
   const {
@@ -354,6 +373,56 @@ export default function MapCanvas({
     [areas, hiddenCollectionIds]
   );
 
+  const resolveCollectionColor = useCallback(
+    (collectionId: string | undefined, fallback: string) =>
+      (collectionId ? collectionStyles[collectionId]?.color : undefined) || fallback,
+    [collectionStyles]
+  );
+
+  const groupedPinMarkers = useMemo<PinMarkerGroup[]>(() => {
+    if (visiblePins.length === 0) {
+      return [];
+    }
+
+    const groups: PinMarkerGroup[] = [];
+    const metersPerPixelAtEquator = 156543.03392 / (2 ** currentZoom);
+    const thresholdMeters = Math.max(6, metersPerPixelAtEquator * 18);
+
+    for (const pin of visiblePins) {
+      const coords = pin.location?.coordinates;
+      if (!coords || coords.length < 2) {
+        continue;
+      }
+
+      const matchingGroup = groups.find((group) => {
+        return metersBetweenPoints([group.lng, group.lat], [coords[0], coords[1]]) <= thresholdMeters;
+      });
+
+      if (matchingGroup) {
+        matchingGroup.pins.push(pin);
+        continue;
+      }
+
+      groups.push({
+        id: pin.id,
+        lng: coords[0],
+        lat: coords[1],
+        pins: [pin],
+      });
+    }
+
+    return groups;
+  }, [visiblePins, currentZoom]);
+
+  const zoomIntoPinGroup = useCallback((group: PinMarkerGroup) => {
+    const currentZoomLevel = mapRef.current?.getZoom() ?? currentZoom;
+    mapRef.current?.easeTo({
+      center: [group.lng, group.lat],
+      zoom: Math.min(currentZoomLevel + 1.5, 20),
+      duration: 420,
+    });
+  }, [currentZoom]);
+
   const tracesGeoJson: FeatureCollection = useMemo(() => {
     const features: Feature[] = visibleTraces
       .map(trace => {
@@ -364,14 +433,17 @@ export default function MapCanvas({
           geometry: { type: 'LineString', coordinates: coords } as LineString,
           properties: {
             id: trace.id,
-            color: trace.collectionColor || trace.color || '#3b82f6',
+            color: resolveCollectionColor(
+              trace.collection_id,
+              trace.collectionColor || trace.color || '#3b82f6'
+            ),
             collection_id: trace.collection_id,
             name: trace.name,
           }
         };
       }).filter(f => (f.geometry as LineString).coordinates.length >= 2);
     return { type: 'FeatureCollection', features };
-  }, [visibleTraces, curveMode]);
+  }, [visibleTraces, curveMode, resolveCollectionColor]);
 
   const selectedTraceGeoJson: FeatureCollection = useMemo(() => {
     if (!selectedFeatureId) {
@@ -397,12 +469,15 @@ export default function MapCanvas({
           } as LineString,
           properties: {
             id: selectedTrace.id,
-            color: selectedTrace.collectionColor || selectedTrace.color || "#0000ff",
+            color: resolveCollectionColor(
+              selectedTrace.collection_id,
+              selectedTrace.collectionColor || selectedTrace.color || "#0000ff"
+            ),
           },
         },
       ],
     };
-  }, [curveMode, selectedFeatureId, visibleTraces]);
+  }, [curveMode, selectedFeatureId, visibleTraces, resolveCollectionColor]);
 
   const areasGeoJson: FeatureCollection = useMemo(() => {
     const features: Feature[] = visibleAreas
@@ -417,14 +492,17 @@ export default function MapCanvas({
           geometry: { type: 'Polygon', coordinates: coords } as Polygon,
           properties: {
             id: area.id,
-            color: area.collectionColor || area.color || '#10b981',
+            color: resolveCollectionColor(
+              area.collection_id,
+              area.collectionColor || area.color || '#10b981'
+            ),
             collection_id: area.collection_id,
             name: area.name,
           }
         };
       }).filter(f => (f.geometry as Polygon).coordinates[0]?.length >= 3);
     return { type: 'FeatureCollection', features };
-  }, [visibleAreas, curveMode]);
+  }, [visibleAreas, curveMode, resolveCollectionColor]);
 
   const selectedAreaGeoJson: FeatureCollection = useMemo(() => {
     if (!selectedFeatureId) {
@@ -450,12 +528,15 @@ export default function MapCanvas({
           } as Polygon,
           properties: {
             id: selectedArea.id,
-            color: selectedArea.collectionColor || selectedArea.color || "#10b981",
+            color: resolveCollectionColor(
+              selectedArea.collection_id,
+              selectedArea.collectionColor || selectedArea.color || "#10b981"
+            ),
           },
         },
       ],
     };
-  }, [curveMode, selectedFeatureId, visibleAreas]);
+  }, [curveMode, selectedFeatureId, visibleAreas, resolveCollectionColor]);
 
   const activeDrawingGeoJson: FeatureCollection = useMemo(() => {
     if (!drawingPath || drawingPath.length < 2) return { type: 'FeatureCollection', features: [] };
@@ -556,6 +637,8 @@ export default function MapCanvas({
           pitch: terrain3D ? 60 : 0,
         }}
         onClick={handleMapClick}
+        onLoad={() => setCurrentZoom(mapRef.current?.getZoom() ?? DEFAULT_HOME_VIEW.zoom)}
+        onMoveEnd={() => setCurrentZoom(mapRef.current?.getZoom() ?? DEFAULT_HOME_VIEW.zoom)}
         mapStyle={isSatellite ? SATELLITE_STYLE : VOYAGER_STYLE}
         terrain={terrain3D ? { source: 'terrain-source', exaggeration: 1.5 } : undefined}
         style={{ width: "100%", height: "100%" }}
@@ -661,7 +744,10 @@ export default function MapCanvas({
               return [];
             }
 
-            const color = trace.collectionColor || trace.color || "#0000ff";
+            const color = resolveCollectionColor(
+              trace.collection_id,
+              trace.collectionColor || trace.color || "#0000ff"
+            );
             const isSelected = selectedFeatureId === trace.id;
             const properties: FeatureProperties = {
               id: trace.id,
@@ -723,7 +809,10 @@ export default function MapCanvas({
               return [];
             }
 
-            const color = area.collectionColor || area.color || "#10b981";
+            const color = resolveCollectionColor(
+              area.collection_id,
+              area.collectionColor || area.color || "#10b981"
+            );
             const isSelected = selectedFeatureId === area.id;
             const properties: FeatureProperties = {
               id: area.id,
@@ -748,17 +837,83 @@ export default function MapCanvas({
           })}
 
         {/* Figma Liquid Glass React Pins */}
-        {visiblePins.map(pin => {
-          const coords = pin.location?.coordinates;
-          if (!coords || !coords[0]) return null;
-          const isHighlighted = selectedFeatureId === pin.id;
+        {groupedPinMarkers.map((group) => {
+          const representativePin =
+            group.pins.find((pin) => pin.id === selectedFeatureId) ?? group.pins[0];
+          const isHighlighted = group.pins.some((pin) => pin.id === selectedFeatureId);
+          const displayPins =
+            group.pins.length > 2 ? [group.pins[1] ?? group.pins[0], representativePin] : group.pins.slice(0, 2);
+
+          const openRepresentativePin = (event: { stopPropagation?: () => void } | undefined) => {
+            event?.stopPropagation?.();
+            onPinSelected?.(representativePin.id, representativePin);
+            setHighlightedFeatureId(representativePin.id);
+            setActiveFeature({
+              id: representativePin.id,
+              type: "pin",
+              properties: representativePin,
+              coordinates: { lng: group.lng, lat: group.lat },
+            });
+          };
+
+          const handleGroupCountClick = (event: { stopPropagation: () => void }) => {
+            event.stopPropagation();
+            zoomIntoPinGroup(group);
+          };
+
           return (
-            <Marker key={pin.id} longitude={coords[0]} latitude={coords[1]} anchor="bottom" onClick={(e) => { e.originalEvent.stopPropagation(); onPinSelected?.(pin.id, pin); setHighlightedFeatureId(pin.id); setActiveFeature({ id: pin.id, type: 'pin', properties: pin, coordinates: { lng: coords[0], lat: coords[1] } }); }}>
-              <div data-testid={`pin-marker-${pin.id}`} className="flex flex-col items-center gap-1 group cursor-pointer hover:-translate-y-2 transition-transform duration-300">
-                <div className={`relative transition-transform duration-300 ${isHighlighted ? 'scale-125 z-50' : 'hover:scale-110'}`}>
-                  <GlassPinIcon className="w-[48px] h-[60px] drop-shadow-xl" accentColor={pin.collectionColor || "#1A1A1A"} />
-                  {isHighlighted && <div className="absolute inset-0 rounded-full border border-white/60 animate-pulse pointer-events-none" style={{ borderRadius: '50%', transform: 'scale(0.8) translateY(-10%)' }} />}
+            <Marker
+              key={`pin-group-${group.id}`}
+              longitude={group.lng}
+              latitude={group.lat}
+              anchor="bottom"
+            >
+              <div
+                data-testid={`pin-marker-${representativePin.id}`}
+                className="group relative flex h-[74px] w-[74px] cursor-pointer items-end justify-center"
+                onClick={openRepresentativePin}
+              >
+                {displayPins.length > 1 ? (
+                  <div className="pointer-events-none absolute bottom-[2px] left-1/2 -translate-x-[58%] translate-y-[-1px] opacity-95">
+                    <GlassPinIcon
+                      className="h-[48px] w-[38px] drop-shadow-[0px_8px_18px_rgba(0,0,0,0.24)]"
+                      accentColor={resolveCollectionColor(
+                        displayPins[0].collection_id,
+                        displayPins[0].collectionColor || "#1A1A1A"
+                      )}
+                    />
+                  </div>
+                ) : null}
+
+                <div
+                  className={`relative z-[2] transition-transform duration-300 ${isHighlighted ? "scale-125" : "group-hover:-translate-y-1 group-hover:scale-105"}`}
+                >
+                  <GlassPinIcon
+                    className="h-[60px] w-[48px] drop-shadow-xl"
+                    accentColor={resolveCollectionColor(
+                      representativePin.collection_id,
+                      representativePin.collectionColor || "#1A1A1A"
+                    )}
+                  />
+                  {isHighlighted ? (
+                    <div
+                      className="pointer-events-none absolute inset-0 rounded-full border border-white/60 animate-pulse"
+                      style={{ borderRadius: "50%", transform: "scale(0.8) translateY(-10%)" }}
+                    />
+                  ) : null}
                 </div>
+
+                {group.pins.length > 1 ? (
+                  <button
+                    type="button"
+                    onClick={handleGroupCountClick}
+                    className="absolute left-[6px] top-[6px] z-[3] flex h-7 min-w-7 items-center justify-center rounded-full border border-white/60 bg-[#1a1a1a]/82 px-1.5 text-[12px] font-black text-white shadow-[0px_6px_16px_rgba(0,0,0,0.26)] backdrop-blur-md transition-transform duration-200 hover:scale-105"
+                    aria-label={`Zoom into ${group.pins.length} overlapping pins`}
+                    title="Zoom in to reveal overlapping pins"
+                  >
+                    {group.pins.length}
+                  </button>
+                ) : null}
               </div>
             </Marker>
           );
@@ -797,7 +952,7 @@ export default function MapCanvas({
         ) : null}
       </Map>
 
-      <div className="pointer-events-none absolute right-4 top-20 z-30 flex flex-col gap-2 md:right-6 md:top-28">
+      <div className="pointer-events-none absolute right-3 top-32 z-30 flex flex-col gap-2 md:right-6 md:top-28">
         <button
           type="button"
           onClick={() => requestLocation("manual")}

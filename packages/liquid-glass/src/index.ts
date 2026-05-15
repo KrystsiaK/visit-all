@@ -1,6 +1,7 @@
 export {
   LiquidGlassSurface,
   TintedGlassSurface,
+  StainedGlassSurface,
   getLiquidGlassClassName,
   liquidGlassSurfaceVariants,
   liquidGlassToneClasses,
@@ -9,6 +10,7 @@ export {
   type LiquidGlassEffect,
   type LiquidGlassSurfaceProps,
   type TintedGlassSurfaceProps,
+  type StainedGlassSurfaceProps,
 } from "./materials";
 export { GlassInput, type GlassInputProps } from "./GlassInput";
 export { GlassFilterDefs } from "./GlassFilterDefs";

@@ -21,6 +21,7 @@ import {
   removeEntityMediaItem,
   removeEntityResourceLink,
   removeEntityStoryEntry,
+  removeShellWidgetPlacement,
   reorderEntityWidgets,
   updateEntityInfo,
   updateEntityTitle,
@@ -756,14 +757,25 @@ export const useEntityWidgetBindings = ({
   };
 
   const handleRemoveWidget = async (widgetId: string) => {
-    if (!entityType || !entityId) {
-      return;
-    }
-
     setRemovingWidgetId(widgetId);
 
     try {
-      await removeEntityWidget(entityType, entityId, widgetId);
+      const widget = entityWidgets.find((current) => current.id === widgetId);
+
+      if (!widget) {
+        return;
+      }
+
+      if (widget.layer === "shell") {
+        await removeShellWidgetPlacement(widgetId, "shared_entity_shell");
+      } else {
+        if (!entityType || !entityId) {
+          return;
+        }
+
+        await removeEntityWidget(entityType, entityId, widgetId);
+      }
+
       setEntityWidgets((current) => current.filter((widget) => widget.id !== widgetId));
     } catch (error) {
       console.error(error);

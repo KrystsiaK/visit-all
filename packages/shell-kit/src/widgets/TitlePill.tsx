@@ -40,7 +40,7 @@ function TitlePillTextRow({
         <span
           className="shrink-0 whitespace-nowrap text-[10px] font-black uppercase tracking-[0.18em]"
           style={{
-            color: "rgba(104, 120, 148, 0.92)",
+            color: "rgba(88, 101, 128, 0.98)",
           }}
         >
           {eyebrow}
@@ -50,7 +50,7 @@ function TitlePillTextRow({
         <span
           className="min-w-0 truncate whitespace-nowrap text-xs font-semibold"
           style={{
-            color: "rgba(132, 150, 182, 0.96)",
+            color: "rgba(92, 108, 138, 0.98)",
           }}
         >
           {summary}
@@ -91,8 +91,8 @@ export function TitlePill({
           padding: hovered ? "0.5rem 0.95rem" : "0.375rem 0.75rem",
           borderRadius: "999px",
           boxShadow: hovered
-            ? "0 8px 26px rgba(0,0,0,0.18)"
-            : "0 6px 18px rgba(0,0,0,0.14)",
+            ? "0 10px 28px rgba(0,0,0,0.18)"
+            : "0 7px 20px rgba(0,0,0,0.14)",
         }}
         transition={{ duration: 0.4, ease: [0.175, 0.885, 0.32, 2.2] }}
         className={cn(
@@ -116,7 +116,7 @@ export function TitlePill({
           aria-hidden="true"
           className="pointer-events-none absolute inset-0 z-[1]"
           style={{
-            background: "rgba(255,255,255,0.14)",
+            background: "rgba(255,255,255,0.24)",
           }}
         />
         <div
@@ -130,7 +130,7 @@ export function TitlePill({
         <div className="pointer-events-none absolute inset-0 z-[2] rounded-full bg-[radial-gradient(78%_24%_at_50%_0%,rgba(255,255,255,0.2),rgba(255,255,255,0.04)_42%,rgba(255,255,255,0)_76%)]" />
         <div
           className="relative z-[3] flex min-w-0 flex-1 items-center overflow-hidden"
-          style={{ color: "rgba(228, 234, 244, 0.94)" }}
+          style={{ color: "rgba(54, 66, 92, 0.98)" }}
         >
           <TitlePillTextRow
             eyebrow={eyebrow}
@@ -168,8 +168,8 @@ export function CompactTitlePill({
           padding: hovered ? "0.5rem 0.95rem" : "0.375rem 0.75rem",
           borderRadius: "999px",
           boxShadow: hovered
-            ? "0 8px 26px rgba(0,0,0,0.18)"
-            : "0 6px 18px rgba(0,0,0,0.14)",
+            ? "0 10px 28px rgba(0,0,0,0.18)"
+            : "0 7px 20px rgba(0,0,0,0.14)",
         }}
         transition={{ duration: 0.4, ease: [0.175, 0.885, 0.32, 2.2] }}
         className={cn(
@@ -193,7 +193,7 @@ export function CompactTitlePill({
           aria-hidden="true"
           className="pointer-events-none absolute inset-0 z-[1]"
           style={{
-            background: "rgba(255,255,255,0.14)",
+            background: "rgba(255,255,255,0.24)",
           }}
         />
         <div
@@ -217,7 +217,7 @@ export function CompactTitlePill({
           <span
             className="min-w-0 truncate whitespace-nowrap text-[11px] font-semibold uppercase tracking-[0.14em]"
             style={{
-              color: "rgba(104, 120, 148, 0.96)",
+              color: "rgba(88, 101, 128, 0.98)",
             }}
           >
             {label}

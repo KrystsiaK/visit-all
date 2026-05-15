@@ -1,6 +1,6 @@
 "use client";
 
-import { Blocks, Compass, Globe2, Image, Layers3, Link2, Map, MapPin, NotebookPen, Route, Search, ShieldAlert, SlidersHorizontal, Star, UserRound, Wrench } from "lucide-react";
+import { Blocks, Clock3, Compass, Globe2, Image, Layers3, Link2, Map, MapPin, NotebookPen, Route, Search, ShieldAlert, SlidersHorizontal, Star, UserRound, Wrench } from "lucide-react";
 
 import type { WidgetDefinitionRecord } from "@/lib/widgets";
 import { cn } from "@/components/ui/utils";
@@ -122,6 +122,22 @@ const previewManifestByComponentKey: Record<string, PreviewManifest> = {
     icon: Blocks,
     tone: "mist",
     chips: ["Top", "Chrome"],
+  },
+  shell_notes: {
+    eyebrow: "Shell",
+    title: "Shell Notes",
+    subtitle: "Reusable notes widget for left, right, or profile shells.",
+    icon: NotebookPen,
+    tone: "cream",
+    chips: ["Multi Host", "Notes"],
+  },
+  shell_clock: {
+    eyebrow: "Shell",
+    title: "Shell Clock",
+    subtitle: "Single shell clock that can live wherever you need it.",
+    icon: Clock3,
+    tone: "mist",
+    chips: ["Single Host", "Time"],
   },
   entity_info: {
     eyebrow: "Entity",

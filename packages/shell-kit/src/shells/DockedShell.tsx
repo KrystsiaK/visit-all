@@ -27,6 +27,8 @@ interface DockedShellProps {
   zIndexClassName?: string;
   backdropClassName?: string;
   shellStyle?: CSSProperties;
+  fullWidthOnMobile?: boolean;
+  swipeToClose?: boolean;
 }
 
 export const DockedShell = ({
@@ -50,11 +52,18 @@ export const DockedShell = ({
   zIndexClassName = "z-50",
   backdropClassName,
   shellStyle,
+  fullWidthOnMobile = false,
+  swipeToClose = false,
 }: DockedShellProps) => {
+  const widthClassName =
+    fullWidthOnMobile && placement === "right"
+      ? "w-screen md:w-[var(--dock-width)]"
+      : "w-[var(--dock-width)]";
+
   const shellClassName =
     placement === "left"
-      ? `fixed inset-y-0 left-0 flex w-[var(--dock-width)] max-w-[100vw] flex-col pointer-events-none ${zIndexClassName}`
-      : `fixed inset-y-0 right-0 flex w-[var(--dock-width)] max-w-[100vw] flex-col pointer-events-none ${zIndexClassName}`;
+      ? `fixed inset-y-0 left-0 flex ${widthClassName} max-w-[100vw] flex-col pointer-events-none ${zIndexClassName}`
+      : `fixed inset-y-0 right-0 flex ${widthClassName} max-w-[100vw] flex-col pointer-events-none ${zIndexClassName}`;
 
   const mergedShellStyle = {
     ["--dock-width" as string]: `${width}px`,
@@ -84,10 +93,11 @@ export const DockedShell = ({
       scrollContainerDataId={scrollContainerDataId}
       pinnedContent={pinnedContent}
       scrollBodyClassName="min-h-0 flex-1 overflow-y-auto overflow-x-visible no-scrollbar [will-change:scroll-position]"
-      scrollContentClassName="flex min-h-full w-full flex-col gap-6 px-3 pt-6 pb-8 md:px-4"
-      pinnedClassName="sticky top-6 z-[5] shrink-0"
-      childrenClassName={pinnedContent ? "flex w-full flex-col gap-3 pt-4 pointer-events-auto" : "flex w-full flex-col gap-3 pointer-events-auto"}
+      scrollContentClassName="flex min-h-full w-full flex-col gap-6 px-3 pt-3 pb-6 md:px-3 md:pt-3 md:pb-6"
+      pinnedClassName="sticky top-3 z-[5] shrink-0"
+      childrenClassName={pinnedContent ? "flex w-full flex-col gap-3 pt-12 pointer-events-auto" : "flex w-full flex-col gap-3 pointer-events-auto"}
       backdropClassName={backdropClassName}
+      swipeToClose={swipeToClose}
     >
       {children}
     </BaseShell>

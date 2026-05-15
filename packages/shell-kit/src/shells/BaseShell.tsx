@@ -5,6 +5,10 @@ import {
   type ReactNode,
   type RefCallback,
   type CSSProperties,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
 } from "react";
 import type { Variants } from "framer-motion";
 
@@ -55,6 +59,7 @@ interface BaseShellProps {
   shellInitial?: string;
   shellAnimate?: string;
   shellExit?: string;
+  swipeToClose?: boolean;
 }
 
 export const BaseShell = ({
@@ -94,20 +99,137 @@ export const BaseShell = ({
   shellInitial = "hidden",
   shellAnimate = "visible",
   shellExit = "exit",
+  swipeToClose = false,
 }: BaseShellProps) => {
   const resolvedEntrance = entrance ?? (placement ? entranceFromPlacement(placement) : undefined);
   const resolved = resolveShellEntrance(resolvedEntrance, shellVariants, sectionVariants);
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
+  const [swipeOffset, setSwipeOffset] = useState(0);
+  const [swipeTransitionActive, setSwipeTransitionActive] = useState(false);
+  const swipeSessionRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    active: boolean;
+    lockedAxis: "x" | "y" | null;
+    startedAt: number;
+  } | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const mediaQuery = window.matchMedia("(max-width: 767px)");
+    const syncViewport = () => setIsMobileViewport(mediaQuery.matches);
+
+    syncViewport();
+    mediaQuery.addEventListener("change", syncViewport);
+    return () => mediaQuery.removeEventListener("change", syncViewport);
+  }, []);
+
+  const swipeEnabled = swipeToClose && placement === "right" && isMobileViewport;
+  const swipeThreshold = 96;
+  const swipeVelocityThreshold = 0.55;
+
+  const surfaceTransform = useMemo(() => {
+    if (!swipeEnabled || swipeOffset <= 0) {
+      return undefined;
+    }
+
+    return `translate3d(${swipeOffset}px, 0, 0)`;
+  }, [swipeEnabled, swipeOffset]);
+
+  const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!swipeEnabled) {
+      return;
+    }
+
+    swipeSessionRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      active: true,
+      lockedAxis: null,
+      startedAt: event.timeStamp,
+    };
+    setSwipeTransitionActive(false);
+  };
+
+  const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    const swipeSession = swipeSessionRef.current;
+    if (!swipeEnabled || !swipeSession || !swipeSession.active || swipeSession.pointerId !== event.pointerId) {
+      return;
+    }
+
+    const deltaX = event.clientX - swipeSession.startX;
+    const deltaY = event.clientY - swipeSession.startY;
+
+    if (!swipeSession.lockedAxis) {
+      if (Math.abs(deltaX) < 8 && Math.abs(deltaY) < 8) {
+        return;
+      }
+
+      swipeSession.lockedAxis = Math.abs(deltaX) > Math.abs(deltaY) ? "x" : "y";
+    }
+
+    if (swipeSession.lockedAxis !== "x") {
+      swipeSession.active = false;
+      return;
+    }
+
+    if (deltaX <= 0) {
+      setSwipeOffset(0);
+      return;
+    }
+
+    setSwipeOffset(deltaX);
+  };
+
+  const completeSwipeSession = (event: React.PointerEvent<HTMLDivElement>) => {
+    const swipeSession = swipeSessionRef.current;
+    if (!swipeEnabled || !swipeSession || swipeSession.pointerId !== event.pointerId) {
+      return;
+    }
+
+    swipeSessionRef.current = null;
+
+    if (swipeSession.lockedAxis !== "x") {
+      setSwipeOffset(0);
+      return;
+    }
+
+    const elapsedMs = Math.max(event.timeStamp - swipeSession.startedAt, 1);
+    const velocityX = swipeOffset / elapsedMs;
+
+    if (swipeOffset >= swipeThreshold || velocityX >= swipeVelocityThreshold) {
+      handleClose();
+      return;
+    }
+
+    setSwipeTransitionActive(true);
+    setSwipeOffset(0);
+    window.setTimeout(() => setSwipeTransitionActive(false), 220);
+  };
+
+  const handleClose = () => {
+    swipeSessionRef.current = null;
+    setSwipeOffset(0);
+    setSwipeTransitionActive(false);
+    onClose();
+  };
 
   return (
-    <AnimatePresence>
-      {isOpen ? (
-        <>
-          <GlassFilterDefs />
+    <>
+      <GlassFilterDefs />
+      <AnimatePresence>
+        {isOpen ? (
+          <>
           {showBackdrop ? (
             <motion.button
               type="button"
               aria-label={backdropCloseLabel}
-              onClick={onClose}
+              onClick={handleClose}
               className={backdropClassName}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -123,7 +245,18 @@ export const BaseShell = ({
             animate={shellAnimate}
             exit={shellExit}
           >
-            <div className={surfaceClassName}>
+            <div
+              className={surfaceClassName}
+              onPointerDown={handlePointerDown}
+              onPointerMove={handlePointerMove}
+              onPointerUp={completeSwipeSession}
+              onPointerCancel={completeSwipeSession}
+              style={{
+                transform: surfaceTransform,
+                transition: swipeTransitionActive ? "transform 220ms cubic-bezier(0.22, 0.9, 0.24, 1)" : undefined,
+                touchAction: swipeEnabled ? "pan-y" : undefined,
+              }}
+            >
               <div
                 aria-hidden="true"
                 className="pointer-events-none absolute inset-0 z-0 overflow-hidden rounded-[inherit] [isolation:isolate]"
@@ -182,7 +315,7 @@ export const BaseShell = ({
                       {showCloseButton ? (
                         closeButton ?? (
                           <button
-                            onClick={onClose}
+                            onClick={handleClose}
                             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/8 text-[rgba(132,150,182,0.96)] transition-colors hover:bg-white/14"
                             aria-label={closeLabel}
                           >
@@ -215,8 +348,9 @@ export const BaseShell = ({
               </div>
             </div>
           </motion.div>
-        </>
-      ) : null}
-    </AnimatePresence>
+          </>
+        ) : null}
+      </AnimatePresence>
+    </>
   );
 };

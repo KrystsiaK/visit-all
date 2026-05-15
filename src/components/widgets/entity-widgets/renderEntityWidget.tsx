@@ -8,6 +8,8 @@ import { EntityPlaceholderWidgetCard } from "@/components/widgets/EntityPlacehol
 import { EntityRatingWidgetCard } from "@/components/widgets/EntityRatingWidgetCard";
 import { EntityResourcesWidgetCard } from "@/components/widgets/EntityResourcesWidgetCard";
 import { EntityStoriesWidgetCard } from "@/components/widgets/EntityStoriesWidgetCard";
+import { ShellNotesWidget } from "@/components/widgets/shell-widgets/ShellNotesWidget";
+import { ShellClockWidget } from "@/components/widgets/shell-widgets/ShellClockWidget";
 import type { WidgetEntityPayload, WidgetInstanceRecord } from "@/lib/widgets";
 import type { EntityWidgetBindingsResult } from "@/components/widgets/entity-widgets/useEntityWidgetBindings";
 
@@ -209,6 +211,28 @@ export const renderEntityWidget = ({
           removing={removing}
           canRemove={removable}
           onRemove={() => void bindings.handleRemoveWidget(widget.id)}
+        />
+      </div>
+    );
+  }
+
+  if (widget.componentKey === "shell_notes") {
+    return (
+      <div>
+        <ShellNotesWidget
+          widget={widget}
+          onDelete={() => void bindings.handleRemoveWidget(widget.id)}
+        />
+      </div>
+    );
+  }
+
+  if (widget.componentKey === "shell_clock") {
+    return (
+      <div>
+        <ShellClockWidget
+          widget={widget}
+          onDelete={() => void bindings.handleRemoveWidget(widget.id)}
         />
       </div>
     );

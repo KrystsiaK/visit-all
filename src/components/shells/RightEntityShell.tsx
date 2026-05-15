@@ -56,11 +56,13 @@ const RightEntityShellInner = ({
         mobileHandle={false}
         placement="right"
         width={376}
-        zIndexClassName="z-50"
+        fullWidthOnMobile
+        swipeToClose
+        zIndexClassName="z-[90]"
         scrollContainerRef={registerScrollContainer}
         scrollContainerDataId={shellId}
         pinnedContent={pinnedChildren}
-        backdropClassName="fixed inset-0 z-[48] bg-black/14 backdrop-blur-[1px]"
+        backdropClassName="fixed inset-0 z-[88] bg-black/14 backdrop-blur-[1px]"
         showBackdrop={true}
       >
         <WidgetProvider
