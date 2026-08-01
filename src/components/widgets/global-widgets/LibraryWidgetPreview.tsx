@@ -1,294 +1,280 @@
 "use client";
 
-import { Blocks, Clock3, Compass, Globe2, Image, Layers3, Link2, Map, MapPin, NotebookPen, Route, Search, ShieldAlert, SlidersHorizontal, Star, UserRound, Wrench } from "lucide-react";
+import { WIDGET_GLASS } from "@/modules/shell/constants";
 
-import type { WidgetDefinitionRecord } from "@/lib/widgets";
-import { cn } from "@/components/ui/utils";
+import { useMemo, useState, type ComponentType } from "react";
+import { Blocks } from "lucide-react";
+import { BaseWidget } from "@synarava/shell-kit";
+import { PreviewSignalBusProvider, WiringConfigProvider, type WiringConfig } from "@synarava/wiring-engine";
 
-type PreviewTone = "mist" | "cream" | "rose" | "neutral";
+import { CurrentWidgetProvider, EntityProvider } from "@/modules/entity/EntityContext";
+import type { EntityWidgetBindingsResult } from "@/modules/entity/hooks/useEntityWidgetBindings";
+import { MapControlsProvider } from "@/contexts/map-controls-context";
+import { MapModeProvider } from "@/modules/map/MapModeContext";
+import { UserShellProvider } from "@/contexts/user-shell-context";
+import { CollectionsStateProvider } from "@/modules/collections/CollectionsContext";
+import {
+  ENTITY_WIDGET_REGISTRY,
+  GLOBAL_WIDGET_REGISTRY,
+  USER_WIDGET_REGISTRY,
+  WIDGET_REGISTRY,
+} from "@/modules/shell/widget-manifest";
+import { DEFAULT_MAP_STYLE_ID, type MapStyleId } from "@/modules/map/config";
+import type { WidgetDefinitionRecord, WidgetInstanceRecord } from "@/lib/widgets";
+import type { InteractionMode } from "@/modules/collections/types";
+import type { TraceRoutingMode } from "@/modules/map/types";
 
-type PreviewManifest = {
-  eyebrow: string;
-  title: string;
-  subtitle: string;
-  icon: typeof MapPin;
-  tone: PreviewTone;
-  chips: string[];
-  lines?: number;
+const PREVIEW_WIRING: WiringConfig = {
+  shellId: "widget-library-preview",
+  userConnections: [],
+  systemBindings: [
+    {
+      busKey: "preview.mode",
+      label: "Preview interaction mode",
+      source: { widgetKey: "shell_mode_switch", portKey: "mode_out" },
+      sinks: [{ widgetKey: "shell_mode_switch", portKey: "mode_in" }],
+    },
+  ],
 };
 
-const previewManifestByComponentKey: Record<string, PreviewManifest> = {
-  global_overview: {
-    eyebrow: "Global",
-    title: "Workspace Overview",
-    subtitle: "High-level map and shell summary.",
-    icon: Globe2,
-    tone: "mist",
-    chips: ["Live", "Signals", "Overview"],
-  },
-  user_profile: {
-    eyebrow: "User",
-    title: "Profile",
-    subtitle: "Identity, display name, avatar style.",
-    icon: UserRound,
-    tone: "neutral",
-    chips: ["Identity", "Account"],
-  },
-  user_account_actions: {
-    eyebrow: "User",
-    title: "Account Actions",
-    subtitle: "Verification, reset, password maintenance.",
-    icon: ShieldAlert,
-    tone: "neutral",
-    chips: ["Security", "Auth"],
-  },
-  shell_header: {
-    eyebrow: "Shell",
-    title: "Header",
-    subtitle: "Persistent shell framing and context.",
-    icon: Blocks,
-    tone: "mist",
-    chips: ["Pinned", "Primary"],
-  },
-  shell_search: {
-    eyebrow: "Shell",
-    title: "Search",
-    subtitle: "Local shell query input and filtering.",
-    icon: Search,
-    tone: "mist",
-    chips: ["Filter", "Runtime"],
-  },
-  shell_mode_switch: {
-    eyebrow: "Shell",
-    title: "Mode Switch",
-    subtitle: "Pins, paths, and zones interaction mode.",
-    icon: Compass,
-    tone: "mist",
-    chips: ["Pin", "Trace", "Area"],
-  },
-  shell_collections: {
-    eyebrow: "Shell",
-    title: "Collections",
-    subtitle: "Visible layers, editing state, selection target.",
-    icon: Layers3,
-    tone: "mist",
-    chips: ["List", "Target", "Visibility"],
-    lines: 4,
-  },
-  shell_controls: {
-    eyebrow: "Shell",
-    title: "Map Controls",
-    subtitle: "Satellite, terrain, curve, and display toggles.",
-    icon: SlidersHorizontal,
-    tone: "mist",
-    chips: ["Map", "View"],
-  },
-  shell_create_collection: {
-    eyebrow: "Action",
-    title: "Create Collection",
-    subtitle: "Add a new layer target for authoring.",
-    icon: Map,
-    tone: "cream",
-    chips: ["Create"],
-  },
-  shell_reset_view: {
-    eyebrow: "Action",
-    title: "Reset View",
-    subtitle: "Return the map camera to the home frame.",
-    icon: Compass,
-    tone: "cream",
-    chips: ["View"],
-  },
-  shell_finish_trace: {
-    eyebrow: "Action",
-    title: "Finish Path",
-    subtitle: "Commit the drafted route geometry.",
-    icon: Route,
-    tone: "cream",
-    chips: ["Commit", "Trace"],
-  },
-  shell_remove_trace_point: {
-    eyebrow: "Action",
-    title: "Remove Point",
-    subtitle: "Delete the selected node from the draft.",
-    icon: Wrench,
-    tone: "cream",
-    chips: ["Edit", "Trace"],
-  },
-  shell_chrome_primary: {
-    eyebrow: "Chrome",
-    title: "Primary Chrome",
-    subtitle: "Brand and shell launcher controls.",
-    icon: Blocks,
-    tone: "mist",
-    chips: ["Top", "Chrome"],
-  },
-  shell_notes: {
-    eyebrow: "Shell",
-    title: "Shell Notes",
-    subtitle: "Reusable notes widget for left, right, or profile shells.",
-    icon: NotebookPen,
-    tone: "cream",
-    chips: ["Multi Host", "Notes"],
-  },
-  shell_clock: {
-    eyebrow: "Shell",
-    title: "Shell Clock",
-    subtitle: "Single shell clock that can live wherever you need it.",
-    icon: Clock3,
-    tone: "mist",
-    chips: ["Single Host", "Time"],
-  },
-  entity_info: {
-    eyebrow: "Entity",
-    title: "Entity Info",
-    subtitle: "Summary, title, collection, primary metadata.",
-    icon: MapPin,
-    tone: "neutral",
-    chips: ["Summary", "Primary"],
-  },
-  entity_delete: {
-    eyebrow: "Entity",
-    title: "Delete Entity",
-    subtitle: "Dangerous action with confirmation flow.",
-    icon: ShieldAlert,
-    tone: "rose",
-    chips: ["Danger"],
-  },
-  entity_gallery: {
-    eyebrow: "Entity",
-    title: "Gallery",
-    subtitle: "Image/media strip for the active entity.",
-    icon: Image,
-    tone: "neutral",
-    chips: ["Media", "Assets"],
-  },
-  entity_stories: {
-    eyebrow: "Entity",
-    title: "Stories",
-    subtitle: "Narrative notes and markdown entries.",
-    icon: NotebookPen,
-    tone: "neutral",
-    chips: ["Markdown", "Notes"],
-  },
-  entity_resources: {
-    eyebrow: "Entity",
-    title: "Resources",
-    subtitle: "Links and rich external references.",
-    icon: Link2,
-    tone: "neutral",
-    chips: ["Links", "Preview"],
-  },
-  entity_rating: {
-    eyebrow: "Entity",
-    title: "Rating",
-    subtitle: "Structured qualitative scoring for pins.",
-    icon: Star,
-    tone: "cream",
-    chips: ["1-5", "Score"],
-  },
-  entity_nearby_pins: {
-    eyebrow: "Entity",
-    title: "Nearby Pins",
-    subtitle: "Contextual nearby places around the entity.",
-    icon: MapPin,
-    tone: "mist",
-    chips: ["Spatial", "Discovery"],
-  },
-  entity_transport_mode: {
-    eyebrow: "Entity",
-    title: "Transport Mode",
-    subtitle: "Travel mode enrichment for route entities.",
-    icon: Route,
-    tone: "cream",
-    chips: ["Trace", "Metadata"],
-  },
-};
+const unsafeInteractivePreviews = new Set([
+  "user_account_actions",
+]);
 
-const toneClasses: Record<PreviewTone, string> = {
-  neutral: "border-black/10 bg-white/72",
-  mist: "border-[#7fc2e9]/28 bg-[#eef8ff]/78",
-  cream: "border-[#f0cb62]/28 bg-[#fff5da]/80",
-  rose: "border-[#e3a1a1]/28 bg-[#fff0f0]/80",
-};
+function makePreviewWidget(definition: WidgetDefinitionRecord): WidgetInstanceRecord {
+  return {
+    id: `preview-${definition.id}`,
+    definitionId: definition.id,
+    slug: definition.slug,
+    name: definition.name,
+    layer: definition.layer,
+    entityType: definition.layer === "entity" ? "pin" : null,
+    entityId: definition.layer === "entity" ? "preview-entity" : null,
+    componentKey: definition.componentKey,
+    position: 0,
+    config: definition.defaultConfig,
+    state: {},
+  };
+}
 
-const chipToneClasses: Record<PreviewTone, string> = {
-  neutral: "bg-white/88 text-neutral-700",
-  mist: "bg-white/76 text-[#28506b]",
-  cream: "bg-white/72 text-[#6d5319]",
-  rose: "bg-white/72 text-[#744242]",
-};
-
-const fallbackPreview = (definition: WidgetDefinitionRecord): PreviewManifest => ({
-  eyebrow: definition.layer === "shell" ? "Shell" : definition.layer === "entity" ? "Entity" : "Global",
-  title: definition.name,
-  subtitle: "Framework-native widget preview.",
-  icon: Blocks,
-  tone: "neutral",
-  chips: [definition.layer],
-});
-
-export const LibraryWidgetPreview = ({
+function PreviewEnvironment({
   definition,
+  Component,
 }: {
   definition: WidgetDefinitionRecord;
-}) => {
-  const preview = previewManifestByComponentKey[definition.componentKey] ?? fallbackPreview(definition);
-  const Icon = preview.icon;
-  const lines = preview.lines ?? 3;
+  Component: ComponentType;
+}) {
+  const widget = useMemo(() => makePreviewWidget(definition), [definition]);
+  const isTraceAction =
+    definition.componentKey === "shell_finish_trace" ||
+    definition.componentKey === "shell_remove_trace_point";
+  const [mode, setMode] = useState<InteractionMode>(isTraceAction ? "trace" : "pin");
+  const [traceRoutingMode, setTraceRoutingMode] = useState<TraceRoutingMode>("direct");
+  const [mapStyleId, setMapStyleId] = useState<MapStyleId>(DEFAULT_MAP_STYLE_ID);
+  const [terrain3D, setTerrain3D] = useState(false);
+  const [curveMode, setCurveMode] = useState(false);
+  const [entityTitle, setEntityTitle] = useState("Museum of Modern Art");
+  const [entityRating, setEntityRating] = useState<number | null>(4);
+  const [collections, setCollections] = useState([
+    { id: "preview-art", name: "Art & Design", color: "#ff1b0a", icon: "A", itemCount: 12 },
+    { id: "preview-food", name: "Local Food", color: "#1122ff", icon: "F", itemCount: 8 },
+  ]);
+
+  const entityBindings = useMemo(
+    () => ({
+      normalizedEntity: {
+        id: "preview-entity",
+        type: "pin" as const,
+        title: "Museum of Modern Art",
+        subtitle: "Culture Collection",
+        description: "A saved place preview.",
+        imageUrl: null,
+        collection: { id: "preview-collection", name: "New York", color: "#ff1b0a", type: "pin" },
+        geometryKind: "point" as const,
+        metadata: {},
+      },
+      entityWidgets: [widget],
+      pinnedEntityWidgets: [],
+      mainEntityWidgets: [widget],
+      loading: false,
+      supportsDirectPinEditing: true,
+      entityInteractionsUnavailable: false,
+      draggedWidgetId: null,
+      handleSlotPointerDown: () => undefined,
+      entityTitle,
+      pinNote: "A compact live preview of the selected place.",
+      pinImage: null,
+      imageFile: null,
+      mediaItems: [],
+      nearbyPins: [],
+      resourceLinks: [],
+      storyEntries: [],
+      entityRating,
+      saving: false,
+      storySaving: false,
+      mediaSaving: false,
+      removingWidgetId: null,
+      deleteWarningOpen: false,
+      handleNoteChange: () => undefined,
+      handleTitleChange: setEntityTitle,
+      handleTitleCommit: async () => undefined,
+      handleImageUpload: async () => undefined,
+      handleImageDelete: async () => undefined,
+      handleMediaItemDelete: async () => undefined,
+      handleAddResourceLink: async () => undefined,
+      handleRemoveResourceLink: async () => undefined,
+      handleCommitResourceLink: async () => undefined,
+      handleSaveStoryEntry: async () => undefined,
+      handleRemoveStoryEntry: async () => undefined,
+      handleDelete: async () => undefined,
+      handleRemoveWidget: async () => undefined,
+      handleRateEntity: async (value: number) => setEntityRating(value),
+      handleOpenNearbyPin: () => undefined,
+      handleUpdateWidgetBackground: async () => undefined,
+      handleClose: async () => undefined,
+      setDeleteWarningOpen: () => undefined,
+    }),
+    [entityRating, entityTitle, widget]
+  ) as unknown as EntityWidgetBindingsResult;
 
   return (
-    <div
-      className={cn(
-        "relative overflow-hidden rounded-[28px] border p-4 shadow-[0px_12px_36px_rgba(0,0,0,0.07)]",
-        toneClasses[preview.tone]
-      )}
-    >
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.38),rgba(255,255,255,0.12)_38%,transparent_72%)]" />
-      <div className="relative">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-neutral-500">
-              {preview.eyebrow}
-            </p>
-            <h3 className="mt-2 truncate text-base font-semibold tracking-tight text-neutral-950">
-              {preview.title}
-            </h3>
-            <p className="mt-1 line-clamp-2 text-sm leading-5 text-neutral-600">
-              {preview.subtitle}
-            </p>
-          </div>
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/82 text-neutral-900 shadow-[0px_6px_18px_rgba(0,0,0,0.06)]">
-            <Icon className="h-5 w-5" />
-          </div>
-        </div>
-
-        <div className="mt-4 flex flex-wrap gap-2">
-          {preview.chips.map((chip) => (
-            <span
-              key={chip}
-              className={cn(
-                "rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em]",
-                chipToneClasses[preview.tone]
-              )}
-            >
-              {chip}
-            </span>
-          ))}
-        </div>
-
-        <div className="mt-4 space-y-2">
-          {Array.from({ length: lines }, (_, index) => (
-            <div
-              key={index}
-              className="h-3 rounded-full bg-white/70"
-              style={{
-                width: index === lines - 1 ? "58%" : index === 0 ? "86%" : "72%",
+    <PreviewSignalBusProvider initialSignals={{ "preview.mode": "pin" }}>
+      <WiringConfigProvider config={PREVIEW_WIRING}>
+        <MapModeProvider
+          mode={mode}
+          setMode={setMode}
+          drawingPath={isTraceAction ? [{ lng: 27.55, lat: 53.9 }, { lng: 27.57, lat: 53.91 }] : []}
+          traceRoutingMode={traceRoutingMode}
+          setTraceRoutingMode={setTraceRoutingMode}
+          traceRoutingPending={false}
+          traceRoutingError={null}
+          traceDraftFinalized={false}
+          areaDraftFinalized={false}
+          selectedTraceNodeIndex={definition.componentKey === "shell_remove_trace_point" ? 1 : null}
+          pendingPin={null}
+          editingTraceId={null}
+          editingAreaId={null}
+          onFinishTraceDraft={() => undefined}
+          onFinishAreaDraft={() => undefined}
+          onRemoveSelectedTraceNode={() => undefined}
+          onUndoDraft={() => undefined}
+          onCancelDraft={() => undefined}
+          onClearSelection={() => undefined}
+        >
+          <MapControlsProvider
+            mapStyleId={mapStyleId}
+            setMapStyleId={setMapStyleId}
+            terrain3D={terrain3D}
+            setTerrain3D={setTerrain3D}
+            curveMode={curveMode}
+            setCurveMode={setCurveMode}
+            onResetView={() => undefined}
+            disabled={false}
+          >
+            <UserShellProvider
+              profile={{
+                email: "curator@synarava.com",
+                displayName: "Alex Curator",
+                avatarStyle: "mondrian",
+                emailVerifiedAt: new Date(0).toISOString(),
               }}
-            />
-          ))}
-        </div>
-      </div>
-    </div>
+              loading={false}
+              previewWidgets={[widget]}
+              draggedWidgetId={null}
+              handleSlotPointerDown={() => undefined}
+              savingProfile={false}
+              resendPending={false}
+              resetPending={false}
+              passwordChangePending={false}
+              handleSaveProfile={async () => undefined}
+              handleResendVerification={async () => undefined}
+              handleRequestPasswordReset={async () => undefined}
+              handleChangePassword={async () => ({ ok: true, message: "Preview only" })}
+              handleRemoveWidget={async () => undefined}
+            >
+              <CollectionsStateProvider
+                value={{
+                  collections,
+                  collectionsLoaded: true,
+                  displayCollections: collections,
+                  highlightedCollectionId: collections[0]?.id ?? "",
+                  editingCollectionId: null,
+                  editingCollection: null,
+                  primaryActionLabel: "Open",
+                  selectionCommitPendingId: null,
+                  saving: false,
+                  awaitingCollectionSelection: false,
+                  layerVisibility: Object.fromEntries(
+                    collections.map((collection) => [collection.id, { muted: false, solo: false }])
+                  ),
+                  itemLabel: "pin",
+                  collectionPendingDelete: null,
+                  onCollectionClick: () => undefined,
+                  onToggleCollectionVisibility: () => undefined,
+                  onShowOnlyCollection: () => undefined,
+                  onNameChange: () => undefined,
+                  onColorChange: () => undefined,
+                  onDone: async () => undefined,
+                  onRequestDelete: () => undefined,
+                  onCreateCollection: () =>
+                    setCollections((current) => [
+                      ...current,
+                      {
+                        id: `preview-${current.length + 1}`,
+                        name: "Untitled Layer",
+                        color: "#ffe94d",
+                        icon: "+",
+                        itemCount: 0,
+                      },
+                    ]),
+                  onConfirmDelete: () => undefined,
+                  onImportCollection: async () => undefined,
+                }}
+              >
+                <EntityProvider {...entityBindings}>
+                  <CurrentWidgetProvider value={widget}>
+                    <Component />
+                  </CurrentWidgetProvider>
+                </EntityProvider>
+              </CollectionsStateProvider>
+            </UserShellProvider>
+          </MapControlsProvider>
+        </MapModeProvider>
+      </WiringConfigProvider>
+    </PreviewSignalBusProvider>
   );
-};
+}
+
+function StaticPreview({ definition }: { definition: WidgetDefinitionRecord }) {
+  return (
+    <BaseWidget {...WIDGET_GLASS}
+      eyebrow={definition.layer}
+      title={definition.name}
+      subtitle="This system surface is represented by the package at runtime."
+      identityVisibility="settings-only"
+      accent={
+        <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#111111] text-white">
+          <Blocks className="h-4 w-4" />
+        </div>
+      }
+    >
+      <div className="rounded-2xl border border-black/8 bg-white/55 p-4 text-sm leading-6 text-neutral-600">
+        System-managed widget. Its live controls are available in its native shell.
+      </div>
+    </BaseWidget>
+  );
+}
+
+export function LibraryWidgetPreview({ definition }: { definition: WidgetDefinitionRecord }) {
+  const Component =
+    GLOBAL_WIDGET_REGISTRY[definition.componentKey] ??
+    ENTITY_WIDGET_REGISTRY[definition.componentKey] ??
+    USER_WIDGET_REGISTRY[definition.componentKey] ??
+    WIDGET_REGISTRY[definition.componentKey];
+
+  if (!Component || unsafeInteractivePreviews.has(definition.componentKey)) {
+    return <StaticPreview definition={definition} />;
+  }
+
+  return <PreviewEnvironment definition={definition} Component={Component} />;
+}

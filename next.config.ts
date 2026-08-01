@@ -11,16 +11,16 @@ const cspDirectives = [
   "object-src 'none'",
   `script-src 'self' 'unsafe-inline'${isDevelopment ? " 'unsafe-eval'" : ""}`,
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-  "img-src 'self' data: blob: https://images.unsplash.com https://www.figma.com https://basemaps.cartocdn.com https://*.basemaps.cartocdn.com https://server.arcgisonline.com https://s3.amazonaws.com",
-  "font-src 'self' data: https://fonts.gstatic.com https://basemaps.cartocdn.com https://*.basemaps.cartocdn.com",
-  "connect-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com https://basemaps.cartocdn.com https://*.basemaps.cartocdn.com https://server.arcgisonline.com https://s3.amazonaws.com",
+  "img-src 'self' data: blob: https://images.unsplash.com https://www.figma.com https://basemaps.cartocdn.com https://*.basemaps.cartocdn.com https://api.maptiler.com https://*.maptiler.com https://server.arcgisonline.com https://s3.amazonaws.com",
+  "font-src 'self' data: https://fonts.gstatic.com https://basemaps.cartocdn.com https://*.basemaps.cartocdn.com https://api.maptiler.com https://*.maptiler.com",
+  "connect-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com https://basemaps.cartocdn.com https://*.basemaps.cartocdn.com https://api.maptiler.com https://*.maptiler.com https://photon.komoot.io https://router.project-osrm.org https://server.arcgisonline.com https://s3.amazonaws.com",
   "worker-src 'self' blob:",
   "media-src 'self' blob:",
   "upgrade-insecure-requests",
 ].join("; ");
 
 const nextConfig: NextConfig = {
-  transpilePackages: ["@synarava/shell-kit", "@synarava/liquid-glass"],
+  transpilePackages: ["@synarava/shell-kit", "@synarava/liquid-glass", "@synarava/ui-kit"],
   experimental: {
     serverActions: {
       bodySizeLimit: serverActionBodyLimit,

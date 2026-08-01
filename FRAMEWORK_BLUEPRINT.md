@@ -516,14 +516,13 @@ Incorrect:
 
 ## 17. Current Canonical Entry
 
-Use these first:
+Framework atoms are package-owned:
 
-1. [src/framework/widgets/BaseWidget.tsx](/Users/kirylkrystsia/WebstormProjects/visit-all/src/framework/widgets/BaseWidget.tsx)
-2. [src/framework/widgets/WidgetContext.tsx](/Users/kirylkrystsia/WebstormProjects/visit-all/src/framework/widgets/WidgetContext.tsx)
-3. [src/framework/shells/BaseShell.tsx](/Users/kirylkrystsia/WebstormProjects/visit-all/src/framework/shells/BaseShell.tsx)
-4. [src/framework/shells/ShellRuntime.tsx](/Users/kirylkrystsia/WebstormProjects/visit-all/src/framework/shells/ShellRuntime.tsx)
-5. [src/framework/shells/ShellSlot.tsx](/Users/kirylkrystsia/WebstormProjects/visit-all/src/framework/shells/ShellSlot.tsx)
-6. [src/framework/index.ts](/Users/kirylkrystsia/WebstormProjects/visit-all/src/framework/index.ts)
+1. `@synarava/shell-kit` owns `BaseShell`, `BaseWidget`, `ShellSlot`, widget chrome, motion, and reorder behavior.
+2. `@synarava/liquid-glass` owns glass materials and visual effects.
+3. Published `@synarava/wiring-engine` owns signals, ports, widget definitions, and wiring; its source lives in `/Users/kirylkrystsia/WebstormProjects/synarava-wiring-engine`.
+
+Visit All owns product composition in `src/framework/wiring` and app adapters that connect generic signals to domain contexts.
 
 ---
 
@@ -531,10 +530,173 @@ Use these first:
 
 To keep architecture strict, the next moves should be:
 
-1. move the left shell onto `BaseShell`
-2. move top chrome onto `BaseShell`
-3. keep moving all product widgets onto `BaseWidget`
-4. stop inventing parallel surface/card systems
-5. start using signal/port/connection data model in real runtime flows
+1. finish replacing product signal reads/writes with wiring-engine ports
+2. keep `ShellRuntimeProvider` only for shell-kit layout APIs until shell-kit delegates it to wiring-engine
+3. register the remaining app widgets through `WidgetDefinition`
+4. remove confirmed dead parallel shell/widget implementations
+5. stabilize BaseWidget stories and design tokens before AI widget generation
 
 That is the path toward a real reusable framework instead of a growing pile of custom panels.
+
+---
+
+## 19. Package Architecture (Multi-App Framework Vision)
+
+The long-term goal is a reusable framework that other applications can build on.
+This section defines the canonical package structure and the missing pieces.
+
+### 19.1 Package Pyramid
+
+```
+Level 0 — Foundation (no synarava deps)
+  @synarava/liquid-glass       visual materials, glass surfaces, animations
+
+Level 1 — Primitives (depends on liquid-glass)
+  @synarava/shell-kit          BaseShell, BaseWidget, ShellSlot, DnD
+                               NOTE: ShellRuntime must be migrated to use
+                               @synarava/wiring-engine bus in next version
+
+Level 2 — Signal Bus (depends on react + zustand only)
+  @synarava/wiring-engine      Zustand signal bus + WiringConfig + PortDefinition
+                               + WidgetDefinition contract + defineWidget()
+                               This is the core of the framework.
+
+Level 3 — Application (depends on all above)
+  app widgets                  implement WidgetDefinition from wiring-engine
+  app shells                   extend BaseShell from shell-kit
+  app wiring config            WiringConfig with app-specific SystemBindings
+  AI widget generator          generates WidgetDefinition-conformant components
+```
+
+### 19.2 The WidgetDefinition Contract
+
+This is the missing piece that makes AI generation possible.
+
+Every widget — human-written or AI-generated — must implement this interface:
+
+```ts
+interface WidgetDefinition {
+  key: string                        // unique stable identifier
+  name: string                       // human-readable label
+  ports: PortDefinition[]            // signal inputs and outputs
+  Component: React.ComponentType     // the UI
+  configSchema?: JSONSchema           // config AI can fill in
+  defaultConfig?: Record<string, unknown>
+}
+```
+
+When every widget declares its ports, the WiringEngine can:
+1. Auto-wire signals without hardcoded keys
+2. Show available connections in the Patch Bay devtool
+3. Let AI generate new widgets that integrate without code changes
+
+### 19.3 defineWidget() Helper
+
+```ts
+// Any widget — human or AI-generated — registers itself like this:
+export const SearchWidgetDefinition = defineWidget({
+  key: "shell_search",
+  name: "Search",
+  ports: [
+    { portKey: "query_out", direction: "output", valueType: "string", label: "Query" },
+  ],
+  Component: ShellSearchWidget,
+})
+```
+
+The framework receives a `WidgetDefinition` and can:
+- Mount it in a ShellSlot
+- Connect its ports via WiringEngine
+- Display it in the Widget Library panel
+
+### 19.4 AI Generation Path
+
+When the AI widget generation system is added:
+
+```
+User describes intent → AI generates WidgetDefinition → defineWidget() validates contract
+→ WidgetRegistry.register() adds it → app uses it like any other widget
+```
+
+AI does not generate free-form components.
+AI generates conformant WidgetDefinition objects.
+The contract is the interface between human intent and the framework.
+
+### 19.5 Standalone Status of wiring-engine
+
+The package currently lives in this workspace and is consumed through npm workspaces.
+Publishing is intentionally deferred until the consumer migration proves the public API.
+
+wiring-engine has no DOM dependencies, no shell-kit dependency, no Next.js dependency.
+It is `zustand` + `react` only.
+It is cross-platform: web, React Native, Electron.
+
+### 19.6 Shell-kit Migration Required
+
+shell-kit currently uses a custom `ShellRuntime` (useState + React context).
+In the next published version, ShellRuntime must be replaced with wiring-engine's bus.
+
+This means:
+- shell-kit adds `@synarava/wiring-engine` as a dependency
+- `ShellRuntimeProvider` becomes a thin wrapper over `SignalBusProvider`
+- `useShellRuntimeValue` / `useShellRuntimeActions` delegate to wiring-engine hooks
+- External API stays identical — no breaking change for apps
+
+### 19.7 What Another App Gets
+
+An app built on this framework:
+
+```ts
+import { SignalBusProvider, WiringEngineProvider, defineWidget } from "@synarava/wiring-engine"
+import { BaseShell, BaseWidget, ShellSlot } from "@synarava/shell-kit"
+import { LiquidGlassSurface } from "@synarava/liquid-glass"
+
+// 1. Define widgets (or use AI-generated ones)
+const MyWidget = defineWidget({ key: "my_widget", ports: [...], Component: MyComp })
+
+// 2. Configure wiring
+const config = { shellId: "main", systemBindings: MY_BINDINGS, userConnections: [] }
+
+// 3. Compose the shell
+function MyApp() {
+  return (
+    <WiringEngineProvider busId="main" config={config}>
+      <BaseShell>
+        <ShellSlot><MyWidget.Component /></ShellSlot>
+      </BaseShell>
+    </WiringEngineProvider>
+  )
+}
+```
+
+No knowledge of the host app required.
+Widgets are composable, portable, and AI-generatable.
+
+---
+
+## 20. Immediate Next Steps (Framework Completion)
+
+Priority order:
+
+1. Continue migrating Visit All product signals and widget contracts to the published wiring-engine package.
+2. Register all product widgets through `WidgetDefinition` and one app registry.
+3. Put BaseWidget stories and shared design tokens in order.
+4. Migrate shell-kit `ShellRuntime` internals to wiring-engine while preserving shell-kit layout APIs.
+5. Keep `visit-all` pinned to the proven published `@synarava/wiring-engine` version and release package changes independently.
+6. Add Figma Code Connect.
+7. Keep `@synarava/widget-generator` releases independent and evolve its prompt/runtime contracts only through published versions.
+
+
+---
+
+## 21. AI Widget Builder
+
+See **[WIDGET_BUILDER_PLAN.md](./WIDGET_BUILDER_PLAN.md)** for the full implementation plan.
+
+Summary:
+- Published package `@synarava/widget-generator@0.1.0` — generation context, Claude prompt contracts, response parsing, and browser JSX executor
+- Source repository: `/Users/kirylkrystsia/WebstormProjects/synarava-widget-generator`; Visit All consumes the exact GitHub Packages version rather than workspace source
+- New app module `src/modules/widget-builder/` — full-width AI chat shell + live widget preview
+- Widget Center reworked — interactive pool cards, fast preloading, "Create Widget" entry point
+- Generated widgets are first-class `WidgetDefinition` objects — same ports, same wiring, same Patch Bay visibility
+- `COMPONENT_CATALOG` from `@synarava/ui-kit` is the bot's API surface for UI primitives

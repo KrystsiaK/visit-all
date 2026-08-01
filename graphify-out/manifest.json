@@ -1,0 +1,1517 @@
+{
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/postcss.config.mjs": {
+    "mtime": 1774268989.270018,
+    "ast_hash": "239f3ebf717465dc636818a1a619398d",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/entities.json": {
+    "mtime": 1775601000.6035604,
+    "ast_hash": "db9dcaeb89f8ff7552d5bc9c04342345",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/package.json": {
+    "mtime": 1781355364.2201383,
+    "ast_hash": "962c719f13b1b2fc57b20e952e5a4e2a",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/vitest.db.config.ts": {
+    "mtime": 1775687360.94141,
+    "ast_hash": "805963ae7f31f195c2a63942e2b7eb5d",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/tsconfig.json": {
+    "mtime": 1781355364.220439,
+    "ast_hash": "03df1eef57770ef0badc2a480ad1a2d4",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/vitest.ui.config.ts": {
+    "mtime": 1775741166.2747853,
+    "ast_hash": "5010825ee28cc4edbc6b0663a16cb246",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/playwright.config.ts": {
+    "mtime": 1777498161.0493166,
+    "ast_hash": "088a124a65cd9699f33fde7803ce1e1c",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/vitest.config.ts": {
+    "mtime": 1775741624.9734886,
+    "ast_hash": "698ae6cd97befb328071f95a351db92e",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/eslint.config.mjs": {
+    "mtime": 1781302938.8366992,
+    "ast_hash": "13b301b9570fae3893bd350741bc12e0",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/vitest.shims.d.ts": {
+    "mtime": 1775741478.6431003,
+    "ast_hash": "4d243f7dd03a2a82af1fde8db0b92025",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/next.config.ts": {
+    "mtime": 1781301164.9476728,
+    "ast_hash": "db134bab0ab26c86022aa5b6a9dbe55d",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/railway.json": {
+    "mtime": 1774438256.9492435,
+    "ast_hash": "26c838008cf4f856be15e2c3b2bc620c",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/.husky/pre-push": {
+    "mtime": 1774435709.928011,
+    "ast_hash": "035353d81af902133b3cf4c656553f0b",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/.husky/pre-commit": {
+    "mtime": 1774435709.9274468,
+    "ast_hash": "79538bfe5ce302218f1c622ce5acef6f",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/.husky/_/pre-rebase": {
+    "mtime": 1781355534.5106478,
+    "ast_hash": "0b71c2e7d39daa010985d529f1320b37",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/.husky/_/pre-applypatch": {
+    "mtime": 1781355534.5105014,
+    "ast_hash": "0b71c2e7d39daa010985d529f1320b37",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/.husky/_/husky.sh": {
+    "mtime": 1781355534.5110354,
+    "ast_hash": "13871d2ab13e8423790ecb2c01c78c18",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/.husky/_/pre-auto-gc": {
+    "mtime": 1781355534.5109375,
+    "ast_hash": "0b71c2e7d39daa010985d529f1320b37",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/.husky/_/pre-merge-commit": {
+    "mtime": 1781355534.5101712,
+    "ast_hash": "0b71c2e7d39daa010985d529f1320b37",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/.husky/_/post-commit": {
+    "mtime": 1781355534.5103784,
+    "ast_hash": "0b71c2e7d39daa010985d529f1320b37",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/.husky/_/applypatch-msg": {
+    "mtime": 1781355534.5104449,
+    "ast_hash": "0b71c2e7d39daa010985d529f1320b37",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/.husky/_/prepare-commit-msg": {
+    "mtime": 1781355534.510237,
+    "ast_hash": "0b71c2e7d39daa010985d529f1320b37",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/.husky/_/h": {
+    "mtime": 1781355534.5099447,
+    "ast_hash": "15239a01c5554e56ff745570fb583a91",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/.husky/_/post-checkout": {
+    "mtime": 1781355534.5107725,
+    "ast_hash": "0b71c2e7d39daa010985d529f1320b37",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/.husky/_/post-applypatch": {
+    "mtime": 1781355534.5105705,
+    "ast_hash": "0b71c2e7d39daa010985d529f1320b37",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/.husky/_/post-rewrite": {
+    "mtime": 1781355534.510717,
+    "ast_hash": "0b71c2e7d39daa010985d529f1320b37",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/.husky/_/commit-msg": {
+    "mtime": 1781355534.510313,
+    "ast_hash": "0b71c2e7d39daa010985d529f1320b37",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/.husky/_/pre-push": {
+    "mtime": 1781355534.51088,
+    "ast_hash": "0b71c2e7d39daa010985d529f1320b37",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/.husky/_/post-merge": {
+    "mtime": 1781355534.5108278,
+    "ast_hash": "0b71c2e7d39daa010985d529f1320b37",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/.husky/_/pre-commit": {
+    "mtime": 1781355534.5100956,
+    "ast_hash": "0b71c2e7d39daa010985d529f1320b37",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/tests/ui/setup.ts": {
+    "mtime": 1775741166.2749012,
+    "ast_hash": "3709e3aa95abf0544678f0f2d9b46702",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/tests/ui/components/StarRatingInput.test.tsx": {
+    "mtime": 1781301021.5113733,
+    "ast_hash": "6f2c0e22e901698d731d9e0bafe23631",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/tests/ui/components/EntityGalleryWidgetCard.test.tsx": {
+    "mtime": 1781218341.759025,
+    "ast_hash": "0084b0d0cbd4a071687abe76256143d0",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/tests/ui/components/EntityNearbyPinsWidgetCard.test.tsx": {
+    "mtime": 1781218341.7597947,
+    "ast_hash": "0cfa86c26e347ac2acc48e9dd66c0e11",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/tests/ui/components/BaseWidget.test.tsx": {
+    "mtime": 1775810329.5222569,
+    "ast_hash": "ce888535ae736bd5b567b72a8eaf7463",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/tests/ui/components/EntityResourcesWidgetCard.test.tsx": {
+    "mtime": 1781218341.7601428,
+    "ast_hash": "0400760134c8d12e5ef97bc0e8b544fe",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/tests/ui/components/EntityStoriesWidgetCard.test.tsx": {
+    "mtime": 1781218341.7607758,
+    "ast_hash": "78aa19d1cf1de083b67d1ba3dd2a866c",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/tests/ui/components/InlineEditableText.test.tsx": {
+    "mtime": 1781301021.509315,
+    "ast_hash": "8736339639a2f8a641de54f7f8aed7a0",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/tests/unit/layer-logic.test.ts": {
+    "mtime": 1781218341.763992,
+    "ast_hash": "394440ab5ba7850ca96b171d6fb33924",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/tests/unit/layer-visibility.test.ts": {
+    "mtime": 1781218341.7693841,
+    "ast_hash": "83d175973d9083de4eca2ff88986cc36",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/tests/unit/collections-reducer.test.ts": {
+    "mtime": 1774484558.469678,
+    "ast_hash": "814e96a626268b88a08cc083bbc3b676",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/tests/unit/useShellWidgetReorder.test.ts": {
+    "mtime": 1775810397.3717077,
+    "ast_hash": "e3d1b6b15a571b681aae2a6ae40e12c2",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/tests/unit/collections-utils.test.ts": {
+    "mtime": 1781218341.7636168,
+    "ast_hash": "5cd1b88d1387098b4c086e424adb5027",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/tests/unit/shell-widget-order.test.ts": {
+    "mtime": 1775810428.9040513,
+    "ast_hash": "a3485edff36265959726c14e127c3e9a",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/tests/unit/auth-policy.test.ts": {
+    "mtime": 1775302447.3107846,
+    "ast_hash": "5faae133f8b69160a6c91240e5f17710",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/tests/unit/widget-placement.test.ts": {
+    "mtime": 1781218341.771892,
+    "ast_hash": "7392ed386d06acfb505b5142a419c36e",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/tests/unit/path-editing.test.ts": {
+    "mtime": 1781218341.771554,
+    "ast_hash": "580977fdf1e2a079466ac3a2749a1712",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/tests/integration/db/entity-persistence.test.ts": {
+    "mtime": 1777995660.6786642,
+    "ast_hash": "3be3cb3573a1da95c39a45f8360f6f5f",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/tests/e2e/auth-and-shell.spec.ts": {
+    "mtime": 1777591680.9912395,
+    "ast_hash": "a58f967517656095affa569747b7d178",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/tests/e2e/shell-visual-contract.spec.ts": {
+    "mtime": 1777591803.7269695,
+    "ast_hash": "8cede4f8bdb51e6cf7e96f470a5f212f",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/tests/e2e/global-setup.ts": {
+    "mtime": 1775690016.0284617,
+    "ast_hash": "d0045673ad7367fce02bafc495c1e4b6",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/tests/e2e/mobile-shell.spec.ts": {
+    "mtime": 1775305791.2175694,
+    "ast_hash": "a1115a3893acbc7155428e0c4dc311a6",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/tests/e2e/helpers/auth.ts": {
+    "mtime": 1777591657.385309,
+    "ast_hash": "f2760270dfe735a96594c7fe973fad20",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/scripts/db-migrate.mjs": {
+    "mtime": 1774438712.5046918,
+    "ast_hash": "9b78731464f00ab86729c6d408a9f916",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/scripts/prepare-package-dist.mjs": {
+    "mtime": 1778887042.4616787,
+    "ast_hash": "2ab622ae84d50dfebced80424bc66667",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/scripts/db-migrate-status.mjs": {
+    "mtime": 1774438774.9234426,
+    "ast_hash": "d804ab3fe1d33823bfea72386c99f671",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/db/migrations/006_entity_widget_enrichments.sql": {
+    "mtime": 1774533370.3066244,
+    "ast_hash": "ceda1ba3fe572f764ca05bfb1be09e1b",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/db/migrations/005_widget_placements.sql": {
+    "mtime": 1774465041.7448788,
+    "ast_hash": "30dcb4e25641e6c4e9f079e6ad3727a9",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/db/migrations/002_rate_limit_buckets.sql": {
+    "mtime": 1774438712.5049672,
+    "ast_hash": "706c5dcc0e91ee791269544acc5118cb",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/db/migrations/008_auth_registration.sql": {
+    "mtime": 1774610691.5108442,
+    "ast_hash": "f12424a46529454314918e6d9e024001",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/db/migrations/004_shells.sql": {
+    "mtime": 1774464302.0973408,
+    "ast_hash": "b0c3ebbe126171eb0041ad9234df6300",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/db/migrations/011_seed_demo_account.sql": {
+    "mtime": 1775338307.1484616,
+    "ast_hash": "db271961066feaa8457d6cd4a283e81f",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/db/migrations/013_entity_resource_link_previews.sql": {
+    "mtime": 1775745346.8257272,
+    "ast_hash": "84d1c0391cb0f4819b05361aa85e4bad",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/db/migrations/007a_users_baseline.sql": {
+    "mtime": 1775337385.7983284,
+    "ast_hash": "3a0079853749b232cee2dbb1ed5daf83",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/db/migrations/012_entity_details.sql": {
+    "mtime": 1775686284.9382865,
+    "ast_hash": "287bc0920b9fc5f88806c40fbbc5e54e",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/db/migrations/009_user_shell_and_auth_verification.sql": {
+    "mtime": 1774611490.3576193,
+    "ast_hash": "c8c21fd1904b56ccfbafbfaf201b2c25",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/db/migrations/001_baseline.sql": {
+    "mtime": 1774438712.504899,
+    "ast_hash": "76ae43149fde71554ebc591e0403f91e",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/db/migrations/014_trace_merge_indexes.sql": {
+    "mtime": 1777935989.014039,
+    "ast_hash": "6ffe48fa1d565c49b72a44586450355a",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/db/migrations/007_widget_signal_framework.sql": {
+    "mtime": 1774541784.8849661,
+    "ast_hash": "93b4a818625efe8a3ca5b3b265dc9a95",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/db/migrations/003_backfill_entity_collection_ids.sql": {
+    "mtime": 1774440858.8918731,
+    "ast_hash": "850d8044a7e14a4b2915fdcd47c2e91e",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/instrumentation.node.ts": {
+    "mtime": 1774440055.8204308,
+    "ast_hash": "1754fc4570edb410573eccd44451c3b2",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/auth.config.ts": {
+    "mtime": 1775303609.379471,
+    "ast_hash": "065d67694ab70f30404f1875fa0c704e",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/proxy.ts": {
+    "mtime": 1774435913.4702778,
+    "ast_hash": "32ec5a2f1d280bdb455edbcbbe3b768f",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/instrumentation.ts": {
+    "mtime": 1774440055.8203483,
+    "ast_hash": "c12b71ec630236b07493982acb626faf",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/auth.ts": {
+    "mtime": 1775305791.2181537,
+    "ast_hash": "bdf4e2767681181c552f03d46fdcb26e",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/app/actions.ts": {
+    "mtime": 1781223530.484367,
+    "ast_hash": "1171e00824407fbbb6138c0d0fc9682b",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/app/layout.tsx": {
+    "mtime": 1781218341.7273068,
+    "ast_hash": "4f830cdc8caef6dd635d827bcaf3846d",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/app/page.tsx": {
+    "mtime": 1781218341.7287881,
+    "ast_hash": "70f7495a9dfe40aa272da0b585da09d3",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/app/verify-email/page.tsx": {
+    "mtime": 1775305486.6861973,
+    "ast_hash": "28b4520119c8d216c3954d3366a85dd3",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/app/register/actions.ts": {
+    "mtime": 1775302817.9123178,
+    "ast_hash": "16c7242e93a95df69588e5d9ee977ae1",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/app/register/page.tsx": {
+    "mtime": 1781301021.525625,
+    "ast_hash": "2878bab99310d1e48dca017af3dd2355",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/app/register/success/RegisterSuccessClient.tsx": {
+    "mtime": 1775302817.9126732,
+    "ast_hash": "ce979a874f38970cfdb6ccf67c246d35",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/app/register/success/page.tsx": {
+    "mtime": 1775302817.9127498,
+    "ast_hash": "6d41e56e646eaef6bac80d4aeb08ab9f",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/app/forgot-password/actions.ts": {
+    "mtime": 1775301899.44445,
+    "ast_hash": "57d827a988bc1f745e15f3af4be91267",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/app/forgot-password/page.tsx": {
+    "mtime": 1781301021.5218306,
+    "ast_hash": "05693511d7b57aca4cd4927cf0da1ef7",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/app/forgot-password/success/page.tsx": {
+    "mtime": 1775305486.6863117,
+    "ast_hash": "36e18fe5d3c1aeb83b7248ab5b7d4cfe",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/app/api/ready/route.ts": {
+    "mtime": 1774438588.2870123,
+    "ast_hash": "4f6e08b6082815b3acd7cf1d0187d05f",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/app/api/auth/[...nextauth]/route.ts": {
+    "mtime": 1774305683.6263094,
+    "ast_hash": "320b3c8b61cb39350de03654454923ab",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/app/api/health/route.ts": {
+    "mtime": 1774438256.949162,
+    "ast_hash": "45ca17e45a7ce18c936fea06e726954f",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/app/api/upload/route.ts": {
+    "mtime": 1774441523.884424,
+    "ast_hash": "e9ade278d2c67b046a2910a6e95f262d",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/app/reset-password/ResetPasswordForm.tsx": {
+    "mtime": 1781301021.517092,
+    "ast_hash": "8908f36938d8228e265d3a0a6b79e60f",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/app/reset-password/actions.ts": {
+    "mtime": 1775301074.9760733,
+    "ast_hash": "18f211f977a77d8f3b6830fefc780158",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/app/reset-password/page.tsx": {
+    "mtime": 1775305486.6859624,
+    "ast_hash": "ad21f6bcc11d90af2061e61b7dfb750f",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/app/reset-password/success/page.tsx": {
+    "mtime": 1775305486.6864052,
+    "ast_hash": "2d88b775260f948b6448ad42b7829e8b",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/app/login/page.tsx": {
+    "mtime": 1781301021.5090296,
+    "ast_hash": "b75597ea4cb586f7fb27009acaf79628",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/components/auth/AuthChrome.tsx": {
+    "mtime": 1775305486.6853864,
+    "ast_hash": "8ae2e88d4c55e7cc4504277f47f9acc2",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/components/errors/ShellErrorBoundary.tsx": {
+    "mtime": 1774528217.8319457,
+    "ast_hash": "2d599d448de9df57a49e433bf4ae4bac",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/components/errors/MapErrorBoundary.tsx": {
+    "mtime": 1774528217.8320117,
+    "ast_hash": "ec371c51867a765eed34c22d5b3083fb",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/components/errors/SurfaceErrorFallback.tsx": {
+    "mtime": 1781301021.5137556,
+    "ast_hash": "ee16c3411b30aa30e0f03f4eea6014de",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/components/errors/WidgetErrorBoundary.tsx": {
+    "mtime": 1774528217.8318765,
+    "ast_hash": "52ac2738ecaacc7ceb119580dbcdbde9",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/components/errors/SurfaceErrorBoundary.tsx": {
+    "mtime": 1774528217.8317957,
+    "ast_hash": "8b80b5402d46870d90b3862bea9f4c63",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/components/widgets/global-widgets/GlobalWidgetLibraryCard.tsx": {
+    "mtime": 1781218341.7405505,
+    "ast_hash": "7ea9f74aa79bc774045fca3ac1e19a50",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/components/widgets/global-widgets/GlobalWidgetStates.tsx": {
+    "mtime": 1781218341.7413578,
+    "ast_hash": "0873e42c5ceb36a5376a74eb5cdf7996",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/components/widgets/global-widgets/useGlobalWidgetBindings.ts": {
+    "mtime": 1781218341.7426322,
+    "ast_hash": "71e0390659b5d3a194de9545848a0ff0",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/components/widgets/global-widgets/LibraryWidgetPreview.tsx": {
+    "mtime": 1781263525.361954,
+    "ast_hash": "f943d002d09d5451f1da33671e7dbcdd",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/components/widgets/global-widgets/GlobalOverviewWidgetCard.tsx": {
+    "mtime": 1781218341.740249,
+    "ast_hash": "1b693002a83821556be88d1f018167ef",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/components/widgets/shell-widgets/ShellCollectionsEmptyWidget.tsx": {
+    "mtime": 1781218341.7477677,
+    "ast_hash": "cd1b159aae8b98b4b179273892a70b38",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/components/widgets/shell-widgets/ShellActionCtaWidget.tsx": {
+    "mtime": 1781218341.7454207,
+    "ast_hash": "16bd1e79aa443be82f58fef2197036bf",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/components/widgets/shell-widgets/ShellFinishTraceWidget.tsx": {
+    "mtime": 1781301021.5248754,
+    "ast_hash": "d5dd8963989de6ce963cb7cf278e011e",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/components/widgets/shell-widgets/ShellChromePrimaryWidget.tsx": {
+    "mtime": 1781301021.5272593,
+    "ast_hash": "3c3c5f91eabf84f4504bdaf7822d953d",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/components/widgets/shell-widgets/ShellHeaderWidget.tsx": {
+    "mtime": 1775730199.1794472,
+    "ast_hash": "828ba2da0c597d667e016df132db157b",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/components/widgets/shell-widgets/ShellCollectionsWidget.tsx": {
+    "mtime": 1781301021.522547,
+    "ast_hash": "1abd5d965279e99ca8934e4513bb3db6",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/components/widgets/shell-widgets/ShellCreateCollectionWidget.tsx": {
+    "mtime": 1781224157.1663773,
+    "ast_hash": "b337115584e60f9d9ef43570351a25fb",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/components/widgets/shell-widgets/ShellControlsWidget.tsx": {
+    "mtime": 1781301021.5264747,
+    "ast_hash": "1fafccd775a1da8e0c62c474af9a86d4",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/components/widgets/shell-widgets/AnimatedCount.tsx": {
+    "mtime": 1781218341.7434387,
+    "ast_hash": "953611ef3013eb46bbcfe28bea782376",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/components/widgets/shell-widgets/ShellNotesWidget.tsx": {
+    "mtime": 1781301021.5262487,
+    "ast_hash": "b6633608b4919cc0913f3a767d923c45",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/components/widgets/shell-widgets/ShellResetViewWidget.tsx": {
+    "mtime": 1781218341.7513008,
+    "ast_hash": "f312eda5dcfe93c759653415a0fe83be",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/components/widgets/shell-widgets/ShellRemoveTracePointWidget.tsx": {
+    "mtime": 1781301021.5259619,
+    "ast_hash": "be0cfa62a258357fb3fb82a0c401476d",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/components/widgets/shell-widgets/ShellClockWidget.tsx": {
+    "mtime": 1781301021.5245552,
+    "ast_hash": "44b628ec8dcf1c12a8ea9d0fe58045bf",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/components/widgets/shell-widgets/ShellSearchWidget.tsx": {
+    "mtime": 1781301021.5116014,
+    "ast_hash": "2e9fdbf465b56ba7ed7ee6eb40828d6f",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/components/widgets/shell-widgets/ShellModeSwitchWidget.tsx": {
+    "mtime": 1781218497.7714837,
+    "ast_hash": "a23278d901f798f8063d7f0207feee11",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/components/widgets/shell-widgets/collections/useShellCollectionsBinding.ts": {
+    "mtime": 1781218341.7548685,
+    "ast_hash": "d78b3d8dc7d8e56d4cb032826e3e26f6",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/components/widgets/shell-widgets/collections/utils.ts": {
+    "mtime": 1781218341.755228,
+    "ast_hash": "740e4f5cf75d6477ac15298e270dcab0",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/components/widgets/shell-widgets/collections/types.ts": {
+    "mtime": 1781219233.3011787,
+    "ast_hash": "d01685c7f3860cb22dffe28014509003",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/components/widgets/shell-widgets/collections/reducer.ts": {
+    "mtime": 1774483660.0029082,
+    "ast_hash": "9b9c3b543569389b21b96ddbb6f84854",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/components/widgets/user-widgets/UserAccountActionsWidgetCard.tsx": {
+    "mtime": 1781301021.510193,
+    "ast_hash": "d9ad917c61020991b1352ee03c39c216",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/components/widgets/user-widgets/UserProfileWidgetCard.tsx": {
+    "mtime": 1781301021.5081487,
+    "ast_hash": "3bd6f04f14e4c7e9fe7f00f0d4d20452",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/hooks/useDebounce.ts": {
+    "mtime": 1774390186.9476628,
+    "ast_hash": "dbf7ac64b69bd078cf7c5940cc2d03e4",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/lib/storage.ts": {
+    "mtime": 1777496880.2652192,
+    "ast_hash": "5d2f24f2af3a0e28627cc583c9585877",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/lib/widgets.ts": {
+    "mtime": 1778104563.1135151,
+    "ast_hash": "cd408af3f44f1a9f10dd41d25e4c05fd",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/lib/security.ts": {
+    "mtime": 1774441579.9506626,
+    "ast_hash": "d8c6289ebe52a2a527771667faa9e34e",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/lib/rate-limit.ts": {
+    "mtime": 1775305927.9117737,
+    "ast_hash": "98762bd439804e9fcbb665d774249cc2",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/lib/db.ts": {
+    "mtime": 1774438588.286579,
+    "ast_hash": "6d88c79bf712bdaf117b08f922ed7bc6",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/lib/auth/debug.ts": {
+    "mtime": 1775300822.3684077,
+    "ast_hash": "ead574c077d6a52ece7f2240db3cd7d1",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/lib/auth/email-policy.ts": {
+    "mtime": 1775301899.4441175,
+    "ast_hash": "8bebdc19f6a3cf5c354858691453313c",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/lib/auth/users.ts": {
+    "mtime": 1781301021.513178,
+    "ast_hash": "b1d2a13929b7006ea1ed13ab5c597a1d",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/lib/auth/form-policy.ts": {
+    "mtime": 1775302148.3729606,
+    "ast_hash": "bfc399e686ea473dccc4f4e6ed8e93ee",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/lib/auth/email-verification.ts": {
+    "mtime": 1775300846.2702749,
+    "ast_hash": "cc1e00d5ba9e847705ec766e0fd9a5dc",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/FRAMEWORK_DIAGRAM.md": {
+    "mtime": 1774542035.651053,
+    "ast_hash": "1b6961e9f98fae89eb1e7a5974b40678",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/README.md": {
+    "mtime": 1774529466.4059594,
+    "ast_hash": "661f458ef37d143e8e83fbc77dddec90",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/mempalace.yaml": {
+    "mtime": 1775601006.2523665,
+    "ast_hash": "c470a362c23d8d0f8ee454a28c555d19",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/OPTIMISTIC_UI_ARCHITECTURE.md": {
+    "mtime": 1774550140.5174768,
+    "ast_hash": "3133ad70ab610bbd44eaf92ddb7ea457",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/docker-compose.yml": {
+    "mtime": 1774284713.018874,
+    "ast_hash": "19c4c4c5c165b7d3cfdd26ee610a1049",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/AGENTS.md": {
+    "mtime": 1781218341.7139275,
+    "ast_hash": "f91924f36ae5331c9d527ec43d11419d",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/FRAMEWORK_BLUEPRINT.md": {
+    "mtime": 1781355665.0289762,
+    "ast_hash": "d2d673b3a560c9c1782b696cc4c97291",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/documentation/observability-scaffold.md": {
+    "mtime": 1774440055.8201244,
+    "ast_hash": "da264521342d50ebad4fc791bc014737",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/documentation/db-migrations.md": {
+    "mtime": 1774439332.7340949,
+    "ast_hash": "5f87eb6b19cb9774a9f5d51c65ad51b4",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/documentation/deployment-options.md": {
+    "mtime": 1774439845.8652146,
+    "ast_hash": "ad2519d06a93ccb6c8be95b89a672b43",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/documentation/railway-r2-deploy.md": {
+    "mtime": 1777496934.729907,
+    "ast_hash": "23594c4eaa92a4bc7bd6114afdf9ba92",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/documentation/deployment-matrix.md": {
+    "mtime": 1777496917.3271081,
+    "ast_hash": "f4b47f18273d71e2a46fdddb001f6f4d",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/documentation/rate-limiting.md": {
+    "mtime": 1774438113.3111365,
+    "ast_hash": "937994e8f48d20c56521b01798cd1a68",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/documentation/security-findings.md": {
+    "mtime": 1774438921.7980359,
+    "ast_hash": "1f4bfa205645afa0272db20c919375a3",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/documentation/csp-hardening.md": {
+    "mtime": 1774438921.7978158,
+    "ast_hash": "c7d22b00dd7f69de053438cd8e014488",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/documentation/operations-minimum.md": {
+    "mtime": 1774438588.2871122,
+    "ast_hash": "f0a393a9d6141fec401cd22196a027eb",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/documentation/production-readiness-plan.md": {
+    "mtime": 1774440055.8207562,
+    "ast_hash": "234f9876f16f67f9789d47da2a172f64",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/documentation/testing-strategy.md": {
+    "mtime": 1775860714.4010065,
+    "ast_hash": "5d3f2314ffcc51592dd9ff0ad671a07a",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/documentation/cicd-readiness.md": {
+    "mtime": 1774438738.8670926,
+    "ast_hash": "c191aea4e614a3a389c8c70dbd85cda5",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/documentation/examples/liquid-glass/index.html": {
+    "mtime": 1776894655.5310898,
+    "ast_hash": "68bd69fbfe86b4142d731f031ec63be9",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/.github/workflows/ci.yml": {
+    "mtime": 1778883265.6489131,
+    "ast_hash": "9203d91165ed50834903d442f881119e",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/public/favicon.svg": {
+    "mtime": 1774485921.3658087,
+    "ast_hash": "01c805d1a7f85639503edfc6651d608a",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/app/icon.svg": {
+    "mtime": 1774485772.5431068,
+    "ast_hash": "01c805d1a7f85639503edfc6651d608a",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/.claude/settings.json": {
+    "mtime": 1781299896.9552295,
+    "ast_hash": "87f0d903477984d0587a02f8fe185263",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/.codex/hooks.json": {
+    "mtime": 1780330993.1691256,
+    "ast_hash": "c76ec66a59dfc7f1c27d7076265770ec",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/components/panels/WidgetOverlay.tsx": {
+    "mtime": 1781178236.7173457,
+    "ast_hash": "50a3cc33ec3bee24b5c882a9990f2fc8",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/components/panels/WidgetPanel.tsx": {
+    "mtime": 1781355396.1838832,
+    "ast_hash": "2ddf553ce5555c83be5c5247a93b0908",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/components/panels/UserShellPanel.tsx": {
+    "mtime": 1781301021.5190053,
+    "ast_hash": "92869be123df10984231bd28e95737c1",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/contexts/map-controls-context.tsx": {
+    "mtime": 1781048450.6795135,
+    "ast_hash": "931b47818d4edd8e6ec6388df2df86da",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/contexts/user-shell-context.tsx": {
+    "mtime": 1781046310.4947727,
+    "ast_hash": "7bca1d2986a0d36948f9340b66b72277",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/components/widgets/user-widgets/useUserShellBindings.ts": {
+    "mtime": 1781046338.5277374,
+    "ast_hash": "1ecccc2ca2a71394ded05d15a41b78b0",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/tests/unit/map-services.test.ts": {
+    "mtime": 1781219074.5013478,
+    "ast_hash": "e5562762f6ac4b883e6c82f74b076edf",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/map/types.ts": {
+    "mtime": 1781218086.0718737,
+    "ast_hash": "a6306325eeec938e488dd18b97ed25f2",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/map/index.ts": {
+    "mtime": 1781048475.9448173,
+    "ast_hash": "ff113a6e6a7e9ea9637e397384898d99",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/map/config.ts": {
+    "mtime": 1781048450.6785326,
+    "ast_hash": "ae9a6be25ba284333cfe4b7001831965",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/map/geolocation.ts": {
+    "mtime": 1774531338.7242284,
+    "ast_hash": "f5d1a1ca633e9f44fedee4af6b19a078",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/map/components/GeographicSearchControl.tsx": {
+    "mtime": 1781047759.3291674,
+    "ast_hash": "bb008337f44a23fe57c7b83ad26aaa8d",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/map/components/MapCanvas.tsx": {
+    "mtime": 1781301021.523694,
+    "ast_hash": "b029cf81786900412607a9c90642ffa3",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/map/hooks/useUserGeolocation.ts": {
+    "mtime": 1774531391.5724454,
+    "ast_hash": "1dc6741387ee2df5fcbafe85427326c0",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/map/services/routing.ts": {
+    "mtime": 1781219074.5006998,
+    "ast_hash": "16ed72b84f60999e0f64193409b13f2f",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/map/services/geocoding.ts": {
+    "mtime": 1781047587.7876909,
+    "ast_hash": "8151c02803d7dd11ef74d3229b205c65",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/.claude/projects/-Users-kirylkrystsia-WebstormProjects-visit-all/memory/wiring-engine-package.md": {
+    "mtime": 1781304912.4391482,
+    "ast_hash": "8264403b3b01e34cb3f7c28e4823f218",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/.claude/projects/-Users-kirylkrystsia-WebstormProjects-visit-all/memory/MEMORY.md": {
+    "mtime": 1781355665.0296052,
+    "ast_hash": "d2b080d6b519eaf47a347ec5b907399f",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/.claude/projects/-Users-kirylkrystsia-WebstormProjects-visit-all/memory/framework-vision.md": {
+    "mtime": 1781355665.029796,
+    "ast_hash": "95986f66091298820ff33e35eb8bee19",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/entity/EntityContext.tsx": {
+    "mtime": 1781263525.3598948,
+    "ast_hash": "755c662c0ea7cc71e4df807f13d29e63",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/entity/components/EntityDeleteDialog.tsx": {
+    "mtime": 1781301021.5231872,
+    "ast_hash": "f2fd8b557ddefbb35db36df6f85d95fc",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/entity/components/EntityOverlayStates.tsx": {
+    "mtime": 1781166094.4687605,
+    "ast_hash": "44ffd9e40aaa751e3018efabe818767a",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/entity/components/renderEntityWidget.tsx": {
+    "mtime": 1781043426.1166284,
+    "ast_hash": "d9e91aae858f0f016afb968bc68065b9",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/entity/hooks/useEntityWidgetBindings.ts": {
+    "mtime": 1781263525.3594663,
+    "ast_hash": "b80d38b52a8252c1d549179132083ede",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/entity/widgets/EntityGalleryWidgetCard.tsx": {
+    "mtime": 1781301021.5182896,
+    "ast_hash": "a13b46aa7b652fd477323d90e450270a",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/entity/widgets/EntityNearbyPinsWidgetCard.tsx": {
+    "mtime": 1781301021.5175397,
+    "ast_hash": "291c6ce08cb6e2f73994e1c17e1701e5",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/entity/widgets/EntityPlaceholderWidgetCard.tsx": {
+    "mtime": 1781166094.4369764,
+    "ast_hash": "d65d71e172d733cd4e51725d0f9826ea",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/entity/widgets/EntityRatingWidgetCard.tsx": {
+    "mtime": 1781301021.516713,
+    "ast_hash": "20f51213932296b75d19e75fd6d34bd3",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/entity/widgets/EntityInfoWidgetCard.tsx": {
+    "mtime": 1781301021.5162847,
+    "ast_hash": "2bcc5c7a41844818ad333a2f31a1b04f",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/entity/widgets/EntityResourcesWidgetCard.tsx": {
+    "mtime": 1781301021.5134733,
+    "ast_hash": "93daf8f15ad8b9495c57e010c03ff621",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/entity/widgets/EntityStoriesWidgetCard.tsx": {
+    "mtime": 1781301021.5120099,
+    "ast_hash": "8c4222af17198c9cc75c9f663edf4434",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/entity/widgets/EntityDeleteWidgetCard.tsx": {
+    "mtime": 1781301021.5107067,
+    "ast_hash": "b51f44e5dbeb04138cc3aa11d0473b09",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/shell/LeftSidebarShell.tsx": {
+    "mtime": 1781301021.5056846,
+    "ast_hash": "b7abd1724cedb46184fb33b6caaabd46",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/shell/wiring/left-shell-widget-definitions.ts": {
+    "mtime": 1781221409.4802487,
+    "ast_hash": "18a332eb87cbbeafc9c2442c364f7224",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/shell/wiring/left-shell-wiring.ts": {
+    "mtime": 1781218497.7708642,
+    "ast_hash": "8eb324457f278d2b8ddcdad0923cb71f",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/shell/wiring/app-widget-definitions.ts": {
+    "mtime": 1781111301.3555515,
+    "ast_hash": "449da87861170565d082e1c276a24013",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/map/MapModeContext.tsx": {
+    "mtime": 1781221376.4435759,
+    "ast_hash": "dd4973df2399f4a43b093e28932e8881",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/collections/CollectionsContext.tsx": {
+    "mtime": 1781262928.8536437,
+    "ast_hash": "b28f5bdfbf400d7ce08bb56dad507019",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/contexts/viewport-context.tsx": {
+    "mtime": 1781111395.421415,
+    "ast_hash": "f058b1453cc058112f67db952f959f72",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/app/AppLayout.tsx": {
+    "mtime": 1781301021.5211318,
+    "ast_hash": "36a2ee81ef64a0a7f15079232e129832",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/shell/ShellBootstrapContext.tsx": {
+    "mtime": 1781126799.591168,
+    "ast_hash": "d097ad10fbb20b73557e6f586c67ea33",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/map/hooks/useGeometryEditor.ts": {
+    "mtime": 1781221409.4807436,
+    "ast_hash": "7849dd8f6a5ae1d99a95b879caea03f3",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/collections/hooks/useCollectionManager.ts": {
+    "mtime": 1781217542.6535077,
+    "ast_hash": "dd5fe85fc07f58d5187716294bb74bdd",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/shell/widget-background-style.ts": {
+    "mtime": 1781126789.0655081,
+    "ast_hash": "54cc01b0d872d9bb98628dcd2b83fd1b",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/shell/widget-hosts.ts": {
+    "mtime": 1781126789.064648,
+    "ast_hash": "32ff10df0c0b808136639f17b0cf2fa0",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/shell/types.ts": {
+    "mtime": 1781126799.591448,
+    "ast_hash": "fc51542fecb8b3999bc84b2b21262980",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/shell/constants.ts": {
+    "mtime": 1781179090.111101,
+    "ast_hash": "fadb6ac42fee9894b16f1084b9e9d85f",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/shell/widget-manifest.ts": {
+    "mtime": 1781221409.4798744,
+    "ast_hash": "5e4ec5f770296f7156e4684274a429a1",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/shell/widget-placement.ts": {
+    "mtime": 1781126799.5920753,
+    "ast_hash": "4b8f6850d74a5bb5b50b28efbc7b4de2",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/map/utils/path-editing.ts": {
+    "mtime": 1781126789.0664918,
+    "ast_hash": "5bf34f5392f101430dbf9402648e2754",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/collections/layer-logic.ts": {
+    "mtime": 1781217551.2014031,
+    "ast_hash": "ff2b7c4826a64b4e98b4cbf30a9f3170",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/collections/layer-visibility.ts": {
+    "mtime": 1781126789.0657725,
+    "ast_hash": "0d5ad6dbaa3d8d630655b0e00e4adfe2",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/db/migrations/015_generated_widgets.sql": {
+    "mtime": 1781128826.5398757,
+    "ast_hash": "993bcb24ae879cf0cc9903bac0494dc3",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/app/api/widget-builder/route.ts": {
+    "mtime": 1781355396.2107468,
+    "ast_hash": "99cc8f80886c654b229854660eb54ad5",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/widget-builder/WidgetBuilderChat.tsx": {
+    "mtime": 1781355396.183555,
+    "ast_hash": "25ff21ce2efbfce3f61aaba25f59b7fd",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/widget-builder/useWidgetBuilderSession.ts": {
+    "mtime": 1781355396.1829495,
+    "ast_hash": "5913855a8b5bcbc97d3287c3e4697285",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/widget-builder/WidgetPreviewSandbox.tsx": {
+    "mtime": 1781355446.838968,
+    "ast_hash": "408604163696ee3a71eda84bf635d38c",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/widget-builder/WidgetBuilderShell.tsx": {
+    "mtime": 1781355396.1823642,
+    "ast_hash": "7444098c16d63563503f8090425e0e64",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/WIDGET_BUILDER_PLAN.md": {
+    "mtime": 1781381332.340507,
+    "ast_hash": "089f4240f1fcb2dbcc4116966f8711d4",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/components/widgets/global-widgets/GeneratedWidgetLibraryCard.tsx": {
+    "mtime": 1781355396.2067811,
+    "ast_hash": "31e168ff969ac9bb20691cc5a2968be4",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/widget-library/WidgetLibraryContext.tsx": {
+    "mtime": 1781165523.6962376,
+    "ast_hash": "f4b68334c15a0deba0201cb2d0e4d09f",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/widget-runtime/sandbox-modules.tsx": {
+    "mtime": 1781355396.206978,
+    "ast_hash": "eae040714df753278a237fc5da65d990",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/db/migrations/016_generated_widget_hosts.sql": {
+    "mtime": 1781169746.6758056,
+    "ast_hash": "2878a877d6962650233e3f92a31769b1",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/entity/EntitySignalBridge.tsx": {
+    "mtime": 1781171932.633198,
+    "ast_hash": "d52e894b21c7e0628eafef1562ced4f8",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/entity/EntityWiringProvider.tsx": {
+    "mtime": 1781171876.5083466,
+    "ast_hash": "f2248ddb8173bf2a158d94137f974e08",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/shell/wiring/entity-shell-wiring.ts": {
+    "mtime": 1781171847.4796813,
+    "ast_hash": "2a4cfe032fd30d65daaa07c6d271fb90",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/widget-runtime/useGeneratedWidgetsForHost.ts": {
+    "mtime": 1781170747.2404354,
+    "ast_hash": "100e7fa50340e16418335f7982fb7f35",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/widget-runtime/GeneratedWidgetSlot.tsx": {
+    "mtime": 1781355396.207212,
+    "ast_hash": "ffc21663154d639d7c6a05dc36130323",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/widget-runtime/notifyWidgetLibraryChanged.ts": {
+    "mtime": 1781178177.2253451,
+    "ast_hash": "6a405b6b03f408e17bcd8e3936b6ecc6",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/widget-runtime/GeneratedWidgetRuntimeContext.tsx": {
+    "mtime": 1781174827.9595525,
+    "ast_hash": "f22a0e22c35ec74d77aa76b8608202fa",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/.claude/skills/ui-ux-pro-max/scripts/design_system.py": {
+    "mtime": 1781214534.7322953,
+    "ast_hash": "08f84d04608a19049c90fc2b1ef314f9",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/.claude/skills/ui-ux-pro-max/scripts/core.py": {
+    "mtime": 1781214534.7325933,
+    "ast_hash": "3df4734a785963a8242a56c1b926adfd",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/.claude/skills/ui-ux-pro-max/scripts/search.py": {
+    "mtime": 1781214534.734351,
+    "ast_hash": "8c7e35426fe8f6f3ed91e9dce0ed7af1",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/.codex/skills/ui-ux-pro-max/scripts/design_system.py": {
+    "mtime": 1781214553.1231272,
+    "ast_hash": "08f84d04608a19049c90fc2b1ef314f9",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/.codex/skills/ui-ux-pro-max/scripts/core.py": {
+    "mtime": 1781214553.1234744,
+    "ast_hash": "3df4734a785963a8242a56c1b926adfd",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/.codex/skills/ui-ux-pro-max/scripts/search.py": {
+    "mtime": 1781214553.1252635,
+    "ast_hash": "8c7e35426fe8f6f3ed91e9dce0ed7af1",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/components/widgets/global-widgets/WidgetLibraryCard.tsx": {
+    "mtime": 1781301021.5267682,
+    "ast_hash": "dce7abe02f9bf173fc8f93401ceed89f",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/collections/types.ts": {
+    "mtime": 1781217442.950949,
+    "ast_hash": "05dfdd9b79214db4c8a4bdfbe2d75972",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/.claude/skills/ui-ux-pro-max/SKILL.md": {
+    "mtime": 1781214534.719064,
+    "ast_hash": "e092c3924799d4fc4194f994d8394cc3",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/.codex/skills/ui-ux-pro-max/SKILL.md": {
+    "mtime": 1781214553.1057122,
+    "ast_hash": "e745b5a6c71379800b232a1ba32d16ec",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/app/api/map/route/route.ts": {
+    "mtime": 1781218086.0708797,
+    "ast_hash": "a8ce1c4b5bcdb6e17bea4e5612fd4536",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/components/widgets/shell-widgets/collections/EmptyCollectionsState.tsx": {
+    "mtime": 1781218114.0000563,
+    "ast_hash": "d6cbd33f8a624db76bca34fcec8ad05b",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/components/widgets/shell-widgets/collections/index.ts": {
+    "mtime": 1781219174.2678237,
+    "ast_hash": "ff590c948aab84efbcb5e6cdedc135e5",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/documentation/map-routing.md": {
+    "mtime": 1781301200.5023367,
+    "ast_hash": "59a7d673665f97e7259a20e2a1e7a21e",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/db/migrations/017_trace_branches.sql": {
+    "mtime": 1781219800.0762527,
+    "ast_hash": "3e2aaf7122b0f41f0ae4f7613e6f7d9e",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/db/migrations/018_trace_branch_user_ids.sql": {
+    "mtime": 1781220326.831817,
+    "ast_hash": "576270b00d30d0d53b8920e45d77300b",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/tests/ui/components/GeometryDraftActions.test.tsx": {
+    "mtime": 1781301021.5142515,
+    "ast_hash": "c0cf3de1d0608479ebbd2b45dd591169",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/db/migrations/018_messenger.sql": {
+    "mtime": 1781222006.0038493,
+    "ast_hash": "1d341218a7e451b314e55ea174e2ce27",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/app/messenger/page.tsx": {
+    "mtime": 1781307523.9186988,
+    "ast_hash": "3fd568db2c1c4a807e97dfa33532b3cc",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/messenger/types.ts": {
+    "mtime": 1781223670.6602676,
+    "ast_hash": "78e6a2e26ed600b3a2c0a6647fc4f08c",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/messenger/actions.ts": {
+    "mtime": 1781263258.4143705,
+    "ast_hash": "e673239d4d0419177963e8d1d1169618",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/messenger/components/ContactProfile.tsx": {
+    "mtime": 1781301021.5124004,
+    "ast_hash": "41f921885a5a22b5262688a11f688d1f",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/messenger/components/MessengerSettings.tsx": {
+    "mtime": 1781301021.5109925,
+    "ast_hash": "29a6356d68ce56b76efb4e620715b08c",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/messenger/components/ChatWindow.tsx": {
+    "mtime": 1781301021.5087297,
+    "ast_hash": "da9db54c9ec7f7fee20c0d729de02c9f",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/db/migrations/019_saved_messages.sql": {
+    "mtime": 1781222326.260544,
+    "ast_hash": "b6cd614f2f0398519cd2c3c11b1fcb36",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/collections/export-format.ts": {
+    "mtime": 1781222358.354233,
+    "ast_hash": "daea37ac433e1b84f1b3832f5814b40a",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/db/migrations/020_message_reactions.sql": {
+    "mtime": 1781222610.0405781,
+    "ast_hash": "6299602749674f211892c07b8687b7a1",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/db/migrations/021_message_edit.sql": {
+    "mtime": 1781223235.238598,
+    "ast_hash": "4bf03cbeb9fdaba3cd9f4690ee2d0229",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/db/migrations/022_messenger_custom_status.sql": {
+    "mtime": 1781223664.9279408,
+    "ast_hash": "eff09c22fc9d29030e40af02583aed22",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/messenger/components/SlackBlockKitRenderer.tsx": {
+    "mtime": 1781223679.1869564,
+    "ast_hash": "80840b64cedc874fe223e2129af0f186",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/messenger/components/ChatThreadPanel.tsx": {
+    "mtime": 1781301021.5073967,
+    "ast_hash": "4f1624ab6b042b88abfa0f69e0d573a7",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/messenger/components/BotAppHome.tsx": {
+    "mtime": 1781301021.5064337,
+    "ast_hash": "c1f5811bd612eee8e4d36b81522e5abc",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/db/migrations/023_admin_telemetry.sql": {
+    "mtime": 1781300941.9501343,
+    "ast_hash": "f4df903e268c0f6f22914343ecba3b4c",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/app/admin/page.tsx": {
+    "mtime": 1781303464.2693028,
+    "ast_hash": "d08e3102661e6b7e985efaf82a30f14b",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/admin/actions.ts": {
+    "mtime": 1781303004.0464797,
+    "ast_hash": "86d1d141b001bebca256b37ccb982aeb",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/admin/components/OverviewTab.tsx": {
+    "mtime": 1781305289.9486194,
+    "ast_hash": "c0ada4825f29ad0bfb7e58ff40c4a64f",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/admin/components/UsersTab.tsx": {
+    "mtime": 1781301021.5228775,
+    "ast_hash": "7b3d31cbe64fe4193760167deee42f4e",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/admin/components/TelemetryTab.tsx": {
+    "mtime": 1781301021.5214493,
+    "ast_hash": "91fd960563b31e54eac7433a48798908",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/admin/components/AdminLayout.tsx": {
+    "mtime": 1781303190.5970712,
+    "ast_hash": "2e5903a33837afa8715cebf7a4e3c441",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/admin/components/IntegrationsTab.tsx": {
+    "mtime": 1781301021.5179732,
+    "ast_hash": "9430a80fa31bfa1c3a5b9a193608e990",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/tests/ui/widget-runtime/legacy-ui-module.test.tsx": {
+    "mtime": 1781355396.2065663,
+    "ast_hash": "c80449859ccf0daaa097b26fefd2cc7f",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/admin/types.ts": {
+    "mtime": 1781302446.4261131,
+    "ast_hash": "57be9d7b622b7033729f9d01beb26287",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/admin/bus/admin-bus.ts": {
+    "mtime": 1781302465.6357105,
+    "ast_hash": "8173635025ce7d7baef3ca869641bb6d",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/admin/components/charts/AdminBarChart.tsx": {
+    "mtime": 1781302554.466065,
+    "ast_hash": "e1da1a235e6b08c8fdfad1722e1df179",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/admin/components/charts/AdminAreaChart.tsx": {
+    "mtime": 1781302537.9609537,
+    "ast_hash": "38f302e72089f8ae4ded7db2409bd594",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/admin/components/charts/AdminDonutChart.tsx": {
+    "mtime": 1781302612.8070138,
+    "ast_hash": "cf268a054bb6a34759a05574afd6e91d",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/admin/components/kpi/KpiCard.tsx": {
+    "mtime": 1781302496.6039348,
+    "ast_hash": "2c679c784b8193d41c667eff1f5836d5",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/admin/components/charts/ActivityHeatmap.tsx": {
+    "mtime": 1781302642.448042,
+    "ast_hash": "d924e2766c43ddf34e6031e356c84d94",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/admin/components/DateRangePicker.tsx": {
+    "mtime": 1781303549.1853476,
+    "ast_hash": "772d07749fb791e888313e79c84cab85",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/admin/components/AdminSidebar.tsx": {
+    "mtime": 1781303106.5485728,
+    "ast_hash": "4703d7026e905ce8948942a3b46bb554",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/admin/components/SupportTab.tsx": {
+    "mtime": 1781303435.75615,
+    "ast_hash": "0c5167fc5615f2554ccb4335d0713a14",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/admin/components/AnalyticsTab.tsx": {
+    "mtime": 1781303604.426984,
+    "ast_hash": "e2c08031c088886dc46e6f885b1b9493",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/admin/components/RevenueTab.tsx": {
+    "mtime": 1781303632.3991864,
+    "ast_hash": "1b3eec889220775171b436c3d7a7b319",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/messenger/context/MessengerContext.tsx": {
+    "mtime": 1781306998.246421,
+    "ast_hash": "ef58f8a9117f88e4dc0aa21297f3f271",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/messenger/components/ChatList.legacy.tsx": {
+    "mtime": 1781301021.5096195,
+    "ast_hash": "c7c3e7537fed559c7bd643f053e9f356",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/messenger/components/MessengerShell.tsx": {
+    "mtime": 1781307501.204285,
+    "ast_hash": "d7d298c6a756ae17aa69209f14937bad",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/messenger/components/ChatList/index.tsx": {
+    "mtime": 1781307561.8434112,
+    "ast_hash": "0683592bf2de54c8b36674a972757dae",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/messenger/components/ChatList/ChatListItem.tsx": {
+    "mtime": 1781307363.425674,
+    "ast_hash": "d65db72ba998c79efb2685d07e4fa267",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/messenger/components/ChatList/ChatListSkeleton.tsx": {
+    "mtime": 1781307345.262185,
+    "ast_hash": "dce38ee3adb2ce80246d19fa74ccd9ab",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/messenger/components/ChatWindow/index.tsx": {
+    "mtime": 1781307324.1519055,
+    "ast_hash": "bd9865de7e69a5f52d3c04072b895331",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/messenger/components/ChatWindow/MessageInput.tsx": {
+    "mtime": 1781307283.8535104,
+    "ast_hash": "a9178f66cad4f5a314266ee202d64ec1",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/messenger/components/ChatWindow/SlashCommandPalette.tsx": {
+    "mtime": 1781307103.3253834,
+    "ast_hash": "fb7159584f3632be014c6aa9f1f99097",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/messenger/components/ChatWindow/EmojiPicker.tsx": {
+    "mtime": 1781307087.4528282,
+    "ast_hash": "32fb48258e0f9442be9b6812ab54a2ab",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/messenger/components/ChatWindow/ChatHeader.tsx": {
+    "mtime": 1781307025.1101105,
+    "ast_hash": "ba1f0a9f67c3c454ba0154ec056ca193",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/messenger/components/ChatWindow/MessageList.tsx": {
+    "mtime": 1781307255.5491867,
+    "ast_hash": "a488f821ad5b9022d559a4fca32864b7",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/messenger/components/ChatWindow/MessageBubble.tsx": {
+    "mtime": 1781307202.588199,
+    "ast_hash": "27b7ae872b737bd3e4420c5e95da6a3c",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/messenger/components/ChatWindow/ReplyEditBanner.tsx": {
+    "mtime": 1781307045.0809643,
+    "ast_hash": "efaf1b8a145d53b09c5b30b9048c5c61",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/messenger/hooks/useMessengerPolling.ts": {
+    "mtime": 1781306948.7901225,
+    "ast_hash": "9531bc070ddc0438eaebc0aee362355c",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/src/modules/messenger/hooks/useMessageActions.ts": {
+    "mtime": 1781306939.2717328,
+    "ast_hash": "d194b04e1af1646218e1b342866e934e",
+    "semantic_hash": ""
+  },
+  "/Users/kirylkrystsia/WebstormProjects/visit-all/.claude/projects/-Users-kirylkrystsia-WebstormProjects-visit-all/memory/widget-generator-package.md": {
+    "mtime": 1781355665.0298996,
+    "ast_hash": "1376270fa57ba7c1e3713d407c5bd08b",
+    "semantic_hash": ""
+  }
+}

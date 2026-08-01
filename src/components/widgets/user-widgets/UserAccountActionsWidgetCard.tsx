@@ -1,45 +1,28 @@
 "use client";
 
+import { WIDGET_GLASS } from "@/modules/shell/constants";
+
 import { CheckCircle2, LogOut, MailCheck } from "lucide-react";
 import Link from "next/link";
 import { signOut } from "next-auth/react";
 import { useMemo, useState } from "react";
 
-import { PasswordInput, INPUT_PLACEHOLDERS } from "@/components/inputs/FieldChrome";
+import { PasswordInput, INPUT_PLACEHOLDERS, OutlineButton, PrimaryButton, EyebrowLabel } from "@synarava/ui-kit";
 import { BaseWidget } from "@synarava/shell-kit";
 import {
   getConfirmPasswordErrors,
   getPasswordFieldErrors,
   getRequiredPasswordErrors,
 } from "@/lib/auth/form-policy";
-import type { WidgetInstanceRecord } from "@/lib/widgets";
-import type { UserProfileViewModel } from "./UserProfileWidgetCard";
+import { useCurrentWidget } from "@/modules/entity/EntityContext";
+import { useUserShellData, useUserShellWriteState, useUserShellActions } from "@/contexts/user-shell-context";
 
-interface UserAccountActionsWidgetCardProps {
-  widget: WidgetInstanceRecord;
-  profile: UserProfileViewModel;
-  resendPending: boolean;
-  resetPending: boolean;
-  passwordChangePending: boolean;
-  onResendVerification: () => Promise<void>;
-  onRequestPasswordReset: () => Promise<void>;
-  onChangePassword: (input: {
-    currentPassword: string;
-    nextPassword: string;
-    confirmPassword: string;
-  }) => Promise<{ ok: boolean; message: string; fieldErrors?: Partial<Record<"currentPassword" | "nextPassword" | "confirmPassword", string>> }>;
-}
+export function UserAccountActionsWidgetCard() {
+  const widget = useCurrentWidget();
+  const { profile } = useUserShellData();
+  const { resendPending, resetPending, passwordChangePending } = useUserShellWriteState();
+  const { handleResendVerification, handleRequestPasswordReset, handleChangePassword } = useUserShellActions();
 
-export function UserAccountActionsWidgetCard({
-  widget,
-  profile,
-  resendPending,
-  resetPending,
-  passwordChangePending,
-  onResendVerification,
-  onRequestPasswordReset,
-  onChangePassword,
-}: UserAccountActionsWidgetCardProps) {
   const [currentPassword, setCurrentPassword] = useState("");
   const [nextPassword, setNextPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -47,6 +30,7 @@ export function UserAccountActionsWidgetCard({
   const [passwordOk, setPasswordOk] = useState(false);
   const [passwordErrors, setPasswordErrors] = useState<Partial<Record<"currentPassword" | "nextPassword" | "confirmPassword", string>>>({});
   const [submittedOnce, setSubmittedOnce] = useState(false);
+
   const currentPasswordErrors = useMemo(
     () => getRequiredPasswordErrors(currentPassword, "current password"),
     [currentPassword]
@@ -56,6 +40,7 @@ export function UserAccountActionsWidgetCard({
     () => getConfirmPasswordErrors(nextPassword, confirmPassword),
     [nextPassword, confirmPassword]
   );
+
   const mergedCurrentPasswordErrors = submittedOnce
     ? [...currentPasswordErrors, ...(passwordErrors.currentPassword ? [passwordErrors.currentPassword] : [])]
     : [];
@@ -63,24 +48,21 @@ export function UserAccountActionsWidgetCard({
     ? [...nextPasswordErrors, ...(passwordErrors.nextPassword ? [passwordErrors.nextPassword] : [])]
     : [];
   const mergedConfirmPasswordErrors = submittedOnce
-    ? [
-        ...confirmPasswordErrors,
-        ...(passwordErrors.confirmPassword ? [passwordErrors.confirmPassword] : []),
-      ]
+    ? [...confirmPasswordErrors, ...(passwordErrors.confirmPassword ? [passwordErrors.confirmPassword] : [])]
     : [];
 
+  if (!profile) return null;
+
   return (
-    <BaseWidget
+    <BaseWidget {...WIDGET_GLASS}
       eyebrow="Account"
-      title={widget.name}
+      title={widget?.name ?? "Account Actions"}
       subtitle="Session actions and verification status."
       identityVisibility="settings-only"
     >
       <div className="space-y-4 rounded-[24px] bg-white/55 p-5">
         <div className="rounded-2xl border border-black/8 bg-white/60 p-4">
-          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-neutral-500">
-            Email
-          </p>
+          <EyebrowLabel>Email</EyebrowLabel>
           <p className="mt-2 text-sm font-medium text-neutral-900">{profile.email}</p>
           <div className="mt-3 flex items-center gap-2 text-sm text-neutral-600">
             {profile.emailVerifiedAt ? (
@@ -98,31 +80,19 @@ export function UserAccountActionsWidgetCard({
         </div>
 
         {!profile.emailVerifiedAt ? (
-          <button
-            type="button"
-            onClick={() => void onResendVerification()}
-            disabled={resendPending}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm font-black uppercase tracking-[0.18em] text-neutral-900 transition-colors hover:bg-neutral-50 disabled:opacity-60"
-          >
+          <OutlineButton onClick={() => void handleResendVerification()} disabled={resendPending}>
             <MailCheck className="h-4 w-4" />
             {resendPending ? "Sending..." : "Resend Verification"}
-          </button>
+          </OutlineButton>
         ) : null}
 
-        <button
-          type="button"
-          onClick={() => void onRequestPasswordReset()}
-          disabled={resetPending}
-          className="flex w-full items-center justify-center gap-2 rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm font-black uppercase tracking-[0.18em] text-neutral-900 transition-colors hover:bg-neutral-50 disabled:opacity-60"
-        >
+        <OutlineButton onClick={() => void handleRequestPasswordReset()} disabled={resetPending}>
           <MailCheck className="h-4 w-4" />
           {resetPending ? "Sending..." : "Email Password Reset"}
-        </button>
+        </OutlineButton>
 
         <div className="rounded-2xl border border-black/8 bg-white/60 p-4">
-          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-neutral-500">
-            Change Password
-          </p>
+          <EyebrowLabel>Change Password</EyebrowLabel>
 
           <div className="mt-3 space-y-3">
             <div>
@@ -137,9 +107,7 @@ export function UserAccountActionsWidgetCard({
               />
               {submittedOnce
                 ? mergedCurrentPasswordErrors.map((error) => (
-                    <p key={error} className="mt-2 text-xs text-[#b7102a]">
-                      {error}
-                    </p>
+                    <p key={error} className="mt-2 text-xs text-[#b7102a]">{error}</p>
                   ))
                 : null}
             </div>
@@ -155,9 +123,7 @@ export function UserAccountActionsWidgetCard({
               />
               {submittedOnce
                 ? mergedNextPasswordErrors.map((error) => (
-                    <p key={error} className="mt-2 text-xs text-[#b7102a]">
-                      {error}
-                    </p>
+                    <p key={error} className="mt-2 text-xs text-[#b7102a]">{error}</p>
                   ))
                 : null}
             </div>
@@ -173,9 +139,7 @@ export function UserAccountActionsWidgetCard({
               />
               {submittedOnce
                 ? mergedConfirmPasswordErrors.map((error) => (
-                    <p key={error} className="mt-2 text-xs text-[#b7102a]">
-                      {error}
-                    </p>
+                    <p key={error} className="mt-2 text-xs text-[#b7102a]">{error}</p>
                   ))
                 : null}
             </div>
@@ -187,54 +151,39 @@ export function UserAccountActionsWidgetCard({
             </p>
           ) : null}
 
-          <button
-            type="button"
-            onClick={async () => {
-              setSubmittedOnce(true);
-
-              if (
-                currentPasswordErrors.length > 0 ||
-                nextPasswordErrors.length > 0 ||
-                confirmPasswordErrors.length > 0
-              ) {
-                setPasswordOk(false);
-                setPasswordMessage("Please fix the highlighted fields.");
-                return;
-              }
-
-              const result = await onChangePassword({
-                currentPassword,
-                nextPassword,
-                confirmPassword,
-              });
-
-              setPasswordOk(result.ok);
-              setPasswordMessage(result.message);
-              setPasswordErrors(result.fieldErrors ?? {});
-
-              if (result.ok) {
-                setSubmittedOnce(false);
-                setCurrentPassword("");
-                setNextPassword("");
-                setConfirmPassword("");
-              }
-            }}
+          <OutlineButton
             disabled={passwordChangePending}
-            className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm font-black uppercase tracking-[0.18em] text-neutral-900 transition-colors hover:bg-neutral-50 disabled:opacity-60"
+            className="mt-4"
+            onClick={() => {
+              void (async () => {
+                setSubmittedOnce(true);
+                if (currentPasswordErrors.length > 0 || nextPasswordErrors.length > 0 || confirmPasswordErrors.length > 0) {
+                  setPasswordOk(false);
+                  setPasswordMessage("Please fix the highlighted fields.");
+                  return;
+                }
+                const result = await handleChangePassword({ currentPassword, nextPassword, confirmPassword });
+                setPasswordOk(result.ok);
+                setPasswordMessage(result.message);
+                setPasswordErrors(result.fieldErrors ?? {});
+                if (result.ok) {
+                  setSubmittedOnce(false);
+                  setCurrentPassword("");
+                  setNextPassword("");
+                  setConfirmPassword("");
+                }
+              })();
+            }}
           >
             <MailCheck className="h-4 w-4" />
             {passwordChangePending ? "Updating..." : "Update Password"}
-          </button>
+          </OutlineButton>
         </div>
 
-        <button
-          type="button"
-          onClick={() => void signOut({ callbackUrl: "/login" })}
-          className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#111111] px-4 py-3 text-sm font-black uppercase tracking-[0.18em] text-white transition-colors hover:bg-black"
-        >
+        <PrimaryButton onClick={() => void signOut({ callbackUrl: "/login" })}>
           <LogOut className="h-4 w-4" />
           Sign Out
-        </button>
+        </PrimaryButton>
 
         <Link
           href="/forgot-password"

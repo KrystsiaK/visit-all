@@ -10,7 +10,7 @@ import {
   FieldLabel,
   INPUT_PLACEHOLDERS,
   getFieldInputClassName,
-} from "@/components/inputs/FieldChrome";
+} from "@synarava/ui-kit";
 import { EMAIL_LOCAL_PART_MAX_LENGTH, EMAIL_MAX_LENGTH } from "@/lib/auth/email-policy";
 import { getEmailFieldErrors } from "@/lib/auth/form-policy";
 import {

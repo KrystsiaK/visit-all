@@ -1,7 +1,7 @@
 "use client";
 
 import { AlertTriangle, RefreshCw } from "lucide-react";
-import { cn } from "@/components/ui/utils";
+import { cn } from "@synarava/ui-kit";
 
 type SurfaceKind = "widget" | "shell" | "map";
 

@@ -3,7 +3,7 @@ import {
   modeToCollectionType,
   moveCollectionToTop,
   shouldAutoOpenLayerDrawer,
-} from "../../src/lib/layer-logic";
+} from "../../src/modules/collections/layer-logic";
 
 const collections = [
   { id: "a" },

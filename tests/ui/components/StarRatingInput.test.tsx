@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import { StarRatingInput } from "@/components/inputs/StarRatingInput";
+import { StarRatingInput } from "@synarava/ui-kit";
 
 describe("StarRatingInput", () => {
   it("renders five radio buttons in interactive mode", () => {

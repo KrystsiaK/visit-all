@@ -1,19 +1,16 @@
 "use client";
 
-import { motion } from "framer-motion";
-import { Plus } from "lucide-react";
+import { WIDGET_GLASS } from "@/modules/shell/constants";
 
-import { overlayItemVariants } from "@/lib/motion";
+import { Plus } from "lucide-react";
+import { BaseWidget } from "@synarava/shell-kit";
 
 export const GlobalWidgetCenterAddCard = ({
   onOpenLibrary,
 }: {
   onOpenLibrary: () => void;
 }) => (
-  <motion.div
-    variants={overlayItemVariants}
-    className="rounded-2xl border border-black/10 bg-white/70 p-6 shadow-[0px_8px_32px_rgba(0,0,0,0.08)] backdrop-blur-3xl"
-  >
+  <BaseWidget {...WIDGET_GLASS}>
     <button
       type="button"
       onClick={onOpenLibrary}
@@ -24,22 +21,13 @@ export const GlobalWidgetCenterAddCard = ({
       </span>
       <span>Add Widget</span>
     </button>
-  </motion.div>
+  </BaseWidget>
 );
 
 export const GlobalWidgetCenterEmptyState = () => (
-  <motion.div
-    variants={overlayItemVariants}
-    className="rounded-2xl border border-black/10 bg-white/50 p-6 shadow-[0px_8px_32px_rgba(0,0,0,0.08)] backdrop-blur-3xl"
-  >
-    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-neutral-500">
-      Shell Status
-    </p>
-    <h3 className="mt-3 text-xl font-semibold tracking-tight text-neutral-900">
-      No global widgets yet
-    </h3>
-    <p className="mt-3 text-sm leading-6 text-neutral-600">
+  <BaseWidget {...WIDGET_GLASS} eyebrow="Shell Status" title="No global widgets yet">
+    <p className="text-sm leading-6 text-neutral-600">
       Add a widget from the shared library to make this shell useful.
     </p>
-  </motion.div>
+  </BaseWidget>
 );

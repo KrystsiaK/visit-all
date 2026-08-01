@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { getWidgetPlacementPolicy, getWidgetPlacementState } from "@/lib/widget-placement";
+import { getWidgetPlacementPolicy, getWidgetPlacementState } from "@/modules/shell/widget-placement";
 
 describe("widget placement policy", () => {
   it("marks entity_info as a required fixed widget", () => {

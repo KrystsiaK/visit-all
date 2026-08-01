@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Space_Grotesk, Inter } from "next/font/google";
 import { GlassFilterDefs } from "@synarava/liquid-glass";
+import "@synarava/shell-kit/styles.css";
 import "./globals.css";
 
 const spaceGrotesk = Space_Grotesk({

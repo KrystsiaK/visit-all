@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Collection } from "@/app/page";
+import type { Collection } from "@/modules/collections/types";
 import { getSelectionActionLabel, isCollectionDirty, moveCollectionToFront } from "@/components/widgets/shell-widgets/collections/utils";
 
 const makeCollection = (overrides: Partial<Collection> = {}): Collection => ({

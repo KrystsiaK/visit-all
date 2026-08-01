@@ -1,30 +1,28 @@
+import { WIDGET_GLASS } from "@/modules/shell/constants";
 import { Route } from "lucide-react";
-import { WidgetActionBody } from "@/components/widgets/WidgetActionBody";
+import { WidgetActionBody } from "@synarava/ui-kit";
 import { BaseWidget } from "@synarava/shell-kit";
+import { useMapMode } from "@/modules/map/MapModeContext";
 
-interface ShellFinishTraceWidgetProps {
-  visible: boolean;
-  onFinishTraceDraft: () => void;
-  title?: string;
-  eyebrow?: string;
-}
+export const ShellFinishTraceWidget = () => {
+  const { mode, drawingPath, traceDraftFinalized, areaDraftFinalized, onFinishTraceDraft, onFinishAreaDraft } = useMapMode();
 
-export const ShellFinishTraceWidget = ({
-  visible,
-  onFinishTraceDraft,
-  title = "Finish Path",
-  eyebrow = "Path Ready",
-}: ShellFinishTraceWidgetProps) => {
-  if (!visible) {
-    return null;
-  }
+  const visible =
+    (mode === "trace" && drawingPath.length >= 2 && !traceDraftFinalized) ||
+    (mode === "area" && drawingPath.length >= 3 && !areaDraftFinalized);
+
+  if (!visible) return null;
+
+  const title = mode === "area" ? "Finish Zone" : "Finish Path";
+  const eyebrow = mode === "area" ? "Zone Ready" : "Path Ready";
+  const onFinish = mode === "area" ? onFinishAreaDraft : onFinishTraceDraft;
 
   return (
-    <BaseWidget
+    <BaseWidget {...WIDGET_GLASS}
       eyebrow={eyebrow}
       title={title}
       identityVisibility="settings-only"
-      className="pointer-events-auto border-black/20 bg-[#f8f6f1]/92 shadow-[0px_10px_28px_rgba(0,0,0,0.14)]"
+      className="pointer-events-auto"
       bodyClassName="p-0"
       contentPaddingClassName="p-0"
     >
@@ -38,7 +36,7 @@ export const ShellFinishTraceWidget = ({
           </div>
         }
         iconPaneClassName="bg-[#f8f6f1]"
-        onClick={onFinishTraceDraft}
+        onClick={onFinish}
       />
     </BaseWidget>
   );

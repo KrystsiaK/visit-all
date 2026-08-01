@@ -1,5 +1,5 @@
 import { pool } from "@/lib/db";
-import { isAvatarStyleId } from "@/components/user/avatar-styles";
+import { isAvatarStyleId } from "@synarava/ui-kit";
 
 import {
   hashPassword,

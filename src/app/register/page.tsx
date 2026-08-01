@@ -10,7 +10,7 @@ import {
   PasswordInput,
   INPUT_PLACEHOLDERS,
   getFieldInputClassName,
-} from "@/components/inputs/FieldChrome";
+} from "@synarava/ui-kit";
 import {
   getPasswordPolicyErrors,
   PASSWORD_MAX_LENGTH,

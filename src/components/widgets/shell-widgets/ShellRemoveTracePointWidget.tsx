@@ -1,54 +1,44 @@
-import { Trash2 } from "lucide-react";
-import { WidgetActionBody } from "@/components/widgets/WidgetActionBody";
+import { WIDGET_GLASS } from "@/modules/shell/constants";
+import { GeometryDraftActions } from "@synarava/ui-kit";
 import { BaseWidget } from "@synarava/shell-kit";
+import { useMapMode } from "@/modules/map/MapModeContext";
 
-interface ShellRemoveTracePointWidgetProps {
-  visible: boolean;
-  selectedTraceNodeIndex: number | null;
-  onRemoveSelectedTraceNode?: () => void;
-  title?: string;
-  readyEyebrow?: (index: number) => string;
-  idleEyebrow?: string;
-}
+export const ShellRemoveTracePointWidget = () => {
+  const {
+    mode,
+    drawingPath,
+    traceDraftFinalized,
+    areaDraftFinalized,
+    traceRoutingPending,
+    itemLabel,
+    onUndoDraft,
+    onCancelDraft,
+  } = useMapMode();
 
-export const ShellRemoveTracePointWidget = ({
-  visible,
-  selectedTraceNodeIndex,
-  onRemoveSelectedTraceNode,
-  title = "Remove Point",
-  readyEyebrow = (index) => `Point ${index + 1} Ready`,
-  idleEyebrow = "Select Point",
-}: ShellRemoveTracePointWidgetProps) => {
-  if (!visible) {
-    return null;
-  }
+  const visible =
+    (mode === "trace" && drawingPath.length > 0 && !traceDraftFinalized) ||
+    (mode === "area" && drawingPath.length > 0 && !areaDraftFinalized);
 
-  const disabled = selectedTraceNodeIndex === null;
+  if (!visible) return null;
+
+  const title = mode === "area" ? "Edit Zone" : "Edit Path";
+  const eyebrow = mode === "area" ? "Draft Controls" : "Path Controls";
 
   return (
-    <BaseWidget
-      eyebrow={disabled ? idleEyebrow : readyEyebrow(selectedTraceNodeIndex)}
+    <BaseWidget {...WIDGET_GLASS}
+      eyebrow={eyebrow}
       title={title}
       identityVisibility="settings-only"
-      className={disabled
-        ? "pointer-events-auto border-black/10 bg-[#ebe8df] shadow-[0px_10px_28px_rgba(0,0,0,0.14)]"
-        : "pointer-events-auto border-[#7d0f1f]/25 bg-[#fff4f4] shadow-[0px_10px_28px_rgba(0,0,0,0.14)]"}
+      className="pointer-events-auto"
       bodyClassName="p-0"
       contentPaddingClassName="p-0"
     >
-      <WidgetActionBody
-        title={title}
-        icon={<Trash2 className={disabled ? "h-6 w-6 text-neutral-400" : "h-6 w-6 text-[#7d0f1f]"} />}
-        colorBars={
-          <div className="flex h-full flex-col">
-            <div className="flex-1 bg-[#111111]" />
-            <div className="flex-1 bg-[#ff0000]" />
-          </div>
-        }
-        iconPaneClassName="border-black/10 bg-[#fdf8f6]"
-        titleClassName={disabled ? "text-neutral-400" : "text-[#7d0f1f]"}
-        disabled={disabled}
-        onClick={() => onRemoveSelectedTraceNode?.()}
+      <GeometryDraftActions
+        itemLabel={itemLabel}
+        canUndo={drawingPath.length > 0}
+        disabled={traceRoutingPending}
+        onUndo={onUndoDraft}
+        onCancel={onCancelDraft}
       />
     </BaseWidget>
   );

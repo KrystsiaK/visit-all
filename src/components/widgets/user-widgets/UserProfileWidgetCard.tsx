@@ -1,11 +1,14 @@
 "use client";
 
-import { Save } from "lucide-react";
-import { useState } from "react";
+import { WIDGET_GLASS } from "@/modules/shell/constants";
 
-import { UserAvatarBadge, avatarStyleOptions } from "@/components/user/avatar-styles";
+import { Save } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+
+import { UserAvatarBadge, avatarStyleOptions } from "@synarava/ui-kit";
 import { BaseWidget } from "@synarava/shell-kit";
-import type { WidgetInstanceRecord } from "@/lib/widgets";
+import { useCurrentWidget } from "@/modules/entity/EntityContext";
+import { useUserShellData, useUserShellWriteState, useUserShellActions } from "@/contexts/user-shell-context";
 
 export interface UserProfileViewModel {
   email: string;
@@ -14,26 +17,30 @@ export interface UserProfileViewModel {
   emailVerifiedAt: string | null;
 }
 
-interface UserProfileWidgetCardProps {
-  widget: WidgetInstanceRecord;
-  profile: UserProfileViewModel;
-  saving: boolean;
-  onSave: (input: { displayName: string; avatarStyle: string }) => Promise<void>;
-}
+export function UserProfileWidgetCard() {
+  const widget = useCurrentWidget();
+  const { profile } = useUserShellData();
+  const { savingProfile } = useUserShellWriteState();
+  const { handleSaveProfile } = useUserShellActions();
 
-export function UserProfileWidgetCard({
-  widget,
-  profile,
-  saving,
-  onSave,
-}: UserProfileWidgetCardProps) {
-  const [displayName, setDisplayName] = useState(profile.displayName ?? "");
-  const [avatarStyle, setAvatarStyle] = useState(profile.avatarStyle ?? avatarStyleOptions[0].id);
+  const [displayName, setDisplayName] = useState(profile?.displayName ?? "");
+  const [avatarStyle, setAvatarStyle] = useState(profile?.avatarStyle ?? avatarStyleOptions[0].id);
+
+  const prevProfileRef = useRef(profile);
+  useEffect(() => {
+    if (profile && profile !== prevProfileRef.current) {
+      setDisplayName(profile.displayName ?? "");
+      setAvatarStyle(profile.avatarStyle ?? avatarStyleOptions[0].id);
+      prevProfileRef.current = profile;
+    }
+  }, [profile]);
+
+  if (!profile) return null;
 
   return (
-    <BaseWidget
+    <BaseWidget {...WIDGET_GLASS}
       eyebrow="Profile"
-      title={widget.name}
+      title={widget?.name ?? "Profile"}
       subtitle="Identity, avatar, and account presence."
       identityVisibility="settings-only"
     >
@@ -112,12 +119,12 @@ export function UserProfileWidgetCard({
 
         <button
           type="button"
-          onClick={() => onSave({ displayName, avatarStyle })}
-          disabled={saving}
+          onClick={() => void handleSaveProfile({ displayName, avatarStyle })}
+          disabled={savingProfile}
           className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#00327d] px-4 py-3 text-sm font-black uppercase tracking-[0.18em] text-white transition-colors hover:bg-[#001f4d] disabled:opacity-60"
         >
           <Save className="h-4 w-4" />
-          {saving ? "Saving..." : "Save Profile"}
+          {savingProfile ? "Saving..." : "Save Profile"}
         </button>
       </div>
     </BaseWidget>

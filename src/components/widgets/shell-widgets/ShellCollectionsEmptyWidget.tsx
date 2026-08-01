@@ -1,7 +1,8 @@
+import { WIDGET_GLASS } from "@/modules/shell/constants";
 import { BaseWidget } from "@synarava/shell-kit";
 
 export const ShellCollectionsEmptyWidget = () => (
-  <BaseWidget
+  <BaseWidget {...WIDGET_GLASS}
     className="pointer-events-auto"
     bodyClassName="space-y-3"
     title="Collections"

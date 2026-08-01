@@ -2,7 +2,7 @@
 
 import { useEffect, useReducer, useRef, useState } from "react";
 import { deleteCollection, updateCollection } from "@/app/actions";
-import type { Collection } from "@/app/page";
+import type { Collection } from "@/modules/collections/types";
 import { useDebouncedCallback } from "@/hooks/useDebounce";
 import { collectionsUiReducer } from "@/components/widgets/shell-widgets/collections/reducer";
 import type { UseShellCollectionsBindingParams } from "@/components/widgets/shell-widgets/collections/types";

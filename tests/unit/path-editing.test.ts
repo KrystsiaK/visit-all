@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { removePathPoint } from "../../src/lib/path-editing";
+import { removePathPoint } from "../../src/modules/map/utils/path-editing";
 
 describe("path editing helpers", () => {
   it("removes the selected point from the path", () => {

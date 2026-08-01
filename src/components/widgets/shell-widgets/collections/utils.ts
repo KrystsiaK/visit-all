@@ -1,4 +1,4 @@
-import type { Collection, InteractionMode } from "@/app/page";
+import type { Collection, InteractionMode } from "@/modules/collections/types";
 
 export const getSelectionActionLabel = (mode: InteractionMode) => {
   if (mode === "trace" || mode === "editTrace") {

@@ -1,18 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import {
   addWidgetFromLibrary,
-  bootstrapWidgetLibraryState,
   getGlobalWidgets,
-  getWidgetLibraryCatalog,
   reorderGlobalWidgets,
 } from "@/app/actions";
 import { useShellWidgetReorder } from "@synarava/shell-kit";
-import type { WidgetLibraryCatalogRecord } from "@/app/actions";
-import type { WidgetEntityType, WidgetInstanceRecord } from "@/lib/widgets";
-import type { WidgetHost } from "@/lib/widget-hosts";
+import type { WidgetEntityType } from "@/lib/widgets";
+import type { WidgetHost } from "@/modules/shell/widget-hosts";
+import { useWidgetLibrary } from "@/modules/widget-library/WidgetLibraryContext";
 
 interface UseGlobalWidgetBindingsProps {
   isOpen: boolean;
@@ -21,23 +19,17 @@ interface UseGlobalWidgetBindingsProps {
 }
 
 export const useGlobalWidgetBindings = ({
-  isOpen,
   entityType,
   entityId,
 }: UseGlobalWidgetBindingsProps) => {
-  const [widgets, setWidgets] = useState<WidgetInstanceRecord[]>([]);
-  const [definitions, setDefinitions] = useState<WidgetLibraryCatalogRecord[]>([]);
-  const [loading, setLoading] = useState(false);
+  const { widgets, definitions, loading, refresh, setWidgets } = useWidgetLibrary();
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [addingSlug, setAddingSlug] = useState<string | null>(null);
 
   const {
     draggedWidgetId,
     dropTarget,
-    handleDragStart,
-    handleDragEnd,
-    handleDragOver,
-    handleDrop,
+    handleSlotPointerDown,
   } = useShellWidgetReorder({
     shellId: "widget_center_shell",
     widgets,
@@ -49,76 +41,6 @@ export const useGlobalWidgetBindings = ({
       });
     },
   });
-
-  useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-
-    let cancelled = false;
-
-    void (async () => {
-      setLoading(true);
-
-      try {
-        let instances = await getGlobalWidgets();
-
-        if (instances.length === 0) {
-          await bootstrapWidgetLibraryState();
-          instances = await getGlobalWidgets();
-        }
-
-        if (!cancelled) {
-          setWidgets(instances);
-        }
-      } catch (error) {
-        console.error(error);
-        if (!cancelled) {
-          setWidgets([]);
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [isOpen]);
-
-  useEffect(() => {
-    if (!libraryOpen) {
-      return;
-    }
-
-    let cancelled = false;
-
-    void (async () => {
-      try {
-        let nextDefinitions = await getWidgetLibraryCatalog(entityType, entityId);
-
-        if (nextDefinitions.length === 0) {
-          await bootstrapWidgetLibraryState(entityType, entityId);
-          nextDefinitions = await getWidgetLibraryCatalog(entityType, entityId);
-        }
-
-        if (!cancelled) {
-          setDefinitions(nextDefinitions);
-        }
-      } catch (error) {
-        console.error(error);
-        if (!cancelled) {
-          setDefinitions([]);
-        }
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [entityId, entityType, libraryOpen]);
 
   const handleAddWidgetFromLibrary = async (
     slug: string,
@@ -132,8 +54,7 @@ export const useGlobalWidgetBindings = ({
       onLibraryMutation?.();
       const nextWidgets = await getGlobalWidgets();
       setWidgets(nextWidgets);
-      const nextDefinitions = await getWidgetLibraryCatalog(entityType, entityId);
-      setDefinitions(nextDefinitions);
+      await refresh();
       setLibraryOpen(false);
     } catch (error) {
       console.error(error);
@@ -150,10 +71,7 @@ export const useGlobalWidgetBindings = ({
     addingSlug,
     draggedWidgetId,
     dropTarget,
-    handleDragStart,
-    handleDragEnd,
-    handleDragOver,
-    handleDrop,
+    handleSlotPointerDown,
     setLibraryOpen,
     handleAddWidgetFromLibrary,
   };

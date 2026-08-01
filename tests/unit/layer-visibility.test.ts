@@ -8,7 +8,7 @@ import {
   hasAnySolo,
   isLayerVisible,
   layerVisibilityReducer,
-} from "../../src/lib/layer-visibility";
+} from "../../src/modules/collections/layer-visibility";
 
 const collections = [{ id: "a" }, { id: "b" }, { id: "c" }];
 

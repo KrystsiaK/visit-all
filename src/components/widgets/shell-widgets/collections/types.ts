@@ -1,6 +1,6 @@
 import type { Dispatch, SetStateAction } from "react";
-import type { Collection, InteractionMode } from "@/app/page";
-import type { LayerVisibilityState } from "@/lib/layer-visibility";
+import type { Collection, InteractionMode } from "@/modules/collections/types";
+import type { LayerVisibilityState } from "@/modules/collections/layer-visibility";
 
 export interface UseShellCollectionsBindingParams {
   mode: InteractionMode;
@@ -50,32 +50,3 @@ export interface ShellCollectionsWidgetProps {
   onRequestDeleteCollection: (collection: Collection) => void;
 }
 
-export interface CollectionEditSectionProps {
-  collection: Collection;
-  editingCollection: Collection | null;
-  saving: boolean;
-  primaryActionLabel: string;
-  onCollectionColorChange: (value: string) => void;
-  onCollectionDone: (collectionId: string) => Promise<void>;
-  onRequestDeleteCollection: (collection: Collection) => void;
-}
-
-export interface CollectionCardProps {
-  collection: Collection;
-  editingCollection: Collection | null;
-  highlightedCollectionId: string;
-  editingCollectionId: string | null;
-  itemLabel: string;
-  layerVisibility: LayerVisibilityState;
-  awaitingCollectionSelection: boolean;
-  primaryActionLabel: string;
-  selectionCommitPendingId: string | null;
-  saving: boolean;
-  onCollectionClick: (collection: Collection) => void;
-  onToggleCollectionVisibility: (collectionId: string) => void;
-  onShowOnlyCollection: (collectionId: string) => void;
-  onCollectionNameChange: (value: string) => void;
-  onCollectionColorChange: (value: string) => void;
-  onCollectionDone: (collectionId: string) => Promise<void>;
-  onRequestDeleteCollection: (collection: Collection) => void;
-}

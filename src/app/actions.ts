@@ -3,17 +3,27 @@
 import type { PoolClient } from "pg";
 import { pool } from "@/lib/db";
 import { auth } from "@/auth";
+import {
+  COLLECTION_EXPORT_FORMAT,
+  COLLECTION_EXPORT_VERSION,
+  type CollectionExportData,
+  type CollectionExportEntity,
+  type CollectionExportNote,
+  type CollectionExportResource,
+  type CollectionExportMedia,
+} from "@/modules/collections/export-format";
 import type { WidgetComponentKey, WidgetDefinitionRecord, WidgetEntityPayload, WidgetEntityType, WidgetInstanceRecord, WidgetLayerType } from "@/lib/widgets";
 import type { WidgetPlacementRecord } from "@/lib/widgets";
-import type { LeftSidebarShellInstance, TopChromeShellInstance, UserShellInstance } from "@/lib/shells";
-import { defaultLeftSidebarShellConfig, defaultShellState, defaultTopChromeShellConfig } from "@/lib/shells";
-import { getWidgetAllowedHosts, type WidgetHost } from "@/lib/widget-hosts";
+import type { LeftSidebarShellInstance, TopChromeShellInstance, UserShellInstance } from "@/modules/shell/types";
+import { defaultLeftSidebarShellConfig, defaultShellState, defaultTopChromeShellConfig } from "@/modules/shell/types";
+import { SHELL_PANEL_WIDTH } from "@/modules/shell/constants";
+import { getWidgetAllowedHosts, type WidgetHost } from "@/modules/shell/widget-hosts";
 import {
   getWidgetPlacementPolicy,
   getWidgetPlacementState,
   type WidgetPlacementActionMode,
   type WidgetPlacementPolicy,
-} from "@/lib/widget-placement";
+} from "@/modules/shell/widget-placement";
 import { validateImageUpload } from "@/lib/security";
 import { deleteUploadFromUrl, writeUpload, writeUploadAsset } from "@/lib/storage";
 import { assertRateLimit } from "@/lib/rate-limit";
@@ -582,7 +592,7 @@ async function ensureShellDefinitionSeed() {
         version: 1,
         placement: "right",
         sizePreset: "regular",
-        width: 376,
+        width: SHELL_PANEL_WIDTH,
         motionPreset: "overlay-soft",
       },
     },
@@ -593,7 +603,7 @@ async function ensureShellDefinitionSeed() {
         version: 1,
         placement: "right",
         sizePreset: "regular",
-        width: 376,
+        width: SHELL_PANEL_WIDTH,
         motionPreset: "overlay-soft",
       },
     },
@@ -604,7 +614,7 @@ async function ensureShellDefinitionSeed() {
         version: 1,
         placement: "right",
         sizePreset: "regular",
-        width: 376,
+        width: SHELL_PANEL_WIDTH,
         motionPreset: "overlay-soft",
       },
     },
@@ -615,7 +625,7 @@ async function ensureShellDefinitionSeed() {
         version: 1,
         placement: "right",
         sizePreset: "regular",
-        width: 376,
+        width: SHELL_PANEL_WIDTH,
         motionPreset: "overlay-soft",
       },
     },
@@ -626,7 +636,7 @@ async function ensureShellDefinitionSeed() {
         version: 1,
         placement: "right",
         sizePreset: "regular",
-        width: 376,
+        width: SHELL_PANEL_WIDTH,
         motionPreset: "overlay-soft",
       },
     },
@@ -2103,7 +2113,22 @@ export async function getTraces() {
              ${traceFallbackCollectionIdSql}
            ) as collection_id,
            c.color as "collectionColor",
-           ST_AsGeoJSON(t.path)::json as path 
+           ST_AsGeoJSON(t.path)::json as path,
+           COALESCE(
+             (
+               SELECT json_agg(
+                 json_build_object(
+                   'id', tb.id,
+                   'path', ST_AsGeoJSON(tb.path)::json
+                 )
+                 ORDER BY tb.created_at ASC
+               )
+               FROM trace_branches tb
+               WHERE tb.trace_id = t.id
+                 AND tb.user_id = t.user_id
+             ),
+             '[]'::json
+           ) as branches
     FROM traces t
     LEFT JOIN entity_containers ec ON ec.id = t.container_id
     LEFT JOIN entity_details ed ON ed.entity_container_id = t.container_id
@@ -2477,6 +2502,99 @@ export async function mergeTraceIntoEndpoint(
   } finally {
     client.release();
   }
+}
+
+const TRACE_BRANCH_ATTACHMENT_THRESHOLD_METERS = 30;
+
+function squaredCoordinateDistance(left: [number, number], right: [number, number]) {
+  const lng = left[0] - right[0];
+  const lat = left[1] - right[1];
+  return lng * lng + lat * lat;
+}
+
+export async function attachTraceBranch(
+  existingTraceId: string,
+  coordinates: [number, number][],
+  requestedAttachment: [number, number]
+) {
+  if (coordinates.length < 2) {
+    throw new Error("A branch needs at least two points.");
+  }
+
+  const userId = await getUserId();
+  const { rows } = await pool.query(
+    `
+      WITH network_segments AS (
+        SELECT t.path
+        FROM traces t
+        LEFT JOIN entity_containers ec ON ec.id = t.container_id
+        WHERE t.id = $1::uuid
+          AND t.user_id::text = $2::text
+          AND COALESCE(ec.status, 'active') = 'active'
+
+        UNION ALL
+
+        SELECT tb.path
+        FROM trace_branches tb
+        WHERE tb.trace_id = $1::uuid
+          AND tb.user_id::text = $2::text
+      ),
+      requested_point AS (
+        SELECT ST_SetSRID(ST_MakePoint($3, $4), 4326) AS point
+      )
+      SELECT
+        ST_X(ST_ClosestPoint(network_segments.path, requested_point.point)) AS lng,
+        ST_Y(ST_ClosestPoint(network_segments.path, requested_point.point)) AS lat,
+        ST_DistanceSphere(
+          ST_ClosestPoint(network_segments.path, requested_point.point),
+          requested_point.point
+        ) AS "distanceMeters"
+      FROM network_segments
+      CROSS JOIN requested_point
+      ORDER BY "distanceMeters" ASC
+      LIMIT 1
+    `,
+    [existingTraceId, userId, requestedAttachment[0], requestedAttachment[1]]
+  );
+
+  const closest = rows[0] as
+    | { lng: number | string; lat: number | string; distanceMeters: number | string }
+    | undefined;
+
+  if (!closest || Number(closest.distanceMeters) > TRACE_BRANCH_ATTACHMENT_THRESHOLD_METERS) {
+    throw new Error("The selected point is no longer close enough to this path.");
+  }
+
+  const attachment: [number, number] = [Number(closest.lng), Number(closest.lat)];
+  const firstDistance = squaredCoordinateDistance(coordinates[0], requestedAttachment);
+  const lastDistance = squaredCoordinateDistance(coordinates[coordinates.length - 1], requestedAttachment);
+  const orientedCoordinates = firstDistance <= lastDistance ? [...coordinates] : [...coordinates].reverse();
+  orientedCoordinates[0] = attachment;
+
+  const branchWkt = coordinatesToLineStringWkt(orientedCoordinates);
+  const { rows: insertedRows } = await pool.query(
+    `
+      INSERT INTO trace_branches (trace_id, path, user_id)
+      SELECT t.id, ST_SetSRID($1::geometry, 4326), t.user_id
+      FROM traces t
+      LEFT JOIN entity_containers ec ON ec.id = t.container_id
+      WHERE t.id = $2::uuid
+        AND t.user_id::text = $3::text
+        AND COALESCE(ec.status, 'active') = 'active'
+      RETURNING id
+    `,
+    [branchWkt, existingTraceId, userId]
+  );
+
+  if (!insertedRows[0]) {
+    throw new Error("The selected path could not be loaded for branching.");
+  }
+
+  return {
+    id: insertedRows[0].id as string,
+    traceId: existingTraceId,
+    coordinates: orientedCoordinates,
+  };
 }
 
 export async function saveTrace(coordinates: [number, number][], color: string, collectionId?: string) {
@@ -3132,6 +3250,25 @@ export async function getGlobalWidgets() {
   );
 
   return rows as WidgetInstanceRecord[];
+}
+
+export async function getWidgetCenterSnapshot() {
+  let [widgets, definitions, generatedWidgets] = await Promise.all([
+    getGlobalWidgets(),
+    getWidgetLibraryCatalog(),
+    getGeneratedWidgets(),
+  ]);
+
+  if (widgets.length === 0 || definitions.length === 0) {
+    await bootstrapWidgetLibraryState();
+    [widgets, definitions, generatedWidgets] = await Promise.all([
+      getGlobalWidgets(),
+      getWidgetLibraryCatalog(),
+      getGeneratedWidgets(),
+    ]);
+  }
+
+  return { widgets, definitions, generatedWidgets };
 }
 
 export async function addGlobalWidget(definitionSlug: string) {
@@ -5077,4 +5214,455 @@ export async function getNearbyPinsForEntity(
       lat: Number(row.lat),
     },
   }));
+}
+
+// ── Generated Widgets ────────────────────────────────────────────────────────
+
+export interface GeneratedWidgetRecord {
+  id: string;
+  widgetKey: string;
+  name: string;
+  description: string | null;
+  componentCode: string;
+  ports: Array<{ portKey: string; direction: string; valueType: string; label: string }>;
+  status: "draft" | "active" | "archived";
+  targetHosts: string[];
+  createdAt: string;
+}
+
+export async function saveGeneratedWidget(params: {
+  widgetKey: string;
+  name: string;
+  description: string;
+  componentCode: string;
+  ports: GeneratedWidgetRecord["ports"];
+  targetHosts?: string[];
+  chatHistory: Array<{ role: string; content: string }>;
+}): Promise<GeneratedWidgetRecord> {
+  const userId = await getUserId();
+
+  const { rows } = await pool.query<{
+    id: string;
+    widget_key: string;
+    name: string;
+    description: string | null;
+    component_code: string;
+    ports: GeneratedWidgetRecord["ports"];
+    status: "draft" | "active" | "archived";
+    target_hosts: string[];
+    created_at: string;
+  }>(
+    `INSERT INTO generated_widgets
+       (user_id, widget_key, name, description, component_code, ports, target_hosts, chat_history)
+     VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8::jsonb)
+     ON CONFLICT (user_id, widget_key)
+     DO UPDATE SET
+       name = EXCLUDED.name,
+       description = EXCLUDED.description,
+       component_code = EXCLUDED.component_code,
+       ports = EXCLUDED.ports,
+       target_hosts = EXCLUDED.target_hosts,
+       chat_history = EXCLUDED.chat_history,
+       status = 'active',
+       updated_at = NOW()
+     RETURNING id, widget_key, name, description, component_code, ports, status, target_hosts, created_at`,
+    [
+      userId,
+      params.widgetKey,
+      params.name,
+      params.description,
+      params.componentCode,
+      JSON.stringify(params.ports),
+      params.targetHosts ?? [],
+      JSON.stringify(params.chatHistory),
+    ]
+  );
+
+  const row = rows[0];
+  return {
+    id: row.id,
+    widgetKey: row.widget_key,
+    name: row.name,
+    description: row.description,
+    componentCode: row.component_code,
+    ports: row.ports,
+    status: row.status,
+    targetHosts: row.target_hosts ?? [],
+    createdAt: row.created_at,
+  };
+}
+
+export async function getGeneratedWidgets(): Promise<GeneratedWidgetRecord[]> {
+  const userId = await getUserId();
+
+  const { rows } = await pool.query<{
+    id: string;
+    widget_key: string;
+    name: string;
+    description: string | null;
+    component_code: string;
+    ports: GeneratedWidgetRecord["ports"];
+    status: "draft" | "active" | "archived";
+    target_hosts: string[];
+    created_at: string;
+  }>(
+    `SELECT id, widget_key, name, description, component_code, ports, status, target_hosts, created_at
+     FROM generated_widgets
+     WHERE user_id = $1 AND status != 'archived'
+     ORDER BY created_at DESC`,
+    [userId]
+  );
+
+  return rows.map((row) => ({
+    id: row.id,
+    widgetKey: row.widget_key,
+    name: row.name,
+    description: row.description,
+    componentCode: row.component_code,
+    ports: row.ports,
+    status: row.status,
+    targetHosts: row.target_hosts ?? [],
+    createdAt: row.created_at,
+  }));
+}
+
+export async function placeGeneratedWidget(id: string, hosts: string[]): Promise<void> {
+  const userId = await getUserId();
+  await pool.query(
+    `UPDATE generated_widgets SET target_hosts = $1, status = 'active', updated_at = NOW()
+     WHERE id = $2 AND user_id = $3`,
+    [hosts, id, userId]
+  );
+}
+
+export async function getGeneratedWidgetsForHost(host: string): Promise<GeneratedWidgetRecord[]> {
+  const userId = await getUserId();
+  const { rows } = await pool.query<{
+    id: string;
+    widget_key: string;
+    name: string;
+    description: string | null;
+    component_code: string;
+    ports: GeneratedWidgetRecord["ports"];
+    status: "draft" | "active" | "archived";
+    target_hosts: string[];
+    created_at: string;
+  }>(
+    `SELECT id, widget_key, name, description, component_code, ports, status, target_hosts, created_at
+     FROM generated_widgets
+     WHERE user_id = $1 AND status != 'archived' AND $2 = ANY(target_hosts)
+     ORDER BY created_at DESC`,
+    [userId, host]
+  );
+
+  return rows.map((row) => ({
+    id: row.id,
+    widgetKey: row.widget_key,
+    name: row.name,
+    description: row.description,
+    componentCode: row.component_code,
+    ports: row.ports,
+    status: row.status,
+    targetHosts: row.target_hosts ?? [],
+    createdAt: row.created_at,
+  }));
+}
+
+export async function archiveGeneratedWidget(id: string): Promise<void> {
+  const userId = await getUserId();
+  await pool.query(
+    `UPDATE generated_widgets SET status = 'archived', updated_at = NOW()
+     WHERE id = $1 AND user_id = $2`,
+    [id, userId]
+  );
+}
+
+// --- COLLECTION EXPORT / IMPORT ---
+
+export async function exportCollection(collectionId: string): Promise<CollectionExportData> {
+  const userId = await getUserId();
+
+  const { rows: colRows } = await pool.query<{ name: string; color: string; icon: string }>(
+    `SELECT name, color, icon FROM collections WHERE id = $1::uuid AND user_id = $2 LIMIT 1`,
+    [collectionId, userId]
+  );
+  if (!colRows[0]) throw new Error("Collection not found.");
+  const col = colRows[0];
+
+  const [pinRows, traceRows, areaRows] = await Promise.all([
+    pool.query<{ container_id: string | null; title: string; lng: number; lat: number }>(
+      `SELECT p.container_id,
+              COALESCE(ed.title, p.name, 'Untitled Pin') AS title,
+              ST_X(p.location::geometry) AS lng,
+              ST_Y(p.location::geometry) AS lat
+       FROM pins p
+       LEFT JOIN entity_containers ec ON ec.id = p.container_id
+       LEFT JOIN entity_details ed ON ed.entity_container_id = p.container_id
+       WHERE COALESCE(p.collection_id, ec.collection_id) = $1::uuid
+         AND p.user_id = $2
+         AND COALESCE(ec.status, 'active') = 'active'`,
+      [collectionId, userId]
+    ),
+    pool.query<{ container_id: string | null; title: string; path: { coordinates: [number, number][] } }>(
+      `SELECT t.container_id,
+              COALESCE(ed.title, t.name, 'Untitled Path') AS title,
+              ST_AsGeoJSON(t.path)::json AS path
+       FROM traces t
+       LEFT JOIN entity_containers ec ON ec.id = t.container_id
+       LEFT JOIN entity_details ed ON ed.entity_container_id = t.container_id
+       WHERE COALESCE(t.collection_id, ec.collection_id) = $1::uuid
+         AND t.user_id = $2
+         AND COALESCE(ec.status, 'active') = 'active'`,
+      [collectionId, userId]
+    ),
+    pool.query<{ container_id: string | null; title: string; path: { coordinates: [[number, number][]] } }>(
+      `SELECT a.container_id,
+              COALESCE(ed.title, a.name, 'Untitled Zone') AS title,
+              ST_AsGeoJSON(a.path)::json AS path
+       FROM areas a
+       LEFT JOIN entity_containers ec ON ec.id = a.container_id
+       LEFT JOIN entity_details ed ON ed.entity_container_id = a.container_id
+       WHERE COALESCE(a.collection_id, ec.collection_id) = $1::uuid
+         AND a.user_id = $2
+         AND COALESCE(ec.status, 'active') = 'active'`,
+      [collectionId, userId]
+    ),
+  ]);
+
+  const containerIds = [
+    ...pinRows.rows.map((r) => r.container_id),
+    ...traceRows.rows.map((r) => r.container_id),
+    ...areaRows.rows.map((r) => r.container_id),
+  ].filter((id): id is string => id !== null);
+
+  const [notesResult, resourcesResult, mediaResult, ratingsResult] = containerIds.length > 0
+    ? await Promise.all([
+        pool.query<{ containerId: string; title: string | null; bodyMarkdown: string }>(
+          `SELECT entity_container_id AS "containerId", title, body_markdown AS "bodyMarkdown"
+           FROM entity_story_entries
+           WHERE entity_container_id = ANY($1::uuid[]) AND user_id = $2
+           ORDER BY position ASC`,
+          [containerIds, userId]
+        ),
+        pool.query<{ containerId: string; label: string | null; url: string }>(
+          `SELECT entity_container_id AS "containerId", label, url
+           FROM entity_resource_links
+           WHERE entity_container_id = ANY($1::uuid[]) AND user_id = $2
+           ORDER BY position ASC`,
+          [containerIds, userId]
+        ),
+        pool.query<{ containerId: string; url: string; caption: string | null }>(
+          `SELECT entity_container_id AS "containerId", public_url AS url, caption
+           FROM entity_media_items
+           WHERE entity_container_id = ANY($1::uuid[]) AND user_id = $2
+           ORDER BY position ASC`,
+          [containerIds, userId]
+        ),
+        pool.query<{ containerId: string; value: number }>(
+          `SELECT entity_container_id AS "containerId", value
+           FROM entity_ratings
+           WHERE entity_container_id = ANY($1::uuid[]) AND user_id = $2`,
+          [containerIds, userId]
+        ),
+      ])
+    : [{ rows: [] as { containerId: string; title: string | null; bodyMarkdown: string }[] },
+       { rows: [] as { containerId: string; label: string | null; url: string }[] },
+       { rows: [] as { containerId: string; url: string; caption: string | null }[] },
+       { rows: [] as { containerId: string; value: number }[] }];
+
+  const notesByContainer = new Map<string, CollectionExportNote[]>();
+  for (const r of notesResult.rows) {
+    const arr = notesByContainer.get(r.containerId) ?? [];
+    arr.push({ title: r.title ?? null, markdown: r.bodyMarkdown });
+    notesByContainer.set(r.containerId, arr);
+  }
+
+  const resourcesByContainer = new Map<string, CollectionExportResource[]>();
+  for (const r of resourcesResult.rows) {
+    const arr = resourcesByContainer.get(r.containerId) ?? [];
+    arr.push({ label: r.label ?? null, url: r.url });
+    resourcesByContainer.set(r.containerId, arr);
+  }
+
+  const mediaByContainer = new Map<string, CollectionExportMedia[]>();
+  for (const r of mediaResult.rows) {
+    const arr = mediaByContainer.get(r.containerId) ?? [];
+    arr.push({ url: r.url, caption: r.caption ?? null });
+    mediaByContainer.set(r.containerId, arr);
+  }
+
+  const ratingByContainer = new Map<string, number>();
+  for (const r of ratingsResult.rows) {
+    ratingByContainer.set(r.containerId, r.value);
+  }
+
+  function getEnrichments(containerId: string | null) {
+    return {
+      notes: containerId ? (notesByContainer.get(containerId) ?? []) : [],
+      resources: containerId ? (resourcesByContainer.get(containerId) ?? []) : [],
+      mediaUrls: containerId ? (mediaByContainer.get(containerId) ?? []) : [],
+      rating: containerId ? (ratingByContainer.get(containerId) ?? null) : null,
+    };
+  }
+
+  const entities: CollectionExportEntity[] = [
+    ...pinRows.rows.map((r) => ({
+      type: "pin" as const,
+      title: r.title,
+      coordinates: { lng: Number(r.lng), lat: Number(r.lat) },
+      ...getEnrichments(r.container_id),
+    })),
+    ...traceRows.rows.map((r) => ({
+      type: "trace" as const,
+      title: r.title,
+      coordinates: (r.path?.coordinates ?? []).map(([lng, lat]) => ({ lng, lat })),
+      ...getEnrichments(r.container_id),
+    })),
+    ...areaRows.rows.map((r) => ({
+      type: "area" as const,
+      title: r.title,
+      coordinates: (r.path?.coordinates?.[0] ?? []).map(([lng, lat]) => ({ lng, lat })),
+      ...getEnrichments(r.container_id),
+    })),
+  ];
+
+  return {
+    format: COLLECTION_EXPORT_FORMAT,
+    version: COLLECTION_EXPORT_VERSION,
+    exportedAt: new Date().toISOString(),
+    collection: { name: col.name, color: col.color, icon: col.icon },
+    entities,
+  };
+}
+
+async function insertImportEnrichments(
+  client: PoolClient,
+  containerId: string,
+  userId: string,
+  entity: CollectionExportEntity
+) {
+  if (entity.rating !== null && entity.rating !== undefined) {
+    await client.query(
+      `INSERT INTO entity_ratings (entity_container_id, user_id, value)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (entity_container_id) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`,
+      [containerId, userId, entity.rating]
+    );
+  }
+  for (const [i, note] of entity.notes.entries()) {
+    await client.query(
+      `INSERT INTO entity_story_entries (entity_container_id, user_id, title, body_markdown, position)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [containerId, userId, note.title ?? null, note.markdown, i]
+    );
+  }
+  for (const [i, resource] of entity.resources.entries()) {
+    await client.query(
+      `INSERT INTO entity_resource_links (entity_container_id, user_id, label, url, position)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [containerId, userId, resource.label ?? null, resource.url, i]
+    );
+  }
+}
+
+export async function importCollection(data: CollectionExportData) {
+  const userId = await getUserId();
+
+  const typeCounts: Record<string, number> = {};
+  for (const e of data.entities) typeCounts[e.type] = (typeCounts[e.type] ?? 0) + 1;
+  const collectionType =
+    (typeCounts.trace ?? 0) > (typeCounts.pin ?? 0) && (typeCounts.trace ?? 0) > (typeCounts.area ?? 0)
+      ? "trace"
+      : (typeCounts.area ?? 0) > (typeCounts.pin ?? 0)
+        ? "area"
+        : "pin";
+
+  const { rows: colRows } = await pool.query<{ id: string }>(
+    `INSERT INTO collections (name, color, icon, user_id, type) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+    [data.collection.name, data.collection.color, data.collection.icon || "📍", userId, collectionType]
+  );
+  const collectionId = colRows[0].id;
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    for (const entity of data.entities) {
+      if (entity.type === "pin") {
+        const containerId = await createEntityContainerRecord(client, {
+          entityType: "pin",
+          geometryKind: "point",
+          collectionId,
+          userId,
+          sourcePayload: { source: "import", coordinates: entity.coordinates },
+        });
+        await upsertEntityDetails(client, { entityContainerId: containerId, userId, title: entity.title, description: "" });
+        await client.query(
+          `INSERT INTO pins (container_id, collection_id, name, location, user_id)
+           VALUES ($1, $2, $3, ST_SetSRID(ST_MakePoint($4, $5), 4326), $6)`,
+          [containerId, collectionId, entity.title, entity.coordinates.lng, entity.coordinates.lat, userId]
+        );
+        await insertImportEnrichments(client, containerId, userId, entity);
+      } else if (entity.type === "trace") {
+        const coords = (entity.coordinates as Array<{ lng: number; lat: number }>).map(
+          (c) => [c.lng, c.lat] as [number, number]
+        );
+        const wkt = coordinatesToLineStringWkt(coords);
+        const containerId = await createEntityContainerRecord(client, {
+          entityType: "trace",
+          geometryKind: "line",
+          collectionId,
+          userId,
+          sourcePayload: { source: "import", coordinates: coords },
+        });
+        await upsertEntityDetails(client, { entityContainerId: containerId, userId, title: entity.title, description: "" });
+        await client.query(
+          `INSERT INTO traces (container_id, collection_id, name, path, color, user_id)
+           VALUES ($1, $2, $3, ST_SetSRID($4::geometry, 4326), $5, $6)`,
+          [containerId, collectionId, entity.title, wkt, data.collection.color, userId]
+        );
+        await insertImportEnrichments(client, containerId, userId, entity);
+      } else if (entity.type === "area") {
+        const coords = (entity.coordinates as Array<{ lng: number; lat: number }>).map(
+          (c) => [c.lng, c.lat] as [number, number]
+        );
+        const safeCoords = [...coords];
+        if (safeCoords.length >= 3) {
+          const first = safeCoords[0];
+          const last = safeCoords[safeCoords.length - 1];
+          if (first[0] !== last[0] || first[1] !== last[1]) safeCoords.push([...first]);
+        }
+        const wkt = `POLYGON((${safeCoords.map((c) => `${c[0]} ${c[1]}`).join(", ")}))`;
+        const containerId = await createEntityContainerRecord(client, {
+          entityType: "area",
+          geometryKind: "polygon",
+          collectionId,
+          userId,
+          sourcePayload: { source: "import", coordinates: safeCoords },
+        });
+        await upsertEntityDetails(client, { entityContainerId: containerId, userId, title: entity.title, description: "" });
+        await client.query(
+          `INSERT INTO areas (container_id, collection_id, name, path, color, user_id)
+           VALUES ($1, $2, $3, ST_SetSRID($4::geometry, 4326), $5, $6)`,
+          [containerId, collectionId, entity.title, wkt, data.collection.color, userId]
+        );
+        await insertImportEnrichments(client, containerId, userId, entity);
+      }
+    }
+
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+
+  return {
+    id: collectionId,
+    name: data.collection.name,
+    color: data.collection.color,
+    icon: data.collection.icon || "📍",
+    itemCount: data.entities.length,
+  };
 }

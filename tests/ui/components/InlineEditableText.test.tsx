@@ -3,7 +3,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import { InlineEditableText } from "@/components/inputs/InlineEditableText";
+import { InlineEditableText } from "@synarava/ui-kit";
 
 interface HarnessProps {
   initialValue?: string;
